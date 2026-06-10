@@ -12,6 +12,41 @@
     <string name="app_name">Freedoom</string>
     <string name="start_full">Launch</string>
     <string name="start_wads">Addons</string>
+
+    <!-- Compose launcher UI (new keys, English only — translations come via Transifex) -->
+    <string name="select_game_header">Select game</string>
+    <string name="no_wads_found">No WADs found</string>
+    <string name="refresh_button">Refresh</string>
+    <string name="open_options_button">Open options</string>
+    <string name="preparing_game_data">Preparing game data…</string>
+    <string name="addons_header">Add-ons</string>
+    <string name="add_mods_button">Add mods</string>
+    <string name="no_mods_selected">No add-ons selected</string>
+    <string name="extra_args_label">Extra arguments</string>
+    <string name="args_history">Argument history</string>
+    <string name="clear_args">Clear arguments</string>
+    <string name="select_game_to_launch">Select a game to launch</string>
+    <string name="launch_disabled_hint">Select a game on the left to launch.</string>
+    <string name="mod_picker_title">Select add-ons</string>
+    <string name="mod_picker_wads" translatable="false">WADs</string>
+    <string name="mod_picker_mods" translatable="false">Mods</string>
+    <string name="mod_picker_empty">Copy add-on WADs or mods to:\n%1$s</string>
+    <string name="selected_count">%1$d selected</string>
+    <string name="clear_button">Clear</string>
+    <string name="done_button">Done</string>
+    <string name="remove_mod">Remove</string>
+    <string name="up_one_level">Up one level</string>
+    <string name="performance_header">Performance</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="sdcard_warning_title">Warning</string>
+    <string name="sdcard_warning_message">This will use the special location on the external SD card which can be written to by this app. Android will DELETE this area when you uninstall the app and you will LOSE YOUR SAVEGAMES and game data!</string>
+    <string name="sdcard_not_found">Cannot find an external SD card. Is the card inserted?</string>
+    <string name="error_not_directory">%1$s is not a directory</string>
+    <string name="error_not_writable">%1$s is not writable</string>
+    <string name="error_contains_spaces">%1$s must not contain any spaces</string>
+    <string name="new_folder_button">New folder</string>
+    <string name="new_folder_name_prompt">New folder name</string>
+    <string name="create_folder_failed">Failed to create \'%1$s\' folder</string>
     <!-- gamepad fragment -->
     <string name="enable_game_pad_toggle">Enable Game Pad</string>
     <string name="hide_touch_controls_toggle">Hide Touch Controls</string>

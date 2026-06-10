@@ -1,22 +1,20 @@
 package net.nullsum.freedoom
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
-import androidx.viewpager2.adapter.FragmentStateAdapter
-import androidx.viewpager2.widget.ViewPager2
 import com.beloko.touchcontrols.GamePadFragment
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
+import net.nullsum.freedoom.ui.MainScreen
+import net.nullsum.freedoom.ui.theme.DoomTheme
 
 class EntryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_quake)
+        enableEdgeToEdge()
 
         AppSettings.reloadSettings(application)
         // App-specific external storage needs no runtime permission on modern Android.
@@ -24,37 +22,13 @@ class EntryActivity : AppCompatActivity() {
 
         GamePadFragment.gamepadActions = Utils.getGameGamepadConfig(resources)
 
-        val viewPager = findViewById<ViewPager2>(R.id.view_pager)
-        val tabLayout = findViewById<TabLayout>(R.id.tab_layout)
-
-        val titles = listOf(
-            getString(R.string.app_name),
-            getString(R.string.gamepad_tab),
-            getString(R.string.options_tab),
-        )
-
-        viewPager.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount(): Int = 3
-
-            override fun createFragment(position: Int): Fragment = when (position) {
-                0 -> LaunchFragmentGZdoom()
-                1 -> GamePadFragment()
-                else -> OptionsFragment()
+        setContent {
+            DoomTheme {
+                MainScreen()
             }
         }
-        // Keep the gamepad fragment resident so input forwarding works while another tab is shown.
-        viewPager.offscreenPageLimit = 2
-
-        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = titles[position]
-        }.attach()
     }
 
-    fun restart() {
-        val intent = Intent(this, EntryActivity::class.java)
-        startActivity(intent)
-        finishAffinity()
-    }
 
     private fun gamePadFragment(): GamePadFragment? =
         supportFragmentManager.fragments.filterIsInstance<GamePadFragment>().firstOrNull()
