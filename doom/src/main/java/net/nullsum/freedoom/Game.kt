@@ -19,16 +19,22 @@ package net.nullsum.freedoom
 
 import android.app.Activity
 import android.content.Context
+import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Point
 import android.media.AudioTrack
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Message
 import android.util.Log
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Window
 import android.view.WindowManager
+import android.widget.FrameLayout
 import com.bda.controller.Controller
 import com.bda.controller.ControllerListener
 import com.bda.controller.StateEvent
@@ -47,7 +53,8 @@ class Game : Activity(), Handler.Callback {
     private val LOG = "Game"
     private var mogaController: Controller? = null
     private lateinit var act: Activity
-    private var surfaceWidth = -1
+    // Engine resolution (always landscape aspect), fixed in onCreate for the whole session
+    private var surfaceWidth = 0
     private var surfaceHeight = 0
     private var resDiv = 1
     private lateinit var controlInterp: ControlInterpreter
@@ -93,9 +100,26 @@ class Game : Activity(), Handler.Callback {
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         )
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+
         Utils.setImmersionMode(this)
 
+        // The engine resolution is fixed for the whole game session, so always use the
+        // landscape dimensions of the display; in portrait the view is letterboxed instead.
+        val displaySize = Point()
+        windowManager.defaultDisplay.getRealSize(displaySize)
+        surfaceWidth = maxOf(displaySize.x, displaySize.y)
+        surfaceHeight = minOf(displaySize.x, displaySize.y)
+
         startGame()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Utils.setImmersionMode(this)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -114,6 +138,7 @@ class Game : Activity(), Handler.Callback {
             TouchSettings.gamePadControlsFile,
             TouchSettings.gamePadEnabled
         )
+        controlInterp.setScreenSize(surfaceWidth, surfaceHeight)
 
         TouchControlsSettings.setup(act, engine)
         TouchControlsSettings.loadSettings(act)
@@ -135,7 +160,43 @@ class Game : Activity(), Handler.Callback {
         // This will keep the screen on, while your view is visible.
         glView.keepScreenOn = true
 
-        setContentView(glView)
+        // Touch coordinates are normalized against the laid-out view size, which in
+        // portrait is the letterboxed band rather than the full screen.
+        glView.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            if (v.width > 0 && v.height > 0) controlInterp.setScreenSize(v.width, v.height)
+        }
+
+        // Aspect-fit the GL view: fullscreen in landscape, centered letterboxed band in
+        // portrait. The engine buffer keeps its fixed landscape size either way.
+        val frame = object : FrameLayout(this) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                val w = MeasureSpec.getSize(widthMeasureSpec)
+                val h = MeasureSpec.getSize(heightMeasureSpec)
+                setMeasuredDimension(w, h)
+                if (w == 0 || h == 0) return
+                var childW = w
+                var childH = w * surfaceHeight / surfaceWidth
+                if (childH > h) {
+                    childH = h
+                    childW = h * surfaceWidth / surfaceHeight
+                }
+                glView.measure(
+                    MeasureSpec.makeMeasureSpec(childW, MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(childH, MeasureSpec.EXACTLY)
+                )
+            }
+        }
+        frame.setBackgroundColor(Color.BLACK)
+        frame.addView(
+            glView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+        )
+
+        setContentView(frame)
         glView.requestFocus()
         glView.isFocusableInTouchMode = true
     }
@@ -277,23 +338,11 @@ class Game : Activity(), Handler.Callback {
         override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
             Log.d("Renderer", String.format("onSurfaceChanged %dx%d", width, height))
 
-            if (surfaceWidth == -1) {
-                surfaceWidth = width
-                surfaceHeight = height
-            }
-
             if (!SDLinited) {
                 SDLLib.nativeInit(false)
                 SDLLib.surfaceChanged(PixelFormat.RGBA_8888, surfaceWidth / resDiv, surfaceHeight / resDiv)
                 SDLinited = true
             }
-
-            //Display display = ((WindowManager) act.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
-            //Point size = new Point();
-            //display.getSize(size);
-            controlInterp.setScreenSize(surfaceWidth, surfaceHeight)
-
-            //controlInterp.setScreenSize(width, height);
         }
     } // end of QuakeRenderer
 }

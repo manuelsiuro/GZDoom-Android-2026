@@ -48,7 +48,6 @@
             android:exported="true"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:launchMode="singleInstance"
-            android:screenOrientation="sensorLandscape"
             android:windowSoftInputMode="stateHidden"
             tools:ignore="DiscouragedApi">
             <intent-filter>
@@ -61,10 +60,10 @@
         <activity
             android:name=".Game"
             android:exported="false"
-            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize|density"
             android:launchMode="singleTop"
             android:process=":Game"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="fullUser"
             tools:ignore="DiscouragedApi" />
     </application>
 
