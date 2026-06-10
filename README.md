@@ -15,10 +15,22 @@ running, and **playable on modern 64-bit Android devices**.
 
 - **100% Kotlin.** All 38 Java sources converted to Kotlin (app code + the vendored libSDL and
   DragSortListView libraries), preserving the exact JNI contract with the native engine.
-- **Modern Android (targets Android 14/15, API 34/35).**
-  - `ViewPager2` + Material `TabLayout` (replacing the removed `ActionBar` navigation tabs).
+- **Jetpack Compose Material 3 launcher.** The whole launcher UI was rewritten in Compose with a
+  dark Doom theme (blood-red / bone-amber on near-black):
+  - Two-pane launch screen: WAD cards with size and selected state, big Launch button.
+  - Add-ons are first-class: a bottom-sheet picker browses `wads/`/`mods/` with checkboxes
+    (folders included — no more long-press), selections show as removable chips, and `.deh`/`.bex`
+    patches map to `-deh` automatically.
+  - Command-line args field with history dropdown; Options tab with data-folder picker and
+    resolution divider.
+  - First-run unpacking now shows a progress indicator (the old 10-second activity-restart hack
+    is gone).
+  - The in-game UI is untouched: the engine command-line contract is byte-identical (guarded by
+    a unit test) and the gamepad-config screen stays View-based via Compose fragment interop.
+- **Modern Android (compileSdk 36, minSdk 23).**
   - **Scoped storage** via app-specific external dirs (no `WRITE_EXTERNAL_STORAGE`).
-  - `android:exported`, `WindowInsetsControllerCompat` immersive mode, `MODE_PRIVATE` prefs.
+  - `android:exported`, `WindowInsetsControllerCompat` immersive mode, `MODE_PRIVATE` prefs,
+    edge-to-edge launcher.
 - **64-bit ready.** Native libraries build for **`arm64-v8a`** *and* `armeabi-v7a`, so the app
   runs on today's 64-bit-only phones and satisfies the Google Play 64-bit requirement.
 - **16 KB page support** (Android 15+): native `.so` are 16 KB `LOAD`-aligned and packaged
@@ -46,7 +58,7 @@ ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/27.0.12077973 ./build_native.sh
 ```
 
 Because the prebuilt `.so` are committed, `./gradlew :doom:assembleDebug` produces a working APK
-on its own. Requirements: **JDK 17**, Android SDK (compileSdk 34), and **NDK r27** for the native
+on its own. Requirements: **JDK 17**, Android SDK (compileSdk 36), and **NDK r27** for the native
 build. `build_native.sh` auto-locates `ndk-build` (honours `ANDROID_NDK_HOME`). The full native
 source for the engine and its dependencies is vendored under `doom/src/main/jni/`.
 
@@ -75,6 +87,7 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
 - [x] Switch to [emileb's MobileTouchControls](https://github.com/emileb/MobileTouchControls)
 - [x] Remove the proprietary FMOD dependency (now OpenAL + FluidSynth)
 - [x] 16 KB page-size support for Android 15+
+- [x] Jetpack Compose Material 3 launcher UI (dark Doom theme, chip-based mod selection)
 - [ ] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x / Vulkan (modern GZDoom 4.x)
 - [ ] Integrate an idgames level browser/downloader
 - [ ] Add a "download WAD from URL" feature
