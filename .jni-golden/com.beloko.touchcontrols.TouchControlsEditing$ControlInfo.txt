@@ -1,0 +1,13 @@
+Compiled from "TouchControlsEditing.java"
+class com.beloko.touchcontrols.TouchControlsEditing$ControlInfo {
+  java.lang.String tag;
+    descriptor: Ljava/lang/String;
+  java.lang.String image;
+    descriptor: Ljava/lang/String;
+  boolean enabled;
+    descriptor: Z
+  boolean hidden;
+    descriptor: Z
+  com.beloko.touchcontrols.TouchControlsEditing$ControlInfo();
+    descriptor: ()V
+}

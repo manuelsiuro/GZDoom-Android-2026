@@ -1,0 +1,35 @@
+Compiled from "TouchControlsEditing.java"
+public class com.beloko.touchcontrols.TouchControlsEditing {
+  static java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  static com.beloko.touchcontrols.TouchControlsEditing$ListAdapter adapter;
+    descriptor: Lcom/beloko/touchcontrols/TouchControlsEditing$ListAdapter;
+  static android.app.Activity activity;
+    descriptor: Landroid/app/Activity;
+  public com.beloko.touchcontrols.TouchControlsEditing();
+    descriptor: ()V
+
+  public static native void JNIGetControlInfo(int, com.beloko.touchcontrols.TouchControlsEditing$ControlInfo);
+    descriptor: (ILcom/beloko/touchcontrols/TouchControlsEditing$ControlInfo;)V
+
+  public static native int JNIGetNbrControls();
+    descriptor: ()I
+
+  public static native void JNISetHidden(int, boolean);
+    descriptor: (IZ)V
+
+  public static void setup(android.app.Activity);
+    descriptor: (Landroid/app/Activity;)V
+
+  public static void show();
+    descriptor: ()V
+
+  public static void show(android.app.Activity);
+    descriptor: (Landroid/app/Activity;)V
+
+  private static void lambda$show$0();
+    descriptor: ()V
+
+  static {};
+    descriptor: ()V
+}

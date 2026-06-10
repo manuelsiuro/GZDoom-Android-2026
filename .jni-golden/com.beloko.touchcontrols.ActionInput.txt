@@ -1,0 +1,34 @@
+Compiled from "ActionInput.java"
+public class com.beloko.touchcontrols.ActionInput implements java.io.Serializable {
+  private static final long serialVersionUID;
+    descriptor: J
+  public java.lang.String tag;
+    descriptor: Ljava/lang/String;
+  public java.lang.String description;
+    descriptor: Ljava/lang/String;
+  public boolean invert;
+    descriptor: Z
+  public float scale;
+    descriptor: F
+  public int source;
+    descriptor: I
+  public com.beloko.touchcontrols.ControlConfig$Type sourceType;
+    descriptor: Lcom/beloko/touchcontrols/ControlConfig$Type;
+  public boolean sourcePositive;
+    descriptor: Z
+  public int actionCode;
+    descriptor: I
+  public com.beloko.touchcontrols.ControlConfig$Type actionType;
+    descriptor: Lcom/beloko/touchcontrols/ControlConfig$Type;
+  public com.beloko.touchcontrols.ActionInput(java.lang.String, java.lang.String, int, com.beloko.touchcontrols.ControlConfig$Type);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;ILcom/beloko/touchcontrols/ControlConfig$Type;)V
+
+  public com.beloko.touchcontrols.ActionInput(java.lang.String, java.lang.String, int, com.beloko.touchcontrols.ControlConfig$Type, com.beloko.touchcontrols.ControlConfig$Type, int);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;ILcom/beloko/touchcontrols/ControlConfig$Type;Lcom/beloko/touchcontrols/ControlConfig$Type;I)V
+
+  public com.beloko.touchcontrols.ActionInput(java.lang.String, java.lang.String, int, com.beloko.touchcontrols.ControlConfig$Type, com.beloko.touchcontrols.ControlConfig$Type, int, boolean);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;ILcom/beloko/touchcontrols/ControlConfig$Type;Lcom/beloko/touchcontrols/ControlConfig$Type;IZ)V
+
+  public java.lang.String toString();
+    descriptor: ()Ljava/lang/String;
+}

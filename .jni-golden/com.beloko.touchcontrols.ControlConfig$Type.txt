@@ -1,0 +1,25 @@
+Compiled from "ControlConfig.java"
+public final class com.beloko.touchcontrols.ControlConfig$Type extends java.lang.Enum<com.beloko.touchcontrols.ControlConfig$Type> {
+  public static final com.beloko.touchcontrols.ControlConfig$Type ANALOG;
+    descriptor: Lcom/beloko/touchcontrols/ControlConfig$Type;
+  public static final com.beloko.touchcontrols.ControlConfig$Type BUTTON;
+    descriptor: Lcom/beloko/touchcontrols/ControlConfig$Type;
+  public static final com.beloko.touchcontrols.ControlConfig$Type MENU;
+    descriptor: Lcom/beloko/touchcontrols/ControlConfig$Type;
+  private static final com.beloko.touchcontrols.ControlConfig$Type[] $VALUES;
+    descriptor: [Lcom/beloko/touchcontrols/ControlConfig$Type;
+  public static com.beloko.touchcontrols.ControlConfig$Type[] values();
+    descriptor: ()[Lcom/beloko/touchcontrols/ControlConfig$Type;
+
+  public static com.beloko.touchcontrols.ControlConfig$Type valueOf(java.lang.String);
+    descriptor: (Ljava/lang/String;)Lcom/beloko/touchcontrols/ControlConfig$Type;
+
+  private com.beloko.touchcontrols.ControlConfig$Type();
+    descriptor: (Ljava/lang/String;I)V
+
+  private static com.beloko.touchcontrols.ControlConfig$Type[] $values();
+    descriptor: ()[Lcom/beloko/touchcontrols/ControlConfig$Type;
+
+  static {};
+    descriptor: ()V
+}

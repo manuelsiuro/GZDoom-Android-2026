@@ -1,0 +1,35 @@
+Compiled from "ControlInterface.java"
+public interface com.beloko.touchcontrols.ControlInterface {
+  public abstract void initTouchControls_if(java.lang.String, int, int);
+    descriptor: (Ljava/lang/String;II)V
+
+  public abstract boolean touchEvent_if(int, int, float, float);
+    descriptor: (IIFF)Z
+
+  public abstract void keyPress_if(int, int, int);
+    descriptor: (III)V
+
+  public abstract void doAction_if(int, int);
+    descriptor: (II)V
+
+  public abstract void analogFwd_if(float);
+    descriptor: (F)V
+
+  public abstract void analogSide_if(float);
+    descriptor: (F)V
+
+  public abstract void analogPitch_if(int, float);
+    descriptor: (IF)V
+
+  public abstract void analogYaw_if(int, float);
+    descriptor: (IF)V
+
+  public abstract void setTouchSettings_if(float, float, float, float, float, int);
+    descriptor: (FFFFFI)V
+
+  public abstract void quickCommand_if(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  public abstract int mapKey(int, int);
+    descriptor: (II)I
+}

@@ -1,0 +1,166 @@
+Compiled from "SDLActivity.java"
+public class org.libsdl.app.SDLActivity extends android.app.Activity {
+  protected static final int COMMAND_USER;
+    descriptor: I
+  static final int COMMAND_CHANGE_TITLE;
+    descriptor: I
+  static final int COMMAND_UNUSED;
+    descriptor: I
+  static final int COMMAND_TEXTEDIT_HIDE;
+    descriptor: I
+  private static final java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  public static boolean mIsPaused;
+    descriptor: Z
+  public static boolean mIsSurfaceReady;
+    descriptor: Z
+  public static boolean mHasFocus;
+    descriptor: Z
+  protected static org.libsdl.app.SDLActivity mSingleton;
+    descriptor: Lorg/libsdl/app/SDLActivity;
+  protected static org.libsdl.app.SDLSurface mSurface;
+    descriptor: Lorg/libsdl/app/SDLSurface;
+  protected static android.view.View mTextEdit;
+    descriptor: Landroid/view/View;
+  protected static android.view.ViewGroup mLayout;
+    descriptor: Landroid/view/ViewGroup;
+  protected static java.lang.Thread mSDLThread;
+    descriptor: Ljava/lang/Thread;
+  protected static java.lang.Thread mAudioThread;
+    descriptor: Ljava/lang/Thread;
+  protected static android.media.AudioTrack mAudioTrack;
+    descriptor: Landroid/media/AudioTrack;
+  protected static javax.microedition.khronos.egl.EGLContext mEGLContext;
+    descriptor: Ljavax/microedition/khronos/egl/EGLContext;
+  protected static javax.microedition.khronos.egl.EGLSurface mEGLSurface;
+    descriptor: Ljavax/microedition/khronos/egl/EGLSurface;
+  protected static javax.microedition.khronos.egl.EGLDisplay mEGLDisplay;
+    descriptor: Ljavax/microedition/khronos/egl/EGLDisplay;
+  protected static javax.microedition.khronos.egl.EGLConfig mEGLConfig;
+    descriptor: Ljavax/microedition/khronos/egl/EGLConfig;
+  protected static int mGLMajor;
+    descriptor: I
+  protected static int mGLMinor;
+    descriptor: I
+  android.os.Handler commandHandler;
+    descriptor: Landroid/os/Handler;
+  public org.libsdl.app.SDLActivity();
+    descriptor: ()V
+
+  public static void loadSDL();
+    descriptor: ()V
+
+  public static void handlePause();
+    descriptor: ()V
+
+  public static void handleResume();
+    descriptor: ()V
+
+  public static native void nativeInit();
+    descriptor: ()V
+
+  public static native void nativeLowMemory();
+    descriptor: ()V
+
+  public static native void nativeQuit();
+    descriptor: ()V
+
+  public static native void nativePause();
+    descriptor: ()V
+
+  public static native void nativeResume();
+    descriptor: ()V
+
+  public static native void onNativeResize(int, int, int);
+    descriptor: (III)V
+
+  public static native void onNativeKeyDown(int);
+    descriptor: (I)V
+
+  public static native void onNativeKeyUp(int);
+    descriptor: (I)V
+
+  public static native void onNativeKeyboardFocusLost();
+    descriptor: ()V
+
+  public static native void onNativeTouch(int, int, int, float, float, float);
+    descriptor: (IIIFFF)V
+
+  public static native void onNativeAccel(float, float, float);
+    descriptor: (FFF)V
+
+  public static boolean createGLContext(int, int, int[]);
+    descriptor: (II[I)Z
+
+  public static void deleteGLContext();
+    descriptor: ()V
+
+  public static void flipBuffers();
+    descriptor: ()V
+
+  public static boolean setActivityTitle(java.lang.String);
+    descriptor: (Ljava/lang/String;)Z
+
+  public static boolean sendMessage(int, int);
+    descriptor: (II)Z
+
+  public static android.content.Context getContext();
+    descriptor: ()Landroid/content/Context;
+
+  public static boolean showTextInput(int, int, int, int);
+    descriptor: (IIII)Z
+
+  public static boolean initEGL(int, int, int[]);
+    descriptor: (II[I)Z
+
+  public static boolean createEGLContext();
+    descriptor: ()Z
+
+  public static boolean createEGLSurface();
+    descriptor: ()Z
+
+  public static void flipEGL();
+    descriptor: ()V
+
+  public static int audioInit(int, boolean, boolean, int);
+    descriptor: (IZZI)I
+
+  public static void audioWriteShortBuffer(short[]);
+    descriptor: ([S)V
+
+  public static void audioWriteByteBuffer(byte[]);
+    descriptor: ([B)V
+
+  public static void audioQuit();
+    descriptor: ()V
+
+  protected void onCreate(android.os.Bundle);
+    descriptor: (Landroid/os/Bundle;)V
+
+  protected void onPause();
+    descriptor: ()V
+
+  protected void onResume();
+    descriptor: ()V
+
+  public void onWindowFocusChanged(boolean);
+    descriptor: (Z)V
+
+  public void onLowMemory();
+    descriptor: ()V
+
+  protected void onDestroy();
+    descriptor: ()V
+
+  public boolean dispatchKeyEvent(android.view.KeyEvent);
+    descriptor: (Landroid/view/KeyEvent;)Z
+
+  protected boolean onUnhandledMessage(int, java.lang.Object);
+    descriptor: (ILjava/lang/Object;)Z
+
+  boolean sendCommand(int, java.lang.Object);
+    descriptor: (ILjava/lang/Object;)Z
+
+  static {};
+    descriptor: ()V
+}

@@ -1,0 +1,29 @@
+Compiled from "AssetFileAccess.java"
+public class com.beloko.AssetFileAccess {
+  static java.lang.String LOG;
+    descriptor: Ljava/lang/String;
+  static android.content.Context ctx;
+    descriptor: Landroid/content/Context;
+  static java.util.ArrayList<android.content.res.AssetFileDescriptor> openFiles;
+    descriptor: Ljava/util/ArrayList;
+  public com.beloko.AssetFileAccess();
+    descriptor: ()V
+
+  public static native void setAssetManager(android.content.res.AssetManager);
+    descriptor: (Landroid/content/res/AssetManager;)V
+
+  public static void init(android.content.Context);
+    descriptor: (Landroid/content/Context;)V
+
+  public static int fopen(java.lang.String, java.lang.String);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;)I
+
+  public static int flen(int);
+    descriptor: (I)I
+
+  private static android.content.res.AssetFileDescriptor getFd(int);
+    descriptor: (I)Landroid/content/res/AssetFileDescriptor;
+
+  static {};
+    descriptor: ()V
+}

@@ -90,6 +90,10 @@ SDL_AtomicTryLock(SDL_SpinLock *lock)
     /* pthread instructions */
     return (pthread_spin_trylock(lock) == 0);
 
+#elif defined(__GNUC__) && defined(__aarch64__)
+    /* arm64: SDL 1.x predates aarch64; use the GCC atomic builtin. */
+    return (__sync_lock_test_and_set(lock, 1) == 0);
+
 #else
 #error Please implement for your platform.
     return SDL_FALSE;
