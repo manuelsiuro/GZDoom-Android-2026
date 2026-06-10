@@ -22,6 +22,8 @@ import androidx.fragment.compose.AndroidFragment
 import com.beloko.touchcontrols.GamePadFragment
 import kotlinx.coroutines.launch
 import net.nullsum.freedoom.R
+import net.nullsum.freedoom.ui.browse.BrowseScreen
+import net.nullsum.freedoom.ui.browse.BrowseState
 import net.nullsum.freedoom.ui.launch.LaunchScreen
 import net.nullsum.freedoom.ui.launch.LaunchState
 import net.nullsum.freedoom.ui.options.OptionsScreen
@@ -30,12 +32,16 @@ import net.nullsum.freedoom.ui.options.OptionsScreen
 fun MainScreen() {
     val activity = requireNotNull(LocalActivity.current)
     val launchState = remember { LaunchState(activity) }
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { 4 })
     val scope = rememberCoroutineScope()
+    // Hoisted here (with MainScreen's scope) so in-flight downloads survive tab swipes
+    // even when the pager disposes the browse page.
+    val browseState = remember { BrowseState(activity, scope) }
     val titles = listOf(
         stringResource(R.string.app_name),
         stringResource(R.string.gamepad_tab),
         stringResource(R.string.options_tab),
+        stringResource(R.string.browse_tab),
     )
 
     // Re-scan when returning to the launch tab (e.g. after the base dir changed in Options).
@@ -66,7 +72,8 @@ fun MainScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            // Keep the gamepad fragment resident so input forwarding works from any tab
+            // Keep the gamepad fragment resident so input forwarding works from any tab:
+            // page 1 is at most 2 pages away from any of the 4 pages
             // (replaces ViewPager2's offscreenPageLimit = 2).
             beyondViewportPageCount = 2,
         ) { page ->
@@ -77,7 +84,8 @@ fun MainScreen() {
                     modifier = Modifier.fillMaxSize(),
                 )
                 1 -> AndroidFragment<GamePadFragment>(modifier = Modifier.fillMaxSize())
-                else -> OptionsScreen(modifier = Modifier.fillMaxSize())
+                2 -> OptionsScreen(modifier = Modifier.fillMaxSize())
+                else -> BrowseScreen(state = browseState, modifier = Modifier.fillMaxSize())
             }
         }
     }

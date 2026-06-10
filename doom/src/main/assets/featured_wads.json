@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "title": "Scythe",
+      "author": "Erik Alm",
+      "dir": "levels/doom2/megawads/",
+      "filename": "scythe.zip",
+      "size": 2086863,
+      "idgamesId": 11944,
+      "description": "32 short, fast, brilliantly paced vanilla maps. One of the most loved megawads ever made.",
+      "note": "Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Scythe 2",
+      "author": "Erik Alm",
+      "dir": "levels/doom2/Ports/megawads/",
+      "filename": "scythe2.zip",
+      "size": 8103001,
+      "idgamesId": 13600,
+      "description": "The bigger, harder sequel: 32 maps with new textures, from gothic ruins to brutal slaughter finales.",
+      "note": "Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Alien Vendetta",
+      "author": "Martin Aalen Hunsager & team",
+      "dir": "levels/doom2/megawads/",
+      "filename": "av.zip",
+      "size": 9041333,
+      "idgamesId": 11790,
+      "description": "A landmark 32-map megawad mixing classic adventure maps with epic large-scale battles.",
+      "note": "Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Hell Revealed",
+      "author": "Yonatan Donner & Haggay Niv",
+      "dir": "themes/hr/",
+      "filename": "hr.zip",
+      "size": 2322399,
+      "idgamesId": 7947,
+      "description": "The original hard-as-nails megawad. 32 maps built purely around vicious, fair combat.",
+      "note": "Very difficult. Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Memento Mori II",
+      "author": "Various",
+      "dir": "themes/mm/",
+      "filename": "mm2.zip",
+      "size": 4061135,
+      "idgamesId": 6562,
+      "description": "Classic 1996 community megawad: 32 polished maps with an original soundtrack and new graphics.",
+      "note": "Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Requiem",
+      "author": "Various (Iikka Keränen et al.)",
+      "dir": "levels/doom2/megawads/",
+      "filename": "requiem.zip",
+      "size": 3987788,
+      "idgamesId": 8194,
+      "description": "32 maps famous for pushing the vanilla engine to its limits with stunning custom architecture.",
+      "note": "Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Icarus: Alien Vanguard",
+      "author": "TeamTNT",
+      "dir": "themes/TeamTNT/icarus/",
+      "filename": "icarus.zip",
+      "size": 2849657,
+      "idgamesId": 5191,
+      "description": "TeamTNT's sci-fi megawad: 32 maps aboard a starship, on planets, and in simulation chambers.",
+      "note": "Play with Freedoom Phase 2 selected."
+    },
+    {
+      "title": "Eternal Doom",
+      "author": "Team Eternal / TeamTNT",
+      "dir": "themes/TeamTNT/eternal/",
+      "filename": "eternal.zip",
+      "size": 9465652,
+      "idgamesId": 8688,
+      "description": "Huge, ornate medieval-castle maps full of exploration and puzzles. A slower, grander kind of Doom.",
+      "note": "Play with Freedoom Phase 2 selected."
+    }
+  ]
+}

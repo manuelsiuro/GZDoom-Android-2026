@@ -108,6 +108,42 @@
     <string name="reset_button_text">Reset</string>
     <string name="choose_button_text">Choose</string>
 
+    <!-- browse tab (idgames archive WAD downloader) -->
+    <string name="browse_tab">browse</string>
+    <string name="browse_search_hint">Search idgames archive…</string>
+    <string name="browse_search_button">Search</string>
+    <string name="browse_type_title" translatable="false">Title</string>
+    <string name="browse_type_filename" translatable="false">Filename</string>
+    <string name="browse_type_author" translatable="false">Author</string>
+    <string name="browse_featured_header">Featured classics</string>
+    <string name="browse_latest_header">Latest uploads</string>
+    <string name="browse_results_header">Results</string>
+    <string name="browse_no_results">No results</string>
+    <string name="browse_query_too_short">Enter at least 3 characters</string>
+    <string name="browse_download">Download</string>
+    <string name="browse_cancel_download">Cancel</string>
+    <string name="browse_installed">Installed</string>
+    <string name="browse_installed_hint">Find it under wads/%1$s in the add-on picker</string>
+    <string name="browse_unzipping">Unpacking…</string>
+    <string name="browse_error_offline">Can\'t reach the idgames archive. Check your connection.</string>
+    <string name="browse_error_api">Archive error: %1$s</string>
+    <string name="browse_error_mirrors">Download failed on all mirrors</string>
+    <string name="browse_error_no_files">Archive contained no usable WAD/PK3 files</string>
+    <string name="browse_retry">Retry</string>
+    <string name="browse_rating" translatable="false">★ %1$.1f (%2$d)</string>
+    <string name="browse_by_author">by %1$s</string>
+    <string name="browse_powered_by">Content from the Doomworld /idgames archive</string>
+    <string name="browse_classic_header">Classic games (shareware &amp; freeware)</string>
+    <string name="browse_installed_iwad_hint">Appears in Select game on the Freedoom tab</string>
+    <string name="browse_delete">Delete</string>
+    <string name="browse_delete_confirm_title">Delete download?</string>
+    <string name="browse_delete_confirm_msg">%1$s will be removed from storage. You can download it again later.</string>
+    <string name="browse_commercial_header">Commercial games (bring your own copy)</string>
+    <string name="browse_commercial_disclaimer">These games are still sold and are not free to download. If you own a copy (Steam, GOG, a disc…), import its .wad file here. The wad is usually inside the game\'s install folder.</string>
+    <string name="browse_import">Import WAD</string>
+    <string name="browse_import_failed">Couldn\'t import that file</string>
+    <string name="browse_imported_hint">Imported — appears in Select game on the Freedoom tab</string>
+
     <string-array name="double_tap_actions">
         <item>None</item>
         <item>Shoot</item>

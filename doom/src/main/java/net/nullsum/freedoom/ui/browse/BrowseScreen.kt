@@ -1,0 +1,359 @@
+package net.nullsum.freedoom.ui.browse
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import java.util.Locale
+import net.nullsum.freedoom.R
+import net.nullsum.freedoom.idgames.IdgamesApi
+import net.nullsum.freedoom.ui.DoomIcons
+
+/** The browse tab: search/browse the idgames archive and download WADs. */
+@Composable
+fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
+    LaunchedEffect(Unit) { state.initialize() }
+
+    var importTarget by remember { mutableStateOf<BrowseEntry?>(null) }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        importTarget?.let { entry -> if (uri != null) state.importIwad(uri, entry) }
+        importTarget = null
+    }
+    val onImport: (BrowseEntry) -> Unit = { entry ->
+        importTarget = entry
+        importLauncher.launch(arrayOf("*/*"))
+    }
+
+    LazyColumn(
+        modifier = modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item(key = "search") { SearchControls(state) }
+
+        if (state.errorRes != null) {
+            item(key = "error") { ErrorBanner(state) }
+        }
+
+        if (!state.showingSearch && state.featured.isNotEmpty()) {
+            item(key = "featured-header") { SectionHeader(stringResource(R.string.browse_featured_header)) }
+            items(state.featured, key = { "featured-${it.filename}" }) { entry ->
+                BrowseRow(state, entry.toBrowseEntry(), onImport)
+            }
+        }
+
+        if (!state.showingSearch && state.classics.isNotEmpty()) {
+            item(key = "classic-header") { SectionHeader(stringResource(R.string.browse_classic_header)) }
+            items(state.classics, key = { "classic-${it.filename}" }) { entry ->
+                BrowseRow(state, entry.toBrowseEntry(), onImport)
+            }
+        }
+
+        if (!state.showingSearch && state.commercial.isNotEmpty()) {
+            item(key = "commercial-header") {
+                SectionHeader(stringResource(R.string.browse_commercial_header))
+            }
+            item(key = "commercial-disclaimer") {
+                Text(
+                    stringResource(R.string.browse_commercial_disclaimer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            items(state.commercial, key = { "commercial-${it.filename}" }) { entry ->
+                BrowseRow(state, entry.toBrowseEntry(), onImport)
+            }
+        }
+
+        item(key = "results-header") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SectionHeader(
+                    stringResource(
+                        if (state.showingSearch) R.string.browse_results_header
+                        else R.string.browse_latest_header,
+                    ),
+                )
+                if (state.isSearching) {
+                    Spacer(Modifier.size(12.dp))
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                }
+            }
+        }
+        if (state.results.isEmpty() && !state.isSearching && state.errorRes == null) {
+            item(key = "no-results") {
+                Text(
+                    stringResource(R.string.browse_no_results),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(state.results, key = { "result-${it.id}" }) { file ->
+            BrowseRow(state, file.toBrowseEntry(), onImport)
+        }
+
+        item(key = "footer") {
+            Text(
+                stringResource(R.string.browse_powered_by),
+                modifier = Modifier.padding(vertical = 12.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    state.selectedEntry?.let { entry ->
+        BrowseDetailSheet(
+            entry = entry,
+            status = state.downloads[entry.downloadKey],
+            isInstalled = state.isInstalled(entry),
+            onDownload = { state.startDownload(entry) },
+            onImport = { onImport(entry) },
+            onCancel = { state.cancelDownload(entry.downloadKey) },
+            onDelete = { state.pendingDelete = entry },
+            onDismiss = { state.selectedEntry = null },
+        )
+    }
+
+    state.pendingDelete?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { state.pendingDelete = null },
+            title = { Text(stringResource(R.string.browse_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.browse_delete_confirm_msg, entry.title)) },
+            confirmButton = {
+                TextButton(onClick = { state.delete(entry) }) {
+                    Text(stringResource(R.string.browse_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { state.pendingDelete = null }) {
+                    Text(stringResource(R.string.browse_cancel_download))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SearchControls(state: BrowseState) {
+    Column(Modifier.padding(top = 16.dp)) {
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = { state.query = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.browse_search_hint)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { state.search() }),
+            trailingIcon = {
+                IconButton(onClick = { state.search() }) {
+                    Icon(DoomIcons.Search, contentDescription = stringResource(R.string.browse_search_button))
+                }
+            },
+        )
+        Spacer(Modifier.height(8.dp))
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            val types = listOf(
+                IdgamesApi.SearchType.TITLE to R.string.browse_type_title,
+                IdgamesApi.SearchType.FILENAME to R.string.browse_type_filename,
+                IdgamesApi.SearchType.AUTHOR to R.string.browse_type_author,
+            )
+            types.forEachIndexed { index, (type, labelRes) ->
+                SegmentedButton(
+                    selected = state.searchType == type,
+                    onClick = { state.searchType = type },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
+                ) {
+                    Text(stringResource(labelRes))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorBanner(state: BrowseState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                state.errorRes?.let { res ->
+                    val detail = state.errorDetail
+                    if (detail != null) stringResource(res, detail) else stringResource(res)
+                }.orEmpty(),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            TextButton(onClick = { state.retry() }) {
+                Text(stringResource(R.string.browse_retry))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text,
+        modifier = Modifier.padding(top = 8.dp),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.tertiary,
+    )
+}
+
+@Composable
+private fun BrowseRow(state: BrowseState, entry: BrowseEntry, onImport: (BrowseEntry) -> Unit) {
+    val status = state.downloads[entry.downloadKey]
+    Card(
+        onClick = { state.selectedEntry = entry },
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    entry.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    listOfNotNull(
+                        entry.author?.takeIf { it.isNotBlank() }
+                            ?.let { stringResource(R.string.browse_by_author, it) },
+                        formatSize(entry.size).takeIf { entry.size > 0 },
+                        entry.rating?.let { rating ->
+                            stringResource(R.string.browse_rating, rating, entry.votes ?: 0)
+                        },
+                    ).joinToString("  ·  "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+            RowAction(state, entry, status, onImport)
+        }
+    }
+}
+
+@Composable
+private fun RowAction(
+    state: BrowseState,
+    entry: BrowseEntry,
+    status: DownloadStatus?,
+    onImport: (BrowseEntry) -> Unit,
+) {
+    when {
+        state.isInstalled(entry) || status is DownloadStatus.Installed -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.browse_installed),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            IconButton(onClick = { state.pendingDelete = entry }) {
+                Icon(
+                    DoomIcons.Delete,
+                    contentDescription = stringResource(R.string.browse_delete),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        status is DownloadStatus.Downloading -> Row(verticalAlignment = Alignment.CenterVertically) {
+            DownloadProgressBar(status, Modifier.size(width = 72.dp, height = 6.dp))
+            TextButton(onClick = { state.cancelDownload(entry.downloadKey) }) {
+                Text(stringResource(R.string.browse_cancel_download))
+            }
+        }
+        status is DownloadStatus.Unzipping -> Text(
+            stringResource(R.string.browse_unzipping),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        entry.importOnly -> OutlinedButton(onClick = { onImport(entry) }) {
+            Icon(DoomIcons.Download, contentDescription = null, Modifier.size(18.dp))
+            Spacer(Modifier.size(6.dp))
+            Text(stringResource(R.string.browse_import))
+        }
+        else -> Button(onClick = { state.startDownload(entry) }) {
+            Icon(DoomIcons.Download, contentDescription = null, Modifier.size(18.dp))
+            Spacer(Modifier.size(6.dp))
+            Text(stringResource(R.string.browse_download))
+        }
+    }
+}
+
+@Composable
+fun DownloadProgressBar(status: DownloadStatus.Downloading, modifier: Modifier = Modifier) {
+    if (status.total > 0) {
+        LinearProgressIndicator(
+            progress = { (status.bytes.toFloat() / status.total).coerceIn(0f, 1f) },
+            modifier = modifier,
+        )
+    } else {
+        LinearProgressIndicator(modifier = modifier)
+    }
+}
+
+fun formatSize(bytes: Long): String = when {
+    bytes >= 1 shl 20 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
+    bytes >= 1 shl 10 -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
+    else -> "$bytes B"
+}

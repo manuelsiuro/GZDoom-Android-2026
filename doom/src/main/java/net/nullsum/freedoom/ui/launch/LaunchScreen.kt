@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,12 +120,21 @@ private fun GameListPane(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
-        Text(
-            stringResource(R.string.select_game_header),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.tertiary,
-        )
-        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.select_game_header),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                onClick = { state.clearSelection() },
+                enabled = state.selectedGame != null || state.selectedMods.isNotEmpty(),
+            ) {
+                Text(stringResource(R.string.reset_button_text))
+            }
+        }
+        Spacer(Modifier.height(4.dp))
 
         if (state.games.isEmpty()) {
             EmptyGamesState(state.baseDir, onRefresh, onOpenOptions)

@@ -91,6 +91,18 @@ class LaunchState(private val activity: Activity) {
         AppSettings.setStringOption(activity, "last_iwad_name", entry.file)
     }
 
+    /**
+     * Clears the game selection, mod chips and the persisted last-IWAD prefs — the
+     * escape hatch when a broken WAD would otherwise be auto-reselected every launch.
+     * Keeps the extra-args field.
+     */
+    fun clearSelection() {
+        selectedGame = null
+        selectedMods.clear()
+        AppSettings.setIntOption(activity, "last_iwad", -1)
+        AppSettings.setStringOption(activity, "last_iwad_name", "")
+    }
+
     /** Ports LaunchFragmentGZdoom.startGame() — the Intent contract must stay identical. */
     suspend fun launchGame() {
         val game = selectedGame ?: return

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "title": "Doom / Ultimate Doom",
+      "filename": "doom.wad",
+      "description": "The full original Doom (or The Ultimate Doom with the fourth episode). Knee-Deep in the Dead, The Shores of Hell, Inferno.",
+      "note": "Import doom.wad (or doomu.wad) from your purchased copy."
+    },
+    {
+      "title": "Doom II: Hell on Earth",
+      "filename": "doom2.wad",
+      "description": "The 1994 sequel — 32 levels across Earth and Hell, introducing the super shotgun and the final boss.",
+      "note": "Import doom2.wad from your purchased copy."
+    },
+    {
+      "title": "Final Doom: TNT Evilution",
+      "filename": "tnt.wad",
+      "description": "TeamTNT's 32-level megawad, released commercially as half of Final Doom.",
+      "note": "Import tnt.wad from your purchased copy."
+    },
+    {
+      "title": "Final Doom: The Plutonia Experiment",
+      "filename": "plutonia.wad",
+      "description": "The Casali brothers' notoriously hard 32-level half of Final Doom.",
+      "note": "Import plutonia.wad from your purchased copy."
+    },
+    {
+      "title": "Heretic",
+      "filename": "heretic.wad",
+      "description": "Raven Software's full dark-fantasy shooter — the registered five-episode version.",
+      "note": "Import heretic.wad from your purchased copy."
+    },
+    {
+      "title": "Hexen: Beyond Heretic",
+      "filename": "hexen.wad",
+      "description": "Raven's class-based fantasy sequel with hub-based levels and puzzles.",
+      "note": "Import hexen.wad from your purchased copy."
+    },
+    {
+      "title": "Strife: Quest for the Sigil",
+      "filename": "strife1.wad",
+      "description": "Rogue Entertainment's full RPG-shooter hybrid with dialogue, quests and multiple endings.",
+      "note": "Import strife1.wad from your purchased copy."
+    }
+  ]
+}

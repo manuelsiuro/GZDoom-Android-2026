@@ -13,6 +13,18 @@ running, and **playable on modern 64-bit Android devices**.
 
 ## ✨ What's new in 2026
 
+- **Built-in WAD browser & downloader.** A new **Browse** tab fetches add-ons straight from the
+  Doomworld [/idgames archive](https://www.doomworld.com/idgames/) — search by title/filename/author,
+  see ratings and sizes, and one-tap download (with mirror fail-over) that unzips into the add-on
+  folder so it shows up immediately in the launcher. Extras:
+  - A curated **Featured classics** shelf (Scythe, Alien Vendetta, Hell Revealed, Requiem…).
+  - A **Classic games** shelf that downloads the freely-distributable shareware/freeware IWADs
+    (Doom shareware, Heretic shareware, Hexen/Strife demos, Chex Quest 1 & 3).
+  - A **Commercial games — bring your own copy** shelf: the still-sold games (Doom, Doom II, Final
+    Doom, Heretic, Hexen, Strife) are *never* downloaded; instead you **import your own `.wad`**
+    from a copy you bought via the Android file picker — the same model GZDoom uses on PC.
+  - **Delete** any downloaded/imported file from inside the app, and a **Reset** button on the
+    launch screen to clear a stuck game/mod selection.
 - **100% Kotlin.** All 38 Java sources converted to Kotlin (app code + the vendored libSDL and
   DragSortListView libraries), preserving the exact JNI contract with the native engine.
 - **Jetpack Compose Material 3 launcher.** The whole launcher UI was rewritten in Compose with a
@@ -88,9 +100,10 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
 - [x] Remove the proprietary FMOD dependency (now OpenAL + FluidSynth)
 - [x] 16 KB page-size support for Android 15+
 - [x] Jetpack Compose Material 3 launcher UI (dark Doom theme, chip-based mod selection)
+- [x] Integrate an idgames level browser/downloader (Browse tab)
+- [x] Add a WAD-download feature (idgames + classic shareware/freeware games)
+- [x] Import-your-own-copy flow for the commercial IWADs (Doom, Doom II, Final Doom, …)
 - [ ] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x / Vulkan (modern GZDoom 4.x)
-- [ ] Integrate an idgames level browser/downloader
-- [ ] Add a "download WAD from URL" feature
 
 ## Links to the Freedoom community
 [Freedoom official GitHub](https://github.com/freedoom/freedoom) ·

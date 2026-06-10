@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "title": "Doom (shareware)",
+      "filename": "doom1.wad",
+      "size": 4196020,
+      "description": "Knee-Deep in the Dead — the full first episode of the original 1993 Doom, freely distributable shareware.",
+      "note": "Shareware: the engine blocks loading add-on files with this IWAD."
+    },
+    {
+      "title": "Heretic (shareware)",
+      "filename": "heretic1.wad",
+      "size": 5120920,
+      "description": "City of the Damned — the first episode of Raven Software's dark-fantasy shooter, shareware release.",
+      "note": "Shareware episode of Heretic."
+    },
+    {
+      "title": "Hexen (demo)",
+      "filename": "hexendemo.wad",
+      "size": 10644136,
+      "description": "The four-map demo of Hexen: Beyond Heretic, with the Fighter, Cleric and Mage classes.",
+      "note": "Free demo version of Hexen."
+    },
+    {
+      "title": "Strife (demo)",
+      "filename": "strife0.wad",
+      "size": 9934413,
+      "description": "The free teaser of Strife, Rogue Entertainment's RPG-shooter hybrid set in a war-torn medieval future.",
+      "note": "Free teaser version of Strife."
+    },
+    {
+      "title": "Chex Quest",
+      "filename": "chex.wad",
+      "size": 12361532,
+      "description": "The legendary 1996 cereal-box game: a kid-friendly total conversion where you zorch Flemoids instead of demons. Freeware.",
+      "note": "Freeware promotional game."
+    },
+    {
+      "title": "Chex Quest 3",
+      "filename": "chex3.wad",
+      "size": 19191031,
+      "description": "The official 2008 freeware sequel by original artist Charles Jacobi, bundling remastered versions of all three Chex Quest episodes.",
+      "note": "Freeware."
+    }
+  ]
+}
