@@ -76,6 +76,17 @@ source for the engine and its dependencies is vendored under `doom/src/main/jni/
 
 See [`CLAUDE.md`](CLAUDE.md) for the architecture and build details.
 
+### Known limitation: sprite transparency on the Android Emulator
+
+On the Android Emulator, enemies, pickups, and the HUD weapon render inside **opaque black
+rectangles**. This is an emulator artifact, not an engine bug: the engine uses the legacy
+GL ES 1.1 fixed-function pipeline (alpha test + texture-alpha blending), and the emulator's
+GLES1 translation chain (`libGLESv1_CM_emulation.so` → "OpenGL ES Translator" → host GL →
+Metal on Mac hosts) mishandles fixed-function fragment alpha. The same APK renders correctly
+on real devices (verified on a Samsung Galaxy S24). If you need correct rendering in the
+emulator, cold-boot the AVD with software rendering — `emulator -avd <name> -gpu
+swiftshader_indirect` — or do visual checks on hardware.
+
 ## Third-party components
 
 - **Engine:** [emileb/gzdoom](https://github.com/emileb/gzdoom) — maintained, FMOD-free
