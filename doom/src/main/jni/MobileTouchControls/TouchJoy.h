@@ -11,61 +11,76 @@
 namespace touchcontrols
 {
 
-class TouchJoy : public ControlSuper
-{
-	bool pressed;
-	bool hideGraphics;
+    class TouchJoy : public ControlSuper
+    {
+        bool pressed;
+        bool hideGraphics;
 
-	int id;
+    public: // SWAPFIX. Make this avaible to the other TouchJoy
+        int pid;
+    private:
 
-	std::string image;
+        std::string floating_image;
+        std::string background_image;
 
-	GLuint glTex;
+        GLuint glTex;
+        GLuint glTexBackground;
 
-	GLRect glRect;
+        GLRect glRect;
 
-	PointF valueTouch;
-	PointF valueJoy;
+        PointF valueTouch;
+        PointF valueJoy;
 
-	PointF last;
-	PointF fingerPos;
-	PointF anchor;
-	int glitchFix;
+        PointF last;
+        PointF fingerPos;
+        PointF anchor;
+        int glitchFix;
+
+        // Anchor point is centre of control, not where first tapped
+        bool centerAnchor;
+
+        // POINTER SWAP FIX
+        TouchJoy *otherTouchJoySWAPFIX;
+
+        //Double tap stuff
+        int doubleTapState; //0 = waiting for first press, 1 = waiting for first lift,
+        double doubleTapCounter;
+    public:
+        sigc::signal<void, float, float, float, float> signal_move;
+
+        sigc::signal<void, int> signal_double_tap;
 
 
-	//Double tap stuff
-	int doubleTapState; //0 = waiting for first press, 1 = waiting for first lift,
-	double doubleTapCounter;
-public:
-	sigc::signal<void, float,float,float,float> signal_move;
+        TouchJoy(std::string tag, RectF pos, std::string floating_image, std::string background_image);
 
-	sigc::signal<void, int> signal_double_tap;
+        void setCenterAnchor(bool v);
 
+        void setHideGraphics(bool v);
 
-	TouchJoy(std::string tag,RectF pos,std::string image_filename);
+        void resetOutput();
 
-	void setHideGraphics(bool v);
+        bool processPointer(int action, int pid, float x, float y);
 
-    void resetOutput();
+        bool drawGL(bool forEditor = false);
 
-	bool processPointer(int action, int pid, float x, float y);
+        bool initGL();
 
-	bool drawGL(bool forEditor = false);
+        void updateSize();
 
-	bool initGL();
+        void registerTouchJoySWAPFIX(TouchJoy *other);
 
-	void updateSize();
+        void saveXML(TiXmlDocument &doc);
 
-	void saveXML(TiXmlDocument &doc);
+        void loadXML(TiXmlDocument &doc);
 
-	void loadXML(TiXmlDocument &doc);
-private:
+    private:
 
-	void reset();
-	void calcNewValue();
-	void doUpdate();
-	double getMS();
-};
+        void reset();
+
+        void calcNewValue();
+
+        void doUpdate();
+    };
 
 }
 

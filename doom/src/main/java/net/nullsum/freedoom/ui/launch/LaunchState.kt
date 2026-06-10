@@ -40,6 +40,7 @@ class LaunchState(private val activity: Activity) {
     private val excludedFiles = setOf(
         "prboom-plus.wad", "gzdoom.pk3", "gzdoom_dev.pk3",
         "lights_dt.pk3", "brightmaps_dt.pk3", "lights.pk3", "brightmaps.pk3",
+        "game_widescreen_gfx.pk3", "game_support.pk3", "gzdoom_dev_gl3.pk3",
     )
 
     /** First-run unpack + initial scan. Replaces the legacy 10-second restart hack. */
@@ -109,8 +110,18 @@ class LaunchState(private val activity: Activity) {
         val base = baseDir
 
         withContext(Dispatchers.IO) {
-            Utils.copyAsset(activity, "gzdoom.pk3", base)
+            // GZDoom 4.15 (__MOBILE__) loads its base data from ./res relative
+            // to the game dir: res/gzdoom_dev_gl3.pk3 + res/game_support.pk3.
+            Utils.copyAsset(activity, "gzdoom_dev_gl3.pk3", "$base/res")
+            Utils.copyAsset(activity, "game_support.pk3", "$base/res")
+            Utils.copyAsset(activity, "game_widescreen_gfx.pk3", base)
+            // Autoload extras are searched via $PROGDIR (= the game dir).
+            Utils.copyAsset(activity, "lights.pk3", base)
+            Utils.copyAsset(activity, "brightmaps.pk3", base)
+            // fluid_patchset gzdoom.sf2 resolves against the game dir; also
+            // expose it in soundfonts/ for the engine's sound-font menu.
             Utils.copyAsset(activity, "gzdoom.sf2", base)
+            Utils.copyAsset(activity, "gzdoom.sf2", "$base/soundfonts")
         }
 
         val trimmedArgs = extraArgs.trim()

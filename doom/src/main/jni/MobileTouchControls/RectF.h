@@ -5,22 +5,27 @@
 namespace touchcontrols
 {
 
-class RectF
-{
-public:
-	float bottom,left,top,right;
+    class RectF
+    {
+    public:
+        float bottom, left, top, right;
 
-	RectF();
+        RectF();
 
-	RectF(float left, float top, float right, float bottom);
+        RectF(float left, float top, float right, float bottom);
 
-	bool contains(float x, float y);
-	void offset(float dx,float dy);
-	void offsetTo(float newLeft, float newTop);
+        bool contains(float x, float y);
 
-	float width();
-	float height();
-};
+        void offset(float dx, float dy);
+
+        void offsetTo(float newLeft, float newTop);
+
+        void scale(float width, float height);
+
+        float width();
+
+        float height();
+    };
 
 }
 

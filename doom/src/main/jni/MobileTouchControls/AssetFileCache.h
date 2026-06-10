@@ -9,9 +9,9 @@ class PageData
 public:
 
     bool inUse;
-    char* data;
+    char *data;
 
-    PageData( uint32_t size )
+    PageData(uint32_t size)
     {
         inUse = false;
         data = new char[size];
@@ -46,15 +46,17 @@ class AssetFileCache
 {
 
 public:
-    AssetFileCache(  AAsset* asset );
+    AssetFileCache(AAsset *asset);
+
     ~AssetFileCache();
 
-    uint32_t read( char* buf, int size );
-    uint32_t seek( fpos_t offset, int origin );
+    uint32_t read(char *buf, int size);
+
+    uint32_t seek(fpos_t offset, int origin);
 
 private:
 
-    AAsset* asset;
+    AAsset *asset;
 
     uint32_t fileSize;
     uint32_t pageSize;
@@ -65,13 +67,13 @@ private:
 
     fpos_t pos;
 
-    std::vector<Page*> pages;
+    std::vector<Page *> pages;
 
-    std::vector<PageData*> pageData;
+    std::vector<PageData *> pageData;
 
-    PageData* getPage();
+    PageData *getPage();
 
-    uint32_t posToPageNbr( fpos_t pos );
+    uint32_t posToPageNbr(fpos_t pos);
 
-    uint32_t readDataFromPage( char* buf, uint32_t size );
+    uint32_t readDataFromPage(char *buf, uint32_t size);
 };

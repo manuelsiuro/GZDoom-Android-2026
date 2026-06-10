@@ -1,0 +1,52 @@
+Compiled from "NativeConsoleBox.java"
+public class org.libsdl.app.NativeConsoleBox {
+  private static android.app.Activity activity;
+    descriptor: Landroid/app/Activity;
+  private static android.app.Dialog dialog;
+    descriptor: Landroid/app/Dialog;
+  private static android.widget.TextView logTextView;
+    descriptor: Landroid/widget/TextView;
+  private static final int LINE_LEN;
+    descriptor: I
+  private static final java.util.ArrayList<java.lang.String> lines;
+    descriptor: Ljava/util/ArrayList;
+  private static final byte[] currentLine;
+    descriptor: [B
+  private static int currentLinePos;
+    descriptor: I
+  public org.libsdl.app.NativeConsoleBox();
+    descriptor: ()V
+
+  public static void init(android.app.Activity);
+    descriptor: (Landroid/app/Activity;)V
+
+  public static void openConsoleBox(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  private static void insertLine();
+    descriptor: ()V
+
+  public static void addTextConsoleBox(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  public static void closeConsoleBox();
+    descriptor: ()V
+
+  public static native void cancel();
+    descriptor: ()V
+
+  private static void lambda$closeConsoleBox$3();
+    descriptor: ()V
+
+  private static void lambda$addTextConsoleBox$2(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  private static void lambda$openConsoleBox$1(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  private static void lambda$openConsoleBox$0(android.view.View);
+    descriptor: (Landroid/view/View;)V
+
+  static {};
+    descriptor: ()V
+}

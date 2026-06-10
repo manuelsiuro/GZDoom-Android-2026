@@ -28,22 +28,24 @@ class TouchGui
 public:
     static const int WIDTH = 1024;
     static const int HEIGHT = 768;
-    
-    TouchGui(const char * root_path,int width,int height);
-    
+
+    TouchGui(const char *root_path, int width, int height);
+
     void update();
-    
+
     void processMouseMove(int x, int y);
+
     void processMouseButton(int state, int button);
-    
+
     void processPointer(int action, int pid, float x, float y);
+
 private:
-    int width,height;
-    ShellRenderInterfaceOpenGL * opengl_renderer;
-   
-    ShellSystemInterface * system_interface;
-    Rocket::Core::Context * context;
-    ShellFileInterface * file_interface;
+    int width, height;
+    ShellRenderInterfaceOpenGL *opengl_renderer;
+
+    ShellSystemInterface *system_interface;
+    Rocket::Core::Context *context;
+    ShellFileInterface *file_interface;
 
 };
 

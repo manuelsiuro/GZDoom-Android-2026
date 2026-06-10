@@ -13,6 +13,9 @@
 #include "MultitouchMouse.h"
 #include "PolarSelect.h"
 #include "JoyStick.h"
+#include "ButtonGrid.h"
+#include "QuadSlide.h"
+#include "DPadSelect.h"
 
 #include "UI_Window.h"
 #include "UI_Slider.h"
@@ -20,7 +23,10 @@
 #include "UI_Button.h"
 #include "UI_Switch.h"
 #include "UI_Keyboard.h"
+#include "UI_DropDown.h"
+#include "UI_ColorPicker.h"
 
+#include "Colors.h"
 
 #ifndef _TouchControls_H_
 #define _TouchControls_H_
@@ -29,147 +35,206 @@
 namespace touchcontrols
 {
 
-
 //const int ScaleX = 26;
 //const int ScaleY = 16;
-class ControlData
-{
+    class ControlData
+    {
 
-public:
-	float left,top,right,bottom;
-	float alpha;
-	std::string tag;
-	bool enabled;
-};
-
-
-class TouchControls
-{
-
-	std::vector<ControlSuper *> controls;
-
-	void buttonDown(int code)
-	{
-		//LOGTOUCH("buttonDown %d",code);
-		signal_buttonDown.emit(code);
-	}
-
-	void buttonUp(int code)
-	{
-		//LOGTOUCH("buttonUp %d",code);
-		signal_buttonUp.emit(code);
-	}
-
-	void button(int state,int code)
-	{
-		signal_button.emit(state, code);
-	}
-
-	bool passThroughTouch; // set to true (default) to pass touches to controls underneath
-	//EDITOR
-	std::string xmlFilename;
-
-	bool editing;
-	GLLines *grid;
-	ControlSuper *selectedCtrl;
-	PointF finger1,finger2;
-	PointF oldDist;
-
-	//Vars to detect a long press
-	int longPressTime;
-	float totalFingerMove;
-
-	void windowControl(ControlSuper *ctrl);
-	void snapControl(ControlSuper *ctrl);
-
-	ButtonExt *settingsButton;
-
-	void settingsButtonPress(int state,int code);
-
-	//ANIMATIONS STUFF
-	float slidePos; //current pos
-	float slideMax; //post to slide to when animating out
-	int slideDir; //0 = in, 1 = out
-
-	float animateStep;
-	bool animating;
-
-	float fadePos; //current fade
-	fadedir_t fadeDir;
-	float fadeStep;
-	bool fading;
-
-	bool tapDeselect; //true if first press down in empty space
-public:
-
-	bool enabled;
-
-	float alpha,r,g,b;
-
-	int editGroup;
-
-	std::string tag;
+    public:
+        float left, top, right, bottom;
+        float alpha;
+        std::string tag;
+        bool enabled;
+    };
 
 
-	sigc::signal<void, int> signal_buttonDown;
-	sigc::signal<void, int> signal_buttonUp;
-	sigc::signal<void, int, int> signal_button;
+    void setGlobalXmlAppend(const char *append);
 
-	sigc::signal<void, int> signal_settingsButton;
+    class TouchControls
+    {
+    public:
+        enum PassThrough
+        {
+            ALWAYS,
+            NO_CONTROL,
+            NEVER
+        };
 
-	TouchControls(std::string t,bool en, bool editable,int edit_group = -1,bool showExtraSettgins = true);
+    private:
 
-	void setColor(float r,float g, float b);
+        const float MAXIMUM_CONTROL_SIZE = 0.8; // Maximum size an editable element can be (1 is will size of screen)
 
-	void setPassThroughTouch(bool v);
+        std::vector<ControlSuper *> controls;
 
-	void animateIn(int steps);
-	void animateOut(int steps);
+        void buttonDown(int code)
+        {
+            signal_buttonDown.emit(code);
+        }
 
-	void fade(fadedir_t dir,int steps);
+        void buttonUp(int code)
+        {
+            signal_buttonUp.emit(code);
+        }
 
+        void button(int state, int code)
+        {
+            signal_button.emit(state, code);
+        }
 
-	void edit();
-	void stopEdit();
-	bool isEditing();
+        PassThrough passThroughTouch;
 
-	void setEnabled(bool v);
+        //EDITOR
+        std::string xmlFilename;
 
-	bool isEnabled();
+        bool editing;
 
-	void setAlpha(float a);
+        GLLines *grid;
+        ControlSuper *selectedCtrl;
+        PointF finger1, finger2;
+        PointF oldDist;
 
-	void addControl(Button *cntrl);
+        uint64_t tapTime;
+        float totalFingerMove;
 
-    void addControl(ButtonExt *cntrl);
+        void windowControl(ControlSuper *ctrl);
 
-	void addControl(ControlSuper *cntrl);
+        void snapControl(ControlSuper *ctrl);
 
-	int draw ();
+        ButtonExt *settingsButton;
 
-	int drawEditor ();
+        void settingsButtonPress(int state, int code);
 
-	void initGL ();
+        //ANIMATIONS STUFF
+        float slidePos; //current pos
+        float slideMax; //post to slide to when animating out
+        int slideDir; //0 = in, 1 = out
 
-	bool processPointer(int action, int pid, float x, float y);
+        float animateStep;
+        bool animating;
 
-	void saveXML(std::string filename);
+        float fadePos; //current fade
+        fadedir_t fadeDir;
+        float fadeStep;
+        bool fading;
 
-	void loadXML(std::string filename);
+        bool fixAspect; // Make circles circle, default on.
 
-	void setXMLFile(std::string file);
+        // Resize handle stuff
+        float resizeHandleWidth = 0.05;
+        float resizeHandleHeight = 0.05;
 
-	void resetDefault(); //Reset control positions to init XML
+        enum ResizeHandle
+        {
+            RH_TOP_LEFT,
+            RH_TOP_RIGHT,
+            RH_BOT_RIGHT,
+            RH_BOT_LEFT,
+            RH_SIZE,
+            RH_NONE
+        };
 
-    void resetOutput(); //Make all controls output the reset state
+        GLuint glTexResizeHandle;
+        ResizeHandle resizeHandleSelected = RH_NONE;
+        RectF resizeHandleRects[RH_SIZE];
 
-    //Enable or disable all BUTTONS in control group
-    void setAllButtonsEnable(bool value);
+        void moveResizeHandles(ControlSuper *ctrl);
 
-    std::vector<ControlSuper *> * getControls();
+        TouchControls *editingBackgroundControls = NULL; // Set to show other controls in the background when editing (used for custom controls)
+    public:
 
-    void *getControl(std::string name); //Get control by name, obviously you must cast to correct type!
-};
+        bool enabled;
+
+        uint32_t defaultColor;
+        float alpha;
+
+        int editGroup;
+        bool hideEditButton;
+
+        std::string tag;
+
+        sigc::signal<void, int> signal_buttonDown;
+        sigc::signal<void, int> signal_buttonUp;
+        sigc::signal<void, int, int> signal_button;
+
+        sigc::signal<void, int> signal_settingsButton;
+
+        TouchControls(std::string t, bool en, bool editable, int edit_group = -1, bool showExtraSettings = true);
+
+        void setEditBackgroundControl(TouchControls *bg)
+        {
+            editingBackgroundControls = bg;
+        }
+
+        TouchControls *getEditBackgroundControl()
+        {
+            return editingBackgroundControls;
+        }
+
+        void setPassThroughTouch(PassThrough v);
+
+        void animateIn(int steps);
+
+        void animateOut(int steps);
+
+        void fade(fadedir_t dir, int steps);
+
+        void edit();
+
+        void stopEdit();
+
+        bool isEditing();
+
+        void setEnabled(bool v);
+
+        bool isEnabled();
+
+        void setFixAspect(bool v);
+
+        bool isFixAspect();
+
+        void setAlpha(float a);
+
+        void setColour(uint32_t defaultColor);
+
+        void addControl(Button *cntrl);
+
+        void addControl(ButtonExt *cntrl);
+
+        void addControl(ButtonGrid *cntrl);
+
+        void addControl(ControlSuper *cntrl);
+
+        int draw();
+
+        int draw(float alpha);
+
+        int drawEditor();
+
+        void initGL();
+
+        bool processPointer(int action, int pid, float x, float y);
+
+        bool gamepadInput(bool down, GamePadKey key);
+
+        void saveXML(std::string filename);
+
+        void loadXML(std::string filename);
+
+        void save();
+
+        void setXMLFile(std::string file);
+
+        void resetDefault(); //Reset control positions to init XML
+
+        void resetOutput(); //Make all controls output the reset state
+
+        //Enable or disable all BUTTONS in control group
+        void setAllButtonsEnable(bool value);
+
+        std::vector<ControlSuper *> *getControls();
+
+        void *getControl(std::string name); //Get control by name, obviously you must cast to correct type!
+    };
 
 }
 

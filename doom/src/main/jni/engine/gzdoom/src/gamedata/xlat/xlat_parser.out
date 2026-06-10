@@ -1,0 +1,1849 @@
+State 0:
+          main ::= * translation_unit
+     (62) translation_unit ::= *
+          translation_unit ::= * translation_unit external_declaration
+
+                          main accept
+              translation_unit shift        1      
+                     {default} reduce       62     translation_unit ::=
+
+State 1:
+     (61) main ::= translation_unit *
+          translation_unit ::= translation_unit * external_declaration
+          external_declaration ::= * define_statement
+          external_declaration ::= * enum_statement
+          external_declaration ::= * linetype_declaration
+          external_declaration ::= * boom_declaration
+          external_declaration ::= * sector_declaration
+          external_declaration ::= * lineflag_declaration
+          external_declaration ::= * sector_bitmask
+          external_declaration ::= * maxlinespecial_def
+          external_declaration ::= * NOP
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          define_statement ::= * DEFINE SYM LPAREN expr RPAREN
+          enum_statement ::= * enum_open enum_list RBRACE
+          enum_open ::= * ENUM LBRACE
+          linetype_exp ::= * expr
+          linetype_declaration ::= * linetype_exp EQUALS expr COMMA expr LPAREN special_args RPAREN
+          linetype_declaration ::= * linetype_exp EQUALS expr COMMA SYM LPAREN special_args RPAREN
+          boom_declaration ::= * LBRACKET expr RBRACKET LPAREN expr COMMA expr RPAREN LBRACE boom_body RBRACE
+          maxlinespecial_def ::= * MAXLINESPECIAL EQUALS expr SEMICOLON
+          sector_declaration ::= * SECTOR expr EQUALS expr SEMICOLON
+          sector_declaration ::= * SECTOR expr EQUALS SYM SEMICOLON
+          sector_declaration ::= * SECTOR expr EQUALS expr NOBITMASK SEMICOLON
+          sector_bitmask ::= * SECTOR BITMASK expr sector_op expr SEMICOLON
+          sector_bitmask ::= * SECTOR BITMASK expr SEMICOLON
+          sector_bitmask ::= * SECTOR BITMASK expr CLEAR SEMICOLON
+          lineflag_declaration ::= * LINEFLAG expr EQUALS expr SEMICOLON
+          lineflag_declaration ::= * LINEFLAG expr AND expr SEMICOLON
+
+                             $ reduce       61     main ::= translation_unit
+                           NOP shift-reduce 72     external_declaration ::= NOP
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                        DEFINE shift        99     
+                          ENUM shift        96     
+                      LBRACKET shift        34     
+                MAXLINESPECIAL shift        85     
+                        SECTOR shift        13     
+                      LINEFLAG shift        27     
+          external_declaration shift-reduce 63     translation_unit ::= translation_unit external_declaration
+              define_statement shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because define_statement==external_declaration */
+                enum_statement shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because enum_statement==external_declaration */
+          linetype_declaration shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because linetype_declaration==external_declaration */
+              boom_declaration shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because boom_declaration==external_declaration */
+            sector_declaration shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because sector_declaration==external_declaration */
+          lineflag_declaration shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because lineflag_declaration==external_declaration */
+                sector_bitmask shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because sector_bitmask==external_declaration */
+            maxlinespecial_def shift-reduce 63     translation_unit ::= translation_unit external_declaration  /* because maxlinespecial_def==external_declaration */
+                          expr shift        69     
+                     enum_open shift        10     
+                  linetype_exp shift        95     
+
+State 2:
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA SYM LPAREN * special_args RPAREN
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+          special_arg ::= * exp_with_tag
+          multi_special_arg ::= * special_arg
+          multi_special_arg ::= * multi_special_arg COMMA special_arg
+     (33) special_args ::= *
+          special_args ::= * multi_special_arg
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  special_args shift        91     
+                  exp_with_tag shift        67     
+                   special_arg shift-reduce 31     multi_special_arg ::= special_arg
+             multi_special_arg shift        93     
+                     {default} reduce       33     special_args ::=
+
+State 3:
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA expr LPAREN * special_args RPAREN
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+          special_arg ::= * exp_with_tag
+          multi_special_arg ::= * special_arg
+          multi_special_arg ::= * multi_special_arg COMMA special_arg
+     (33) special_args ::= *
+          special_args ::= * multi_special_arg
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  special_args shift        94     
+                  exp_with_tag shift        67     
+                   special_arg shift-reduce 31     multi_special_arg ::= special_arg
+             multi_special_arg shift        93     
+                     {default} reduce       33     special_args ::=
+
+State 4:
+     (35) boom_body ::= *
+          boom_body ::= * boom_line boom_body
+          boom_body ::= boom_line * boom_body
+          boom_line ::= * boom_selector boom_op boom_args
+          boom_selector ::= * FLAGS
+          boom_selector ::= * ARG2
+          boom_selector ::= * ARG3
+          boom_selector ::= * ARG4
+          boom_selector ::= * ARG5
+
+                         FLAGS shift-reduce 38     boom_selector ::= FLAGS
+                          ARG2 shift-reduce 39     boom_selector ::= ARG2
+                          ARG3 shift-reduce 40     boom_selector ::= ARG3
+                          ARG4 shift-reduce 41     boom_selector ::= ARG4
+                          ARG5 shift-reduce 42     boom_selector ::= ARG5
+                 boom_selector shift        48     
+                     boom_line shift        4      
+                     boom_body shift-reduce 36     boom_body ::= boom_line boom_body
+                     {default} reduce       35     boom_body ::=
+
+State 5:
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr COMMA expr RPAREN LBRACE * boom_body RBRACE
+     (35) boom_body ::= *
+          boom_body ::= * boom_line boom_body
+          boom_line ::= * boom_selector boom_op boom_args
+          boom_selector ::= * FLAGS
+          boom_selector ::= * ARG2
+          boom_selector ::= * ARG3
+          boom_selector ::= * ARG4
+          boom_selector ::= * ARG5
+
+                         FLAGS shift-reduce 38     boom_selector ::= FLAGS
+                          ARG2 shift-reduce 39     boom_selector ::= ARG2
+                          ARG3 shift-reduce 40     boom_selector ::= ARG3
+                          ARG4 shift-reduce 41     boom_selector ::= ARG4
+                          ARG5 shift-reduce 42     boom_selector ::= ARG5
+                 boom_selector shift        48     
+                     boom_line shift        4      
+                     boom_body shift        88     
+                     {default} reduce       35     boom_body ::=
+
+State 6:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          arg_list ::= * list_val
+          arg_list ::= * list_val COMMA arg_list
+          arg_list ::= list_val COMMA * arg_list
+          list_val ::= * expr COLON expr
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        56     
+                      list_val shift        86     
+                      arg_list shift-reduce 48     arg_list ::= list_val COMMA arg_list
+
+State 7:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          boom_args ::= expr LBRACKET * arg_list RBRACKET
+          arg_list ::= * list_val
+          arg_list ::= * list_val COMMA arg_list
+          list_val ::= * expr COLON expr
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        56     
+                      list_val shift        86     
+                      arg_list shift        87     
+
+State 8:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+          special_arg ::= * exp_with_tag
+          multi_special_arg ::= multi_special_arg COMMA * special_arg
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        67     
+                   special_arg shift-reduce 32     multi_special_arg ::= multi_special_arg COMMA special_arg
+
+State 9:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          boom_line ::= boom_selector boom_op * boom_args
+          boom_args ::= * expr
+          boom_args ::= * expr LBRACKET arg_list RBRACKET
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        57     
+                     boom_args shift-reduce 37     boom_line ::= boom_selector boom_op boom_args
+
+State 10:
+          enum_statement ::= enum_open * enum_list RBRACE
+     (74) enum_list ::= *
+          enum_list ::= * single_enum
+          enum_list ::= * enum_list COMMA single_enum
+          single_enum ::= * SYM
+          single_enum ::= * SYM EQUALS expr
+
+                           SYM shift        97     
+                     enum_list shift        81     
+                   single_enum shift        81       /* because single_enum==enum_list */
+                     {default} reduce       74     enum_list ::=
+
+State 11:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          sector_bitmask ::= SECTOR BITMASK expr * sector_op expr SEMICOLON
+          sector_bitmask ::= SECTOR BITMASK expr * SEMICOLON
+          sector_bitmask ::= SECTOR BITMASK expr * CLEAR SEMICOLON
+          sector_op ::= * LSHASSIGN
+          sector_op ::= * RSHASSIGN
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     SEMICOLON shift-reduce 55     sector_bitmask ::= SECTOR BITMASK expr SEMICOLON
+                         CLEAR shift        82     
+                     LSHASSIGN shift-reduce 57     sector_op ::= LSHASSIGN
+                     RSHASSIGN shift-reduce 58     sector_op ::= RSHASSIGN
+                     sector_op shift        28     
+
+State 12:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          sector_declaration ::= SECTOR expr EQUALS * expr SEMICOLON
+          sector_declaration ::= SECTOR expr EQUALS * SYM SEMICOLON
+          sector_declaration ::= SECTOR expr EQUALS * expr NOBITMASK SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                           SYM shift        83     
+                          expr shift        50     
+
+State 13:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          sector_declaration ::= SECTOR * expr EQUALS expr SEMICOLON
+          sector_declaration ::= SECTOR * expr EQUALS SYM SEMICOLON
+          sector_declaration ::= SECTOR * expr EQUALS expr NOBITMASK SEMICOLON
+          sector_bitmask ::= SECTOR * BITMASK expr sector_op expr SEMICOLON
+          sector_bitmask ::= SECTOR * BITMASK expr SEMICOLON
+          sector_bitmask ::= SECTOR * BITMASK expr CLEAR SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                       BITMASK shift        29     
+                          expr shift        54     
+
+State 14:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+          exp_with_tag ::= LPAREN * exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        61     
+
+State 15:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= MINUS * exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift-reduce 28     exp_with_tag ::= MINUS exp_with_tag
+
+State 16:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= exp_with_tag XOR * exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        73     
+
+State 17:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= exp_with_tag AND * exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        75     
+
+State 18:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= exp_with_tag OR * exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        70     
+
+State 19:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag MODULUS * exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift-reduce 24     exp_with_tag ::= exp_with_tag MODULUS exp_with_tag
+
+State 20:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag DIVIDE * exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift-reduce 23     exp_with_tag ::= exp_with_tag DIVIDE exp_with_tag
+
+State 21:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag MULTIPLY * exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift-reduce 22     exp_with_tag ::= exp_with_tag MULTIPLY exp_with_tag
+
+State 22:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag MINUS * exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        77     
+
+State 23:
+          exp_with_tag ::= * NUM
+          exp_with_tag ::= * TAG
+          exp_with_tag ::= * exp_with_tag PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag PLUS * exp_with_tag
+          exp_with_tag ::= * exp_with_tag MINUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag MULTIPLY exp_with_tag
+          exp_with_tag ::= * exp_with_tag DIVIDE exp_with_tag
+          exp_with_tag ::= * exp_with_tag MODULUS exp_with_tag
+          exp_with_tag ::= * exp_with_tag OR exp_with_tag
+          exp_with_tag ::= * exp_with_tag AND exp_with_tag
+          exp_with_tag ::= * exp_with_tag XOR exp_with_tag
+          exp_with_tag ::= * MINUS exp_with_tag
+          exp_with_tag ::= * LPAREN exp_with_tag RPAREN
+
+                         MINUS shift        15     
+                           NUM shift-reduce 18     exp_with_tag ::= NUM
+                        LPAREN shift        14     
+                           TAG shift-reduce 19     exp_with_tag ::= TAG
+                  exp_with_tag shift        78     
+
+State 24:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA * expr LPAREN special_args RPAREN
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA * SYM LPAREN special_args RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                           SYM shift        92     
+                          expr shift        62     
+
+State 25:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          lineflag_declaration ::= LINEFLAG expr EQUALS * expr SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        51     
+
+State 26:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= expr AND * expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          lineflag_declaration ::= LINEFLAG expr AND * expr SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        72     
+
+State 27:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          lineflag_declaration ::= LINEFLAG * expr EQUALS expr SEMICOLON
+          lineflag_declaration ::= LINEFLAG * expr AND expr SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        52     
+
+State 28:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          sector_bitmask ::= SECTOR BITMASK expr sector_op * expr SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        53     
+
+State 29:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          sector_bitmask ::= SECTOR BITMASK * expr sector_op expr SEMICOLON
+          sector_bitmask ::= SECTOR BITMASK * expr SEMICOLON
+          sector_bitmask ::= SECTOR BITMASK * expr CLEAR SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        11     
+
+State 30:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          maxlinespecial_def ::= MAXLINESPECIAL EQUALS * expr SEMICOLON
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        55     
+
+State 31:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          list_val ::= expr COLON * expr
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        66     
+
+State 32:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr COMMA * expr RPAREN LBRACE boom_body RBRACE
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        58     
+
+State 33:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN * expr COMMA expr RPAREN LBRACE boom_body RBRACE
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        59     
+
+State 34:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          boom_declaration ::= LBRACKET * expr RBRACKET LPAREN expr COMMA expr RPAREN LBRACE boom_body RBRACE
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        60     
+
+State 35:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          linetype_declaration ::= linetype_exp EQUALS * expr COMMA expr LPAREN special_args RPAREN
+          linetype_declaration ::= linetype_exp EQUALS * expr COMMA SYM LPAREN special_args RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        63     
+
+State 36:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          single_enum ::= SYM EQUALS * expr
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        68     
+
+State 37:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          define_statement ::= DEFINE SYM LPAREN * expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        64     
+
+State 38:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+          expr ::= LPAREN * expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        65     
+
+State 39:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= MINUS * expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift-reduce 9      expr ::= MINUS expr
+
+State 40:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= expr XOR * expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        74     
+
+State 41:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= expr AND * expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        76     
+
+State 42:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= expr OR * expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        71     
+
+State 43:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= expr MODULUS * expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift-reduce 5      expr ::= expr MODULUS expr
+
+State 44:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= expr DIVIDE * expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift-reduce 4      expr ::= expr DIVIDE expr
+
+State 45:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= expr MULTIPLY * expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift-reduce 3      expr ::= expr MULTIPLY expr
+
+State 46:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= * expr MINUS expr
+          expr ::= expr MINUS * expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        79     
+
+State 47:
+          expr ::= * NUM
+          expr ::= * expr PLUS expr
+          expr ::= expr PLUS * expr
+          expr ::= * expr MINUS expr
+          expr ::= * expr MULTIPLY expr
+          expr ::= * expr DIVIDE expr
+          expr ::= * expr MODULUS expr
+          expr ::= * expr OR expr
+          expr ::= * expr AND expr
+          expr ::= * expr XOR expr
+          expr ::= * MINUS expr
+          expr ::= * LPAREN expr RPAREN
+
+                         MINUS shift        39     
+                           NUM shift-reduce 0      expr ::= NUM
+                        LPAREN shift        38     
+                          expr shift        80     
+
+State 48:
+          boom_line ::= boom_selector * boom_op boom_args
+          boom_op ::= * EQUALS
+          boom_op ::= * OR_EQUAL
+
+                        EQUALS shift-reduce 43     boom_op ::= EQUALS
+                      OR_EQUAL shift-reduce 44     boom_op ::= OR_EQUAL
+                       boom_op shift        9      
+
+State 49:
+          enum_list ::= enum_list COMMA * single_enum
+          single_enum ::= * SYM
+          single_enum ::= * SYM EQUALS expr
+
+                           SYM shift        97     
+                   single_enum shift-reduce 76     enum_list ::= enum_list COMMA single_enum
+
+State 50:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          sector_declaration ::= SECTOR expr EQUALS expr * SEMICOLON
+          sector_declaration ::= SECTOR expr EQUALS expr * NOBITMASK SEMICOLON
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     SEMICOLON shift-reduce 51     sector_declaration ::= SECTOR expr EQUALS expr SEMICOLON
+                     NOBITMASK shift        84     
+
+State 51:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          lineflag_declaration ::= LINEFLAG expr EQUALS expr * SEMICOLON
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     SEMICOLON shift-reduce 59     lineflag_declaration ::= LINEFLAG expr EQUALS expr SEMICOLON
+
+State 52:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          lineflag_declaration ::= LINEFLAG expr * EQUALS expr SEMICOLON
+          lineflag_declaration ::= LINEFLAG expr * AND expr SEMICOLON
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        26     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                        EQUALS shift        25     
+
+State 53:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          sector_bitmask ::= SECTOR BITMASK expr sector_op expr * SEMICOLON
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     SEMICOLON shift-reduce 54     sector_bitmask ::= SECTOR BITMASK expr sector_op expr SEMICOLON
+
+State 54:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          sector_declaration ::= SECTOR expr * EQUALS expr SEMICOLON
+          sector_declaration ::= SECTOR expr * EQUALS SYM SEMICOLON
+          sector_declaration ::= SECTOR expr * EQUALS expr NOBITMASK SEMICOLON
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                        EQUALS shift        12     
+
+State 55:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          maxlinespecial_def ::= MAXLINESPECIAL EQUALS expr * SEMICOLON
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     SEMICOLON shift-reduce 50     maxlinespecial_def ::= MAXLINESPECIAL EQUALS expr SEMICOLON
+
+State 56:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          list_val ::= expr * COLON expr
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                         COLON shift        31     
+
+State 57:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+     (45) boom_args ::= expr *
+          boom_args ::= expr * LBRACKET arg_list RBRACKET
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                      LBRACKET shift        7      
+                     {default} reduce       45     boom_args ::= expr
+
+State 58:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr COMMA expr * RPAREN LBRACE boom_body RBRACE
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                        RPAREN shift        89     
+
+State 59:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr * COMMA expr RPAREN LBRACE boom_body RBRACE
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                         COMMA shift        32     
+
+State 60:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          boom_declaration ::= LBRACKET expr * RBRACKET LPAREN expr COMMA expr RPAREN LBRACE boom_body RBRACE
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                      RBRACKET shift        90     
+
+State 61:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+          exp_with_tag ::= LPAREN exp_with_tag * RPAREN
+
+                            OR shift        18     
+                           XOR shift        16     
+                           AND shift        17     
+                         MINUS shift        22     
+                          PLUS shift        23     
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                        RPAREN shift-reduce 29     exp_with_tag ::= LPAREN exp_with_tag RPAREN
+
+State 62:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA expr * LPAREN special_args RPAREN
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                        LPAREN shift        3      
+
+State 63:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          linetype_declaration ::= linetype_exp EQUALS expr * COMMA expr LPAREN special_args RPAREN
+          linetype_declaration ::= linetype_exp EQUALS expr * COMMA SYM LPAREN special_args RPAREN
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                         COMMA shift        24     
+
+State 64:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          define_statement ::= DEFINE SYM LPAREN expr * RPAREN
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                        RPAREN shift-reduce 11     define_statement ::= DEFINE SYM LPAREN expr RPAREN
+
+State 65:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+          expr ::= LPAREN expr * RPAREN
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                        RPAREN shift-reduce 10     expr ::= LPAREN expr RPAREN
+
+State 66:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+     (49) list_val ::= expr COLON expr *
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       49     list_val ::= expr COLON expr
+
+State 67:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+     (30) special_arg ::= exp_with_tag *
+
+                            OR shift        18     
+                           XOR shift        16     
+                           AND shift        17     
+                         MINUS shift        22     
+                          PLUS shift        23     
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                     {default} reduce       30     special_arg ::= exp_with_tag
+
+State 68:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+     (14) single_enum ::= SYM EQUALS expr *
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       14     single_enum ::= SYM EQUALS expr
+
+State 69:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+     (15) linetype_exp ::= expr *
+
+                            OR shift        42     
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       15     linetype_exp ::= expr
+
+State 70:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+     (25) exp_with_tag ::= exp_with_tag OR exp_with_tag *
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+
+                           XOR shift        16     
+                           AND shift        17     
+                         MINUS shift        22     
+                          PLUS shift        23     
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                     {default} reduce       25     exp_with_tag ::= exp_with_tag OR exp_with_tag
+
+State 71:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+      (6) expr ::= expr OR expr *
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+
+                           XOR shift        40     
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       6      expr ::= expr OR expr
+
+State 72:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+      (7) expr ::= expr AND expr *
+          expr ::= expr * XOR expr
+          lineflag_declaration ::= LINEFLAG expr AND expr * SEMICOLON
+
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     SEMICOLON shift-reduce 60     lineflag_declaration ::= LINEFLAG expr AND expr SEMICOLON
+                     {default} reduce       7      expr ::= expr AND expr
+
+State 73:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+     (27) exp_with_tag ::= exp_with_tag XOR exp_with_tag *
+
+                           AND shift        17     
+                         MINUS shift        22     
+                          PLUS shift        23     
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                     {default} reduce       27     exp_with_tag ::= exp_with_tag XOR exp_with_tag
+
+State 74:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+      (8) expr ::= expr XOR expr *
+
+                           AND shift        41     
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       8      expr ::= expr XOR expr
+
+State 75:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+     (26) exp_with_tag ::= exp_with_tag AND exp_with_tag *
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+
+                         MINUS shift        22     
+                          PLUS shift        23     
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                     {default} reduce       26     exp_with_tag ::= exp_with_tag AND exp_with_tag
+
+State 76:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+      (7) expr ::= expr AND expr *
+          expr ::= expr * XOR expr
+
+                         MINUS shift        46     
+                          PLUS shift        47     
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       7      expr ::= expr AND expr
+
+State 77:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+     (21) exp_with_tag ::= exp_with_tag MINUS exp_with_tag *
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                     {default} reduce       21     exp_with_tag ::= exp_with_tag MINUS exp_with_tag
+
+State 78:
+          exp_with_tag ::= exp_with_tag * PLUS exp_with_tag
+     (20) exp_with_tag ::= exp_with_tag PLUS exp_with_tag *
+          exp_with_tag ::= exp_with_tag * MINUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * MULTIPLY exp_with_tag
+          exp_with_tag ::= exp_with_tag * DIVIDE exp_with_tag
+          exp_with_tag ::= exp_with_tag * MODULUS exp_with_tag
+          exp_with_tag ::= exp_with_tag * OR exp_with_tag
+          exp_with_tag ::= exp_with_tag * AND exp_with_tag
+          exp_with_tag ::= exp_with_tag * XOR exp_with_tag
+
+                      MULTIPLY shift        21     
+                        DIVIDE shift        20     
+                       MODULUS shift        19     
+                     {default} reduce       20     exp_with_tag ::= exp_with_tag PLUS exp_with_tag
+
+State 79:
+          expr ::= expr * PLUS expr
+          expr ::= expr * MINUS expr
+      (2) expr ::= expr MINUS expr *
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       2      expr ::= expr MINUS expr
+
+State 80:
+          expr ::= expr * PLUS expr
+      (1) expr ::= expr PLUS expr *
+          expr ::= expr * MINUS expr
+          expr ::= expr * MULTIPLY expr
+          expr ::= expr * DIVIDE expr
+          expr ::= expr * MODULUS expr
+          expr ::= expr * OR expr
+          expr ::= expr * AND expr
+          expr ::= expr * XOR expr
+
+                      MULTIPLY shift        45     
+                        DIVIDE shift        44     
+                       MODULUS shift        43     
+                     {default} reduce       1      expr ::= expr PLUS expr
+
+State 81:
+          enum_statement ::= enum_open enum_list * RBRACE
+          enum_list ::= enum_list * COMMA single_enum
+
+                        RBRACE shift-reduce 73     enum_statement ::= enum_open enum_list RBRACE
+                         COMMA shift        49     
+
+State 82:
+          sector_bitmask ::= SECTOR BITMASK expr CLEAR * SEMICOLON
+
+                     SEMICOLON shift-reduce 56     sector_bitmask ::= SECTOR BITMASK expr CLEAR SEMICOLON
+
+State 83:
+          sector_declaration ::= SECTOR expr EQUALS SYM * SEMICOLON
+
+                     SEMICOLON shift-reduce 52     sector_declaration ::= SECTOR expr EQUALS SYM SEMICOLON
+
+State 84:
+          sector_declaration ::= SECTOR expr EQUALS expr NOBITMASK * SEMICOLON
+
+                     SEMICOLON shift-reduce 53     sector_declaration ::= SECTOR expr EQUALS expr NOBITMASK SEMICOLON
+
+State 85:
+          maxlinespecial_def ::= MAXLINESPECIAL * EQUALS expr SEMICOLON
+
+                        EQUALS shift        30     
+
+State 86:
+     (47) arg_list ::= list_val *
+          arg_list ::= list_val * COMMA arg_list
+
+                         COMMA shift        6      
+                     {default} reduce       47     arg_list ::= list_val
+
+State 87:
+          boom_args ::= expr LBRACKET arg_list * RBRACKET
+
+                      RBRACKET shift-reduce 46     boom_args ::= expr LBRACKET arg_list RBRACKET
+
+State 88:
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr COMMA expr RPAREN LBRACE boom_body * RBRACE
+
+                        RBRACE shift-reduce 34     boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr COMMA expr RPAREN LBRACE boom_body RBRACE
+
+State 89:
+          boom_declaration ::= LBRACKET expr RBRACKET LPAREN expr COMMA expr RPAREN * LBRACE boom_body RBRACE
+
+                        LBRACE shift        5      
+
+State 90:
+          boom_declaration ::= LBRACKET expr RBRACKET * LPAREN expr COMMA expr RPAREN LBRACE boom_body RBRACE
+
+                        LPAREN shift        33     
+
+State 91:
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA SYM LPAREN special_args * RPAREN
+
+                        RPAREN shift-reduce 17     linetype_declaration ::= linetype_exp EQUALS expr COMMA SYM LPAREN special_args RPAREN
+
+State 92:
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA SYM * LPAREN special_args RPAREN
+
+                        LPAREN shift        2      
+
+State 93:
+          multi_special_arg ::= multi_special_arg * COMMA special_arg
+     (77) special_args ::= multi_special_arg *
+
+                         COMMA shift        8      
+                     {default} reduce       77     special_args ::= multi_special_arg
+
+State 94:
+          linetype_declaration ::= linetype_exp EQUALS expr COMMA expr LPAREN special_args * RPAREN
+
+                        RPAREN shift-reduce 16     linetype_declaration ::= linetype_exp EQUALS expr COMMA expr LPAREN special_args RPAREN
+
+State 95:
+          linetype_declaration ::= linetype_exp * EQUALS expr COMMA expr LPAREN special_args RPAREN
+          linetype_declaration ::= linetype_exp * EQUALS expr COMMA SYM LPAREN special_args RPAREN
+
+                        EQUALS shift        35     
+
+State 96:
+          enum_open ::= ENUM * LBRACE
+
+                        LBRACE shift-reduce 12     enum_open ::= ENUM LBRACE
+
+State 97:
+     (13) single_enum ::= SYM *
+          single_enum ::= SYM * EQUALS expr
+
+                        EQUALS shift        36     
+                     {default} reduce       13     single_enum ::= SYM
+
+State 98:
+          define_statement ::= DEFINE SYM * LPAREN expr RPAREN
+
+                        LPAREN shift        37     
+
+State 99:
+          define_statement ::= DEFINE * SYM LPAREN expr RPAREN
+
+                           SYM shift        98     
+
+----------------------------------------------------
+Symbols:
+    0: $:
+    1: NOP
+    2: OR
+    3: XOR
+    4: AND
+    5: MINUS
+    6: PLUS
+    7: MULTIPLY
+    8: DIVIDE
+    9: MODULUS
+   10: NEG
+   11: NUM
+   12: LPAREN
+   13: RPAREN
+   14: DEFINE
+   15: SYM
+   16: RBRACE
+   17: ENUM
+   18: LBRACE
+   19: COMMA
+   20: EQUALS
+   21: TAG
+   22: LBRACKET
+   23: RBRACKET
+   24: FLAGS
+   25: ARG2
+   26: ARG3
+   27: ARG4
+   28: ARG5
+   29: OR_EQUAL
+   30: COLON
+   31: MAXLINESPECIAL
+   32: SEMICOLON
+   33: SECTOR
+   34: NOBITMASK
+   35: BITMASK
+   36: CLEAR
+   37: LSHASSIGN
+   38: RSHASSIGN
+   39: LINEFLAG
+   40: error:
+   41: main: <lambda> NOP MINUS NUM LPAREN DEFINE ENUM LBRACKET MAXLINESPECIAL SECTOR LINEFLAG
+   42: translation_unit: <lambda> NOP MINUS NUM LPAREN DEFINE ENUM LBRACKET MAXLINESPECIAL SECTOR LINEFLAG
+   43: external_declaration: NOP MINUS NUM LPAREN DEFINE ENUM LBRACKET MAXLINESPECIAL SECTOR LINEFLAG
+   44: define_statement: DEFINE
+   45: enum_statement: ENUM
+   46: linetype_declaration: MINUS NUM LPAREN
+   47: boom_declaration: LBRACKET
+   48: sector_declaration: SECTOR
+   49: lineflag_declaration: LINEFLAG
+   50: sector_bitmask: SECTOR
+   51: maxlinespecial_def: MAXLINESPECIAL
+   52: expr: MINUS NUM LPAREN
+   53: enum_open: ENUM
+   54: enum_list: <lambda> SYM COMMA
+   55: single_enum: SYM
+   56: linetype_exp: MINUS NUM LPAREN
+   57: special_args: <lambda> MINUS NUM LPAREN TAG
+   58: exp_with_tag: MINUS NUM LPAREN TAG
+   59: special_arg: MINUS NUM LPAREN TAG
+   60: multi_special_arg: MINUS NUM LPAREN TAG
+   61: list_val: MINUS NUM LPAREN
+   62: arg_list: MINUS NUM LPAREN
+   63: boom_args: MINUS NUM LPAREN
+   64: boom_op: EQUALS OR_EQUAL
+   65: boom_selector: FLAGS ARG2 ARG3 ARG4 ARG5
+   66: boom_line: FLAGS ARG2 ARG3 ARG4 ARG5
+   67: boom_body: <lambda> FLAGS ARG2 ARG3 ARG4 ARG5
+   68: sector_op: LSHASSIGN RSHASSIGN
+   69: lineflag_op:

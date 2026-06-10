@@ -7,235 +7,313 @@
 
 using namespace touchcontrols;
 
-TouchJoy::TouchJoy(std::string tag,RectF pos,std::string image_filename):
-		ControlSuper(TC_TYPE_TOUCHJOY,tag,pos)
+TouchJoy::TouchJoy(std::string tag, RectF pos, std::string floating_image, std::string background_image) :
+        ControlSuper(TC_TYPE_TOUCHJOY, tag, pos)
 {
-	image = image_filename;
-	id = -1;
-	doubleTapState = 0;
-	hideGraphics = false;
-	updateSize();
-	glitchFix = 0;
+    this->floating_image = floating_image;
+    this->background_image = background_image;
+
+    pid = -1;
+    doubleTapState = 0;
+    hideGraphics = false;
+    centerAnchor = false;
+    updateSize();
+    glitchFix = 0;
+    otherTouchJoySWAPFIX = NULL;
 };
+
+void TouchJoy::registerTouchJoySWAPFIX(TouchJoy *other)
+{
+    this->otherTouchJoySWAPFIX = other;
+}
 
 
 void TouchJoy::setHideGraphics(bool v)
 {
-	hideGraphics = v;
-	//LOGTOUCH("setHideGraphics enabled = %d",enabled);
+    hideGraphics = v;
+    //LOGTOUCH("setHideGraphics enabled = %d",enabled);
 }
 
-void TouchJoy::resetOutput(){
+void TouchJoy::setCenterAnchor(bool v)
+{
+    centerAnchor = v;
+}
+
+void TouchJoy::resetOutput()
+{
     reset();
 }
 
 void TouchJoy::updateSize()
 {
-	//glRect.resize(controlPos.right - controlPos.left, controlPos.bottom - controlPos.top);
-	glRect.resize(1 * 0.1, 1.6 * 0.1);
+    //glRect.resize(controlPos.right - controlPos.left, controlPos.bottom - controlPos.top);
+    glRect.resize(1 * 0.1, 1.6 * 0.1);
 }
 
-double TouchJoy::getMS()
+
+bool TouchJoy::processPointer(int action, int tpid, float x, float y)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return  (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000;
-}
+    if(action == P_DOWN)
+    {
+        if((g_touchJoyMultiTouch == false) || pid == -1)  // default (off): always accept; multitouch (on): only if inactive
+        {
+            if(controlPos.contains(x, y))
+            {
+                pid = tpid;
 
-bool TouchJoy::processPointer(int action, int pid, float x, float y)
-{
-	if (action == P_DOWN)
-	{
-		//if (id == -1) //Only process if not active
-		if (1) //Testing this, try to fix random pointer swap 08/12/13
-		{
-			if (controlPos.contains(x, y))
-			{
-				id = pid;
+                glitchFix = 1; //Fix jumpy initial move
 
-				glitchFix = 1; //Fix jumpy initial move
+                last.x = x;
+                last.y = y;
 
-				last.x = x;
-				last.y = y;
-				anchor.x = x;
-				anchor.y = y;
-				fingerPos.x = x;
-				fingerPos.y = y;
+                if(centerAnchor)
+                {
+                    anchor.x = controlPos.left + (controlPos.width() / 2);
+                    anchor.y = controlPos.top + (controlPos.height() / 2);
+                    glitchFix = 0; // Dont do this
+                }
+                else
+                {
+                    anchor.x = x;
+                    anchor.y = y;
+                }
 
-				if (doubleTapState == 0) //First tap of double tap
-				{
-					doubleTapState = 1;
+                fingerPos.x = x;
+                fingerPos.y = y;
+
+                if(doubleTapState == 0)  //First tap of double tap
+                {
+                    doubleTapState = 1;
                     doubleTapCounter = getMS();
-				}
-				else if(doubleTapState == 2) //Second down of double tap
-				{
-                    if ((getMS() - doubleTapCounter) < DOUBLE_TAP_SPEED)
-					{
-						signal_double_tap.emit(1);
-						doubleTapState = 3;
-					}
-					else
-						doubleTapState = 0;
-				}
-				return true;
-			}
-		}
-		return false;
-	}
-	else if (action == P_UP)
-	{
-		if (id == pid)
-		{
-			if (doubleTapState == 1) //First up of double tap
-			{
-				//Simple check to see if finger moved very much
-                if (((getMS() - doubleTapCounter) < DOUBLE_TAP_SPEED) &&
-						(((abs(anchor.x - fingerPos.x) + abs(anchor.y - fingerPos.y))) < 0.05))
-				{
-					doubleTapState = 2;
+                }
+                else if(doubleTapState == 2) //Second down of double tap
+                {
+                    if((getMS() - doubleTapCounter) < DOUBLE_TAP_SPEED)
+                    {
+                        signal_double_tap.emit(1);
+                        doubleTapState = 3;
+                    }
+                    else
+                        doubleTapState = 0;
+                }
+
+                calcNewValue();
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+    else if(action == P_UP)
+    {
+        if(pid == tpid)
+        {
+            if(doubleTapState == 1)  //First up of double tap
+            {
+                //Simple check to see if finger moved very much
+                if(((getMS() - doubleTapCounter) < DOUBLE_TAP_SPEED) &&
+                   (((abs(anchor.x - fingerPos.x) + abs(anchor.y - fingerPos.y))) < 0.05))
+                {
+                    doubleTapState = 2;
                     doubleTapCounter = getMS();
-				}
-				else
-					doubleTapState = 0;
-			}
-			else if (doubleTapState == 3) //Finger up, finished double tap
-			{
-				signal_double_tap.emit(0);
-				doubleTapState = 0;
-				doubleTapCounter = 0;
-			}
+                }
+                else
+                    doubleTapState = 0;
+            }
+            else if(doubleTapState == 3)  //Finger up, finished double tap
+            {
+                signal_double_tap.emit(0);
+                doubleTapState = 0;
+                doubleTapCounter = 0;
+            }
 
+            reset();
+            return true;
+        }
 
-			reset();
-			return true;
-		}
-		return false;
-	}
-	else if(action == P_MOVE)
-	{
-		if (pid == id) //Finger already down
-		{
+        return false;
+    }
+    else if(action == P_MOVE)
+    {
+        if(pid == tpid)  //Finger already down
+        {
+            if((otherTouchJoySWAPFIX->pid == tpid) && (!controlPos.contains(x, y)))  // If the other control has got the point and not in control area, something FU
+            {
+                pid = -1; // Just stop
+            }
 
-			if (glitchFix) //Need to wait untill the values have changed at least once, otherwise inital jump
-			{
-				if ((last.x != x) || (last.y != y))
-				{
-					last.x = x;
-					last.y = y;
-					anchor.x = x;
-					anchor.y = y;
-					fingerPos.x = x;
-					fingerPos.y = y;
-					glitchFix--;
-				}
-			}
+            if(glitchFix)  //Need to wait until the values have changed at least once, otherwise inital jump
+            {
+                if((last.x != x) || (last.y != y))
+                {
+                    last.x = x;
+                    last.y = y;
+                    anchor.x = x;
+                    anchor.y = y;
+                    fingerPos.x = x;
+                    fingerPos.y = y;
+                    glitchFix--;
+                }
+            }
 
+            if(!glitchFix)
+            {
+                fingerPos.x = x;
+                fingerPos.y = y;
+                calcNewValue();
+            }
 
-			if (!glitchFix)
-			{
-				fingerPos.x = x;
-				fingerPos.y = y;
-				calcNewValue();
-			}
-			return true;
-		}
-		return false;
-	}
-    
+            return true;
+        }
+        else
+        {
+            if(otherTouchJoySWAPFIX != NULL)   //SWAPFIX
+            {
+                if(otherTouchJoySWAPFIX->pid == tpid)   // Other one has finger down, this is it
+                {
+                    if(controlPos.contains(x, y))  // UH OH! This probably means touch has swapped fingers
+                    {
+                        LOGTOUCH("SWAPFIX");
+                        otherTouchJoySWAPFIX->processPointer(P_UP, tpid, x, y);   // Force finger up on the other one
+                        //processPointer( P_DOWN, tpid, x, y ); // ALSO give the pointer to this one. Acctually don't do this, confusing movment otherwise
+                        // Changed, actually DO take PID, but filter first few samples
+                        pid = tpid;
+                        glitchFix = 3; // Still swapping, so try to ignore the next few
+
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     return false;
 }
 
 bool TouchJoy::initGL()
 {
-	int x,y;
-	glTex = loadTextureFromPNG(image,x,y);
-    
+    int x, y;
+    glTex = loadTextureFromPNG(floating_image, x, y);
+    glTexBackground = loadTextureFromPNG(background_image, x, y);
     return false;
 }
 
 bool TouchJoy::drawGL(bool forEditor)
 {
 
-	if (!enabled)
-		return false;
-	//drawLines(0,0,*glLines);
+    if(!enabled)
+        return false;
 
-	//drawRect(glTex,controlPos.left,controlPos.top,glRect);
-    if (!hideGraphics)
-	{
-		if (id != -1)
-			drawRect(glTex,fingerPos.x-glRect.width/2,fingerPos.y-glRect.height/2,glRect);
-		else
-			drawRect(glTex,controlPos.left+controlPos.width()/2-glRect.width/2,controlPos.top+controlPos.height()/2-glRect.height/2,glRect);
+    if(!hideGraphics)
+    {
+        if(centerAnchor) // If fixed joystick, show the background
+        {
+            GLRect bgRect;
+            float width, height;
 
-	}
+            // In case not square, size to fit
+            if(controlPos.width() * 1.6 < controlPos.height()) // tall and thin
+            {
+                width = controlPos.width();
+                height = width * 1.6;
+            }
+            else
+            {
+                width = controlPos.height() / 1.6;
+                height = width * 1.6;
+            }
 
-	//LOGTOUCH("state = %d, counter = %d",doubleTapState,doubleTapCounter);
-    
+            bgRect.resize(width, height);
+            // draw centred
+            gl_drawRect(glTexBackground, controlPos.left + (controlPos.width() - width) / 2, controlPos.top + (controlPos.height() - height) / 2, bgRect);
+        }
+        else
+        {
+            if(pid != -1)
+                gl_drawRect(glTex, fingerPos.x - glRect.width / 2, fingerPos.y - glRect.height / 2, glRect);
+            else
+                gl_drawRect(glTex, controlPos.left + controlPos.width() / 2 - glRect.width / 2, controlPos.top + controlPos.height() / 2 - glRect.height / 2, glRect);
+        }
+    }
+
+    //LOGTOUCH("state = %d, counter = %d",doubleTapState,doubleTapCounter);
+
     return false;
 }
 
 void TouchJoy::reset()
 {
-	id = -1;
-	valueTouch.x = 0;
-	valueTouch.y = 0;
-	valueJoy.x = 0;
-	valueJoy.y = 0;
+    pid = -1;
+    valueTouch.x = 0;
+    valueTouch.y = 0;
+    valueJoy.x = 0;
+    valueJoy.y = 0;
 
-	doUpdate();
-
+    doUpdate();
 }
 
 void TouchJoy::calcNewValue()
 {
-	float dx = last.x - fingerPos.x;
-	float dy = last.y - fingerPos.y;
-	valueTouch.x = dx;
-	valueTouch.y = dy;
-	last.x =  fingerPos.x;
-	last.y = fingerPos.y;
+    float dx = last.x - fingerPos.x;
+    float dy = last.y - fingerPos.y;
 
+    //LOGTOUCH("%s %f  %f   %f %f",tag.c_str(),fingerPos.x,fingerPos.y,dx,dy);
+    // SWAPFIX. Filter out very fast movments when a swap occurs
+    if((abs(dx) > 0.09) || (abs(dy) > 0.09))
+    {
+        dx = 0;
+        dy = 0;
+    }
 
-	dx = anchor.x - fingerPos.x;
-	dy = anchor.y - fingerPos.y;
-	valueJoy.x = dx;
-	valueJoy.y = dy;
-	if (valueJoy.x > 1)
-		valueJoy.x = 1;
-	else if (valueJoy.x < -1)
-		valueJoy.x = -1;
+    valueTouch.x = dx;
+    valueTouch.y = dy;
 
-	if (valueJoy.y > 1)
-		valueJoy.y = 1;
-	else if (valueJoy.y < -1)
-		valueJoy.y = -1;
+    last.x = fingerPos.x;
+    last.y = fingerPos.y;
 
-	doUpdate();
+    dx = anchor.x - fingerPos.x;
+    dy = anchor.y - fingerPos.y;
 
+    valueJoy.x = dx;
+    valueJoy.y = dy;
+
+    if(valueJoy.x > 1)
+        valueJoy.x = 1;
+    else if(valueJoy.x < -1)
+        valueJoy.x = -1;
+
+    if(valueJoy.y > 1)
+        valueJoy.y = 1;
+    else if(valueJoy.y < -1)
+        valueJoy.y = -1;
+
+    doUpdate();
 }
 
 void TouchJoy::doUpdate()
 {
-	//LOGTOUCH("xT = %f yT = %f,xJ = %f yJ = %f",valueTouch.x,valueTouch.y,valueJoy.x ,valueJoy.y);
-	signal_move.emit(valueJoy.x,valueJoy.y,valueTouch.x,valueTouch.y);
+    //LOGTOUCH("xT = %f yT = %f,xJ = %f yJ = %f",valueTouch.x,valueTouch.y,valueJoy.x ,valueJoy.y);
+    signal_move.emit(valueJoy.x, valueJoy.y, valueTouch.x, valueTouch.y);
 }
 
 void TouchJoy::saveXML(TiXmlDocument &doc)
 {
-	TiXmlElement * root = new TiXmlElement(tag.c_str());
-	doc.LinkEndChild( root );
+    TiXmlElement *root = new TiXmlElement(tag.c_str());
+    doc.LinkEndChild(root);
 
-	ControlSuper::saveXML(*root);
+    ControlSuper::saveXML(*root);
 }
 
 void TouchJoy::loadXML(TiXmlDocument &doc)
 {
-	TiXmlHandle hDoc(&doc);
-	TiXmlElement* pElem=hDoc.FirstChild( tag ).Element();
+    TiXmlHandle hDoc(&doc);
+    TiXmlElement *pElem = hDoc.FirstChild(tag).Element();
 
-	if (!pElem) //Check exists, if not just leave as default
-		return;
+    if(!pElem)  //Check exists, if not just leave as default
+        return;
 
-	ControlSuper::loadXML(*pElem);
+    ControlSuper::loadXML(*pElem);
 }

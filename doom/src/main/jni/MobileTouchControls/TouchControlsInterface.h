@@ -11,7 +11,8 @@
 
 #include "TouchControlsConfig.h"
 
-class TouchControlsInterface{
+class TouchControlsInterface
+{
 public:
     virtual bool processPointer(int action, int pid, float x, float y) = 0;
 };

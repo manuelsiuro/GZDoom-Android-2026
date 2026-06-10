@@ -11,68 +11,100 @@
 #include "OpenGLUtils.h"
 #include "TextDraw.h"
 
+#define UI_KEYBOARD_HIDE    1
+#define UI_KEYBOARD_SHIFT   2
+#define UI_KEYBOARD_SYMBOLS 3
+#define UI_KEYBOARD_MOVE    4
+
 namespace touchcontrols
 {
 
-#define MAX_ROW_KEYS 10
-#define NBR_ROWS 4
-struct KeyboardKey
-{
-    unsigned char keyPrim;
-    uint32_t keyPrimScanCode;
-    unsigned char keyAlt;
-    const char *primImg;
-    const char *altImg;
-    GLuint glPrim;
-    GLuint glAlt;
-    float width;
-};
+#define MAX_ROW_KEYS 13
+#define NBR_ROWS 5
 
-struct KeyboardRow
-{
-     KeyboardKey keys[MAX_ROW_KEYS];
-};
+    struct KeyboardKey
+    {
+        uint32_t keyPrim;
+        uint32_t keyPrimScanCode;
+        uint32_t keyAlt;
+        const char *primImg;
+        const char *altImg;
+        GLuint glPrim;
+        GLuint glAlt;
+        float width;
+        float padLeft;
+    };
 
-struct KeyboardLayout
-{
-    KeyboardRow rows[NBR_ROWS];
-};
+    struct KeyboardRow
+    {
+        KeyboardKey keys[MAX_ROW_KEYS];
+    };
+
+    struct KeyboardLayout
+    {
+        KeyboardRow rows[NBR_ROWS];
+    };
 
 
-class UI_Keyboard : public ControlSuper
-{
-    std::string font_filename;
-    TextDraw textDrawer;
-    int fontSet;
-    KeyboardLayout layout;
-    GLuint glKeyBg;
+    class UI_Keyboard : public ControlSuper
+    {
+        std::string font_filename;
+        TextDraw textDrawer;
+        int fontSet;
+        KeyboardLayout layout;
+        GLuint glKeyBg;
 
-    void setKey( uint32_t row, uint32_t key, char keyPrim, char keyAlt, float width, const char* primImg = NULL, const char * altImg = NULL );
+        void setKey(uint32_t row, uint32_t key, uint32_t keyPrim, uint32_t keyAlt, float width, float padLeft, const char *primImg = NULL, const char *altImg = NULL);
 
-    int touchId;
-    KeyboardKey *pressedKey;
-    double timeDown;
-    bool useAltKey;
-public:
+        float findXCenter(uint32_t row, uint32_t key);
 
-	UI_Keyboard( std::string tag, RectF pos, std::string font_filename, int fontSet, uint32_t params, float textSize );
+        void keyDown(KeyboardKey *key);
 
-    sigc::signal< void, uint32_t > signal;
+        void keyUp();
 
-	bool processPointer(int action, int pid, float x, float y);
+        uint32_t shiftKey(uint32_t key);
 
- 	void resetOutput();
+        int touchId;
+        int moveTouchId;
 
-	bool drawGL(bool forEditor = false);
+        float keyboardYPos;
+        float moveYAnchor;
 
-	bool initGL();
+        KeyboardKey *pressedKey;
+        double timeDown;
+        bool useAltKey;
 
-	void updateSize();
+        //Gamepad
+        int32_t selectedX;
+        int32_t selectedRow;
 
-	void saveXML(TiXmlDocument &doc);
+        float fadePos;
 
-	void loadXML(TiXmlDocument &doc);
-};
+        bool shiftActive;
+
+        bool symbolActive;
+
+    public:
+        UI_Keyboard(std::string tag, RectF pos, std::string font_filename, int fontSet, uint32_t params, float textSize);
+
+        sigc::signal<void, uint32_t> signal;
+
+        bool processPointer(int action, int pid, float x, float y);
+
+        bool gamepadInput(bool down, GamePadKey key);
+
+        void resetOutput();
+
+        bool drawGL(bool forEditor = false);
+
+        bool initGL();
+
+        void updateSize();
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+    };
 
 }
 #endif //OPENTOUCH_UI_KEYBOARD_H

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:padding="10dp"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="500dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="10dp"
+            android:text="Android 11 - Scoped Storage"
+            android:textSize="20dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:text="Due to changes forced by Google the new 'Primary' data location is shown below." />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:textStyle="bold"
+            android:text="You can set the 'Secondary' location to your existing 'OpenTouch' folder." />
+
+        <include layout="@layout/view_horizontal_line" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Primary folder [Game data + config]:"
+            android:textSize="20dp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp">
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/app_dir_image"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_centerVertical="true"
+                app:srcCompat="@drawable/ic_baseline_phone_android_black" />
+
+            <TextView
+                android:id="@+id/app_dir_textview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@id/app_dir_image"
+                android:text="  primary/path"
+                android:textColor="@color/light_green"
+                android:textSize="15dp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+        <include layout="@layout/view_horizontal_line" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Secondary folder [Game data]:"
+            android:textSize="20dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:text="Below shows how you can select your 'OpenTouch' folder on your device or SD-card." />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="500dp"
+            android:layout_height="250dp"
+            android:layout_gravity="center_horizontal"
+            app:srcCompat="@drawable/select_secondary_1" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:layout_width="500dp"
+            android:layout_height="250dp"
+            android:layout_gravity="center_horizontal"
+            app:srcCompat="@drawable/select_secondary_2" />
+
+        <Button
+            android:id="@+id/set_now_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="Set 'Secondary Storage' now" />
+
+
+    </LinearLayout>
+</ScrollView>

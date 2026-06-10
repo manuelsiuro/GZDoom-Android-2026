@@ -1,0 +1,62 @@
+Compiled from "SDLAudioManager.java"
+public class org.libsdl.app2012.SDLAudioManager {
+  protected static final java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  protected static android.media.AudioTrack mAudioTrack;
+    descriptor: Landroid/media/AudioTrack;
+  protected static android.media.AudioRecord mAudioRecord;
+    descriptor: Landroid/media/AudioRecord;
+  public org.libsdl.app2012.SDLAudioManager();
+    descriptor: ()V
+
+  public static void initialize();
+    descriptor: ()V
+
+  static void onPause();
+    descriptor: ()V
+
+  static void onResume();
+    descriptor: ()V
+
+  protected static java.lang.String getAudioFormatString(int);
+    descriptor: (I)Ljava/lang/String;
+
+  protected static int[] open(boolean, int, int, int, int);
+    descriptor: (ZIIII)[I
+
+  public static int[] audioOpen(int, int, int, int);
+    descriptor: (IIII)[I
+
+  public static void audioWriteFloatBuffer(float[]);
+    descriptor: ([F)V
+
+  public static void audioWriteShortBuffer(short[]);
+    descriptor: ([S)V
+
+  public static void audioWriteByteBuffer(byte[]);
+    descriptor: ([B)V
+
+  public static int[] captureOpen(int, int, int, int);
+    descriptor: (IIII)[I
+
+  public static int captureReadFloatBuffer(float[], boolean);
+    descriptor: ([FZ)I
+
+  public static int captureReadShortBuffer(short[], boolean);
+    descriptor: ([SZ)I
+
+  public static int captureReadByteBuffer(byte[], boolean);
+    descriptor: ([BZ)I
+
+  public static void audioClose();
+    descriptor: ()V
+
+  public static void captureClose();
+    descriptor: ()V
+
+  public static void audioSetThreadPriority(boolean, int);
+    descriptor: (ZI)V
+
+  public static native int nativeSetupJNI();
+    descriptor: ()I
+}

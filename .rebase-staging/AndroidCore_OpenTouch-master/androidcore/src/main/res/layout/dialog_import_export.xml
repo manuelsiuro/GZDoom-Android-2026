@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:animateLayoutChanges="true"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="10dp"
+        android:orientation="horizontal">
+
+        <Spinner
+            android:id="@+id/save_path_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_centerVertical="true"
+            android:layout_toLeftOf="@id/filename_editText" />
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/filename_editText"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toLeftOf="@id/ok_button"
+            android:theme="@style/TextMaterial" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ok_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:text="Export"
+            android:theme="@style/ButtonMaterial" />
+    </RelativeLayout>
+
+    <include layout="@layout/view_horizontal_line" />
+
+    <Button
+        android:id="@+id/advanced_button"
+        android:layout_width="wrap_content"
+        android:text="Advanced"
+        android:layout_gravity="center_horizontal"
+        android:layout_height="wrap_content"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="gone" />
+
+</LinearLayout>

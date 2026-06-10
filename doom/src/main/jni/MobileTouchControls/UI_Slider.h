@@ -1,7 +1,9 @@
 #include "sigc++/sigc++.h"
 #include "ControlSuper.h"
 #include "GLRect.h"
+#include "PointF.h"
 #include "OpenGLUtils.h"
+#include "TapDetect.h"
 
 #ifndef _UI_Slider_H_
 #define _UI_Slider_H_
@@ -10,49 +12,54 @@
 namespace touchcontrols
 {
 
-class UI_Slider : public ControlSuper
-{
-	bool pressed;
+    class UI_Slider : public ControlSuper
+    {
+        bool pressed;
 
-	int touchId;
+        int touchId;
 
-	GLuint glTex;
-    GLuint glTexHandle;
+        GLuint glTex;
+        GLuint glTexHandle;
 
-	GLRect glRect;
-    GLRect glRectHandle;
+        GLRect glRect;
+        GLRect glRectHandle;
 
-    std::string bg_texture;
-    std::string handle_texture;
+        std::string bg_texture;
+        std::string handle_texture;
 
-    float value;
-    uint32_t uid;
+        float value;
+        uint32_t uid;
 
-    void updateValue( float x );
-public:
+        uint64_t timeDown;
+        PointF anchor;
+        int32_t lockState; // 0 = start, -1 = bad, 1 = good
 
-	UI_Slider( std::string tag, RectF pos, uint32_t uid, std::string bg_texture, std::string handle_texture );
+        void updateValue(float x);
 
-    float getValue();
-    void setValue( float );
+    public:
 
-    sigc::signal<void, uint32_t, float> signal;
+        UI_Slider(std::string tag, RectF pos, uint32_t uid, std::string bg_texture, std::string handle_texture);
 
-	bool processPointer(int action, int pid, float x, float y);
+        float getValue();
 
- 	void resetOutput();
+        void setValue(float);
 
-	bool drawGL(bool forEditor = false);
+        sigc::signal<void, uint32_t, float> signal;
 
-	bool initGL();
+        bool processPointer(int action, int pid, float x, float y);
 
-	void updateSize();
+        void resetOutput();
 
-	void saveXML(TiXmlDocument &doc);
+        bool drawGL(bool forEditor = false);
 
-	void loadXML(TiXmlDocument &doc);
-};
+        bool initGL();
 
+        void updateSize();
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+    };
 }
 
 #endif

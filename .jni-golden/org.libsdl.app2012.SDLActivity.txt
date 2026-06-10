@@ -1,0 +1,383 @@
+Compiled from "SDLActivity.java"
+public class org.libsdl.app2012.SDLActivity extends android.app.Activity implements android.view.View$OnSystemUiVisibilityChangeListener {
+  private static final java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  static final boolean OPENTOUCH_SDL_EXTRA;
+    descriptor: Z
+  public static boolean mIsResumedCalled;
+    descriptor: Z
+  public static boolean mHasFocus;
+    descriptor: Z
+  public static final boolean mHasMultiWindow;
+    descriptor: Z
+  private static final int SDL_SYSTEM_CURSOR_NONE;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_ARROW;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_IBEAM;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_WAIT;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_CROSSHAIR;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_WAITARROW;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_SIZENWSE;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_SIZENESW;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_SIZEWE;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_SIZENS;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_SIZEALL;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_NO;
+    descriptor: I
+  private static final int SDL_SYSTEM_CURSOR_HAND;
+    descriptor: I
+  protected static final int SDL_ORIENTATION_UNKNOWN;
+    descriptor: I
+  protected static final int SDL_ORIENTATION_LANDSCAPE;
+    descriptor: I
+  protected static final int SDL_ORIENTATION_LANDSCAPE_FLIPPED;
+    descriptor: I
+  protected static final int SDL_ORIENTATION_PORTRAIT;
+    descriptor: I
+  protected static final int SDL_ORIENTATION_PORTRAIT_FLIPPED;
+    descriptor: I
+  protected static int mCurrentOrientation;
+    descriptor: I
+  public static org.libsdl.app2012.SDLActivity$NativeState mNextNativeState;
+    descriptor: Lorg/libsdl/app2012/SDLActivity$NativeState;
+  public static org.libsdl.app2012.SDLActivity$NativeState mCurrentNativeState;
+    descriptor: Lorg/libsdl/app2012/SDLActivity$NativeState;
+  public static boolean mBrokenLibraries;
+    descriptor: Z
+  protected static org.libsdl.app2012.SDLActivity mSingleton;
+    descriptor: Lorg/libsdl/app2012/SDLActivity;
+  protected static org.libsdl.app2012.SDLSurface mSurface;
+    descriptor: Lorg/libsdl/app2012/SDLSurface;
+  protected static android.view.View mTextEdit;
+    descriptor: Landroid/view/View;
+  protected static boolean mScreenKeyboardShown;
+    descriptor: Z
+  protected static android.view.ViewGroup mLayout;
+    descriptor: Landroid/view/ViewGroup;
+  protected static org.libsdl.app2012.SDLClipboardHandler mClipboardHandler;
+    descriptor: Lorg/libsdl/app2012/SDLClipboardHandler;
+  protected static java.util.Hashtable<java.lang.Integer, android.view.PointerIcon> mCursors;
+    descriptor: Ljava/util/Hashtable;
+  protected static int mLastCursorID;
+    descriptor: I
+  protected static org.libsdl.app2012.SDLGenericMotionListener_API12 mMotionListener;
+    descriptor: Lorg/libsdl/app2012/SDLGenericMotionListener_API12;
+  protected static org.libsdl.app2012.HIDDeviceManager mHIDDeviceManager;
+    descriptor: Lorg/libsdl/app2012/HIDDeviceManager;
+  protected static java.lang.Thread mSDLThread;
+    descriptor: Ljava/lang/Thread;
+  static final int COMMAND_CHANGE_TITLE;
+    descriptor: I
+  static final int COMMAND_CHANGE_WINDOW_STYLE;
+    descriptor: I
+  static final int COMMAND_TEXTEDIT_HIDE;
+    descriptor: I
+  static final int COMMAND_CHANGE_SURFACEVIEW_FORMAT;
+    descriptor: I
+  static final int COMMAND_SET_KEEP_SCREEN_ON;
+    descriptor: I
+  protected static final int COMMAND_USER;
+    descriptor: I
+  protected static boolean mFullscreenModeActive;
+    descriptor: Z
+  android.os.Handler commandHandler;
+    descriptor: Landroid/os/Handler;
+  private static java.lang.Object expansionFile;
+    descriptor: Ljava/lang/Object;
+  private static java.lang.reflect.Method expansionFileMethod;
+    descriptor: Ljava/lang/reflect/Method;
+  protected final int[] messageboxSelection;
+    descriptor: [I
+  protected int dialogs;
+    descriptor: I
+  private final java.lang.Runnable rehideSystemUi;
+    descriptor: Ljava/lang/Runnable;
+  public org.libsdl.app2012.SDLActivity();
+    descriptor: ()V
+
+  protected static org.libsdl.app2012.SDLGenericMotionListener_API12 getMotionListener();
+    descriptor: ()Lorg/libsdl/app2012/SDLGenericMotionListener_API12;
+
+  protected java.lang.String getMainSharedObject();
+    descriptor: ()Ljava/lang/String;
+
+  protected java.lang.String getMainFunction();
+    descriptor: ()Ljava/lang/String;
+
+  protected java.lang.String[] getLibraries();
+    descriptor: ()[Ljava/lang/String;
+
+  public void loadLibraries();
+    descriptor: ()V
+
+  protected java.lang.String[] getArguments();
+    descriptor: ()[Ljava/lang/String;
+
+  public static void initialize();
+    descriptor: ()V
+
+  protected void onCreate(android.os.Bundle);
+    descriptor: (Landroid/os/Bundle;)V
+
+  protected void pauseNativeThread();
+    descriptor: ()V
+
+  protected void resumeNativeThread();
+    descriptor: ()V
+
+  protected void onPause();
+    descriptor: ()V
+
+  protected void onResume();
+    descriptor: ()V
+
+  protected void onStop();
+    descriptor: ()V
+
+  protected void onStart();
+    descriptor: ()V
+
+  public static int getCurrentOrientation();
+    descriptor: ()I
+
+  public void onWindowFocusChanged(boolean);
+    descriptor: (Z)V
+
+  public void onLowMemory();
+    descriptor: ()V
+
+  protected void onDestroy();
+    descriptor: ()V
+
+  public void onBackPressed();
+    descriptor: ()V
+
+  public static void manualBackButton();
+    descriptor: ()V
+
+  public void pressBackButton();
+    descriptor: ()V
+
+  public void superOnBackPressed();
+    descriptor: ()V
+
+  public boolean dispatchKeyEvent(android.view.KeyEvent);
+    descriptor: (Landroid/view/KeyEvent;)Z
+
+  public static void handleNativeState();
+    descriptor: ()V
+
+  protected boolean onUnhandledMessage(int, java.lang.Object);
+    descriptor: (ILjava/lang/Object;)Z
+
+  boolean sendCommand(int, java.lang.Object);
+    descriptor: (ILjava/lang/Object;)Z
+
+  public static native int nativeSetupJNI();
+    descriptor: ()I
+
+  public static native int nativeRunMain(java.lang.String, java.lang.String, java.lang.Object);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;)I
+
+  public static native void nativeLowMemory();
+    descriptor: ()V
+
+  public static native void nativeSendQuit();
+    descriptor: ()V
+
+  public static native void nativeQuit();
+    descriptor: ()V
+
+  public static native void nativePause();
+    descriptor: ()V
+
+  public static native void nativeResume();
+    descriptor: ()V
+
+  public static native void nativeFocusChanged(boolean);
+    descriptor: (Z)V
+
+  public static native void onNativeDropFile(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  public static native void nativeSetScreenResolution(int, int, int, int, int, float);
+    descriptor: (IIIIIF)V
+
+  public static native void onNativeResize();
+    descriptor: ()V
+
+  public static native void onNativeKeyDown(int);
+    descriptor: (I)V
+
+  public static native void onNativeKeyUp(int);
+    descriptor: (I)V
+
+  public static native boolean onNativeSoftReturnKey();
+    descriptor: ()Z
+
+  public static native void onNativeKeyboardFocusLost();
+    descriptor: ()V
+
+  public static native void onNativeMouse(int, int, float, float, boolean);
+    descriptor: (IIFFZ)V
+
+  public static native void onNativeTouch(int, int, int, float, float, float);
+    descriptor: (IIIFFF)V
+
+  public static native void onNativeAccel(float, float, float);
+    descriptor: (FFF)V
+
+  public static native void onNativeClipboardChanged();
+    descriptor: ()V
+
+  public static native void onNativeSurfaceCreated();
+    descriptor: ()V
+
+  public static native void onNativeSurfaceChanged();
+    descriptor: ()V
+
+  public static native void onNativeSurfaceDestroyed();
+    descriptor: ()V
+
+  public static native java.lang.String nativeGetHint(java.lang.String);
+    descriptor: (Ljava/lang/String;)Ljava/lang/String;
+
+  public static native void nativeSetenv(java.lang.String, java.lang.String);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;)V
+
+  public static native void onNativeOrientationChanged(int);
+    descriptor: (I)V
+
+  public static native void nativeAddTouch(int, java.lang.String);
+    descriptor: (ILjava/lang/String;)V
+
+  public static native void nativePermissionResult(int, boolean);
+    descriptor: (IZ)V
+
+  public static boolean setActivityTitle(java.lang.String);
+    descriptor: (Ljava/lang/String;)Z
+
+  public static void setWindowStyle(boolean);
+    descriptor: (Z)V
+
+  public static void setOrientation(int, int, boolean, java.lang.String);
+    descriptor: (IIZLjava/lang/String;)V
+
+  public void setOrientationBis(int, int, boolean, java.lang.String);
+    descriptor: (IIZLjava/lang/String;)V
+
+  public static void minimizeWindow();
+    descriptor: ()V
+
+  public static boolean shouldMinimizeOnFocusLoss();
+    descriptor: ()Z
+
+  public static boolean isScreenKeyboardShown();
+    descriptor: ()Z
+
+  public static boolean supportsRelativeMouse();
+    descriptor: ()Z
+
+  public static boolean setRelativeMouseEnabled(boolean);
+    descriptor: (Z)Z
+
+  public static boolean sendMessage(int, int);
+    descriptor: (II)Z
+
+  public static android.content.Context getContext();
+    descriptor: ()Landroid/content/Context;
+
+  public static boolean isAndroidTV();
+    descriptor: ()Z
+
+  public static boolean isTablet();
+    descriptor: ()Z
+
+  public static boolean isChromebook();
+    descriptor: ()Z
+
+  public static boolean isDeXMode();
+    descriptor: ()Z
+
+  public static android.util.DisplayMetrics getDisplayDPI();
+    descriptor: ()Landroid/util/DisplayMetrics;
+
+  public static boolean getManifestEnvironmentVariables();
+    descriptor: ()Z
+
+  public static android.view.View getContentView();
+    descriptor: ()Landroid/view/View;
+
+  public static boolean showTextInput(int, int, int, int);
+    descriptor: (IIII)Z
+
+  public static boolean isTextInputEvent(android.view.KeyEvent);
+    descriptor: (Landroid/view/KeyEvent;)Z
+
+  public static android.view.Surface getNativeSurface();
+    descriptor: ()Landroid/view/Surface;
+
+  public static void setSurfaceViewFormat(int);
+    descriptor: (I)V
+
+  public static void initTouch();
+    descriptor: ()V
+
+  public static java.io.InputStream openAPKExpansionInputStream(java.lang.String) throws java.io.IOException;
+    descriptor: (Ljava/lang/String;)Ljava/io/InputStream;
+
+  public int messageboxShowMessageBox(int, java.lang.String, java.lang.String, int[], int[], java.lang.String[], int[]);
+    descriptor: (ILjava/lang/String;Ljava/lang/String;[I[I[Ljava/lang/String;[I)I
+
+  protected android.app.Dialog onCreateDialog(int, android.os.Bundle);
+    descriptor: (ILandroid/os/Bundle;)Landroid/app/Dialog;
+
+  public void onSystemUiVisibilityChange(int);
+    descriptor: (I)V
+
+  public static boolean clipboardHasText();
+    descriptor: ()Z
+
+  public static java.lang.String clipboardGetText();
+    descriptor: ()Ljava/lang/String;
+
+  public static void clipboardSetText(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  public static int createCustomCursor(int[], int, int, int, int);
+    descriptor: ([IIIII)I
+
+  public static boolean setCustomCursor(int);
+    descriptor: (I)Z
+
+  public static boolean setSystemCursor(int);
+    descriptor: (I)Z
+
+  public static void requestPermission(java.lang.String, int);
+    descriptor: (Ljava/lang/String;I)V
+
+  public void onRequestPermissionsResult(int, java.lang.String[], int[]);
+    descriptor: (I[Ljava/lang/String;[I)V
+
+  private static void lambda$onCreate$2();
+    descriptor: ()V
+
+  private static void lambda$onCreate$1();
+    descriptor: ()V
+
+  private static void lambda$onCreate$0();
+    descriptor: ()V
+
+  static {};
+    descriptor: ()V
+}

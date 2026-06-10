@@ -4,7 +4,6 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := $(LOCAL_PATH)
 LOCAL_MODULE     := mpg123
 LOCAL_ARM_MODE   := arm
-LOCAL_LDLIBS     := -llog
 
 LOCAL_SRC_FILES := 	podax_MPG123.c
 LOCAL_SRC_FILES +=  libmpg123.c
@@ -110,5 +109,6 @@ LOCAL_SRC_FILES +=  synth_stereo_x86_64_float.S synth_stereo_x86_64.S synth_ster
 LOCAL_SRC_FILES +=  dct36_x86_64.S dct64_x86_64.S dct64_x86_64_float.S
 endif
 
+LOCAL_CFLAGS += -fvisibility=hidden -fdata-sections -ffunction-sections
 
 include $(BUILD_STATIC_LIBRARY)

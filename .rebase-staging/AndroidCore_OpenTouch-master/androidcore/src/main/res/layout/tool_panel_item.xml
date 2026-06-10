@@ -1,0 +1,24 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginLeft="0dp">
+
+    <TextView
+        android:id="@+id/label_textView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical|center_horizontal"
+        android:textColor="#000000"
+        android:layout_toLeftOf="@id/image_button"
+        android:textSize="15dp"
+        android:text="Settings" />
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/image_button"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_alignParentRight="true"
+        app:srcCompat="@drawable/left_arrow">
+    </androidx.appcompat.widget.AppCompatImageButton>
+</RelativeLayout>

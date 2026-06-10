@@ -18,72 +18,57 @@
 
 using namespace touchcontrols;
 
-ButtonExt::ButtonExt(std::string tag,RectF pos,std::string image_filename,int value_,bool repeat_,bool hidden_):
-																						ControlSuper(TC_TYPE_BUTTONEXT,tag,pos)
+ButtonExt::ButtonExt(std::string tag, RectF pos, std::string image_filename, int value_, bool repeat_, bool hidden_) :
+        ControlSuper(TC_TYPE_BUTTONEXT, tag, pos)
 {
-	value = value_;
-	image = image_filename;
-	glTex = 0;
-	id = -1;
-	repeat = repeat_;
-	hidden = hidden_;
-	updateSize();
+    value = value_;
+    image = image_filename;
+    glTex = 0;
+    id = -1;
+    repeat = repeat_;
+    hidden = hidden_;
+    updateSize();
 
-	flash = false;
-	flashDir = false;
-	flashCount = 0;
-}
-
-double ButtonExt::getMS()
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return  (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000;
-}
-
-int long long ButtonExt::current_timestamp() {
-    struct timeval te;
-    gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
-    // printf("milliseconds: %lld\n", milliseconds);
-    return milliseconds;
+    flash = false;
+    flashDir = false;
+    flashCount = 0;
 }
 
 void ButtonExt::updateSize()
 {
-	glRect.resize(controlPos.right - controlPos.left, controlPos.bottom - controlPos.top);
+    glRect.resize(controlPos.right - controlPos.left, controlPos.bottom - controlPos.top);
 }
 
 void ButtonExt::setFlash(bool v)
 {
-	flash = v;
+    flash = v;
 }
 
 void ButtonExt::resetOutput()
 {
     id = -1;
-    signal_button.emit(BUTTONEXT_UP,value);
+    signal_button.emit(BUTTONEXT_UP, value);
 }
 
 bool ButtonExt::processPointer(int action, int pid, float x, float y)
 {
-	if (hidden) //Hidden controls do not respond to inputs
-		return false;
+    if(hidden)  //Hidden controls do not respond to inputs
+        return false;
 
-	if (action == P_DOWN)
-	{
-		if (controlPos.contains(x,y))
-		{
-			id = pid;
-			signal_button.emit(BUTTONEXT_DOWN,value);
-			repeatTime = getMS() +  REPEAT_START_TIME;//Wait before repeating
+    if(action == P_DOWN)
+    {
+        if(controlPos.contains(x, y))
+        {
+            id = pid;
+            signal_button.emit(BUTTONEXT_DOWN, value);
+            repeatTime = getMS() + REPEAT_START_TIME;//Wait before repeating
 
             tapTimer = getMS();
 
             if(doubleTapState == 2) //Second down of double tap
             {
-                if (((current_timestamp() - doubleTapCounter) < DOUBLE_TAP_SPEED)&&
-                    (((abs(doubleTapPos.x - x) + abs(doubleTapPos.y - y))) < DOUBLE_TAP_DRIFT))
+                if(((getMS() - doubleTapCounter) < DOUBLE_TAP_SPEED) &&
+                   (((abs(doubleTapPos.x - x) + abs(doubleTapPos.y - y))) < DOUBLE_TAP_DRIFT))
                 {
                     doubleTapState = 3;
                 }
@@ -91,152 +76,149 @@ bool ButtonExt::processPointer(int action, int pid, float x, float y)
                     doubleTapState = 0;
             }
 
-            if (doubleTapState == 0) //First tap of double tap
+            if(doubleTapState == 0)  //First tap of double tap
             {
                 doubleTapState = 1;
-                doubleTapCounter = current_timestamp();
+                doubleTapCounter = getMS();
                 doubleTapPos.x = x;
                 doubleTapPos.y = y;
-             }
+            }
 
-			return true;
-		}
-		return false;
-	}
-	else if (action == P_UP)
-	{
-		if (pid == id)
-		{
-			id = -1;
-			signal_button.emit(BUTTONEXT_UP,value);
+            return true;
+        }
 
-			if (controlPos.contains(x,y))
+        return false;
+    }
+    else if(action == P_UP)
+    {
+        if(pid == id)
+        {
+            id = -1;
+            signal_button.emit(BUTTONEXT_UP, value);
+
+            if(controlPos.contains(x, y))
             {
                 // Use the doubleTapCounter for taps also
-                if ((getMS() - tapTimer) < TAP_SPEED)
+                if((getMS() - tapTimer) < TAP_SPEED)
                 {
-                    signal_button.emit(BUTTONEXT_TAP,value);
+                    signal_button.emit(BUTTONEXT_TAP, value);
                 }
 
-                if (doubleTapState == 1) //First up of double tap
+                if(doubleTapState == 1)  //First up of double tap
                 {
                     //Simple check to see if finger moved very much
-                    if (((current_timestamp() - doubleTapCounter) < DOUBLE_TAP_SPEED) &&
-                            (((abs(doubleTapPos.x - x) + abs(doubleTapPos.y - y))) < DOUBLE_TAP_DRIFT))
+                    if(((getMS() - doubleTapCounter) < DOUBLE_TAP_SPEED) &&
+                       (((abs(doubleTapPos.x - x) + abs(doubleTapPos.y - y))) < DOUBLE_TAP_DRIFT))
                     {
                         doubleTapState = 2;
-                        doubleTapCounter = current_timestamp();
+                        doubleTapCounter = getMS();
                     }
                     else
                         doubleTapState = 0;
                 }
-                else if (doubleTapState == 3) //Finger up, finished double tap
+                else if(doubleTapState == 3)  //Finger up, finished double tap
                 {
-                    if ((((abs(doubleTapPos.x - x) + abs(doubleTapPos.y - y))) < DOUBLE_TAP_DRIFT))
+                    if((((abs(doubleTapPos.x - x) + abs(doubleTapPos.y - y))) < DOUBLE_TAP_DRIFT))
                     {
                         LOGTOUCH("emmit");
-                       signal_button.emit(BUTTONEXT_DOUBLE,value);
+                        signal_button.emit(BUTTONEXT_DOUBLE, value);
                     }
 
                     doubleTapState = 0;
                     doubleTapCounter = 0;
                 }
-			}
+            }
 
-			return true;
-		}
-		return false;
-	}
-	else if(action == P_MOVE)
-	{
-		return false;
-	}
-    
+            return true;
+        }
+
+        return false;
+    }
+    else if(action == P_MOVE)
+    {
+        return false;
+    }
+
     return false;
 }
 
 
 bool ButtonExt::initGL()
 {
-	int x,y;
-	glTex = loadTextureFromPNG(image,x,y);
-	
+    int x, y;
+    glTex = loadTextureFromPNG(image, x, y);
+
     return false;
 }
 
 bool ButtonExt::drawGL(bool forEditor)
 {
-	if (forEditor)
-	{
-        if (!hidden)
+    if(forEditor)
+    {
+        if(!hidden)
         {
-		drawRect(glTex,controlPos.left,controlPos.top,glRect);
-		}
-	}
-	else //Draw normal in game
-	{
-		if (!hidden)
-		{
+            gl_drawRect(glTex, controlPos.left, controlPos.top, glRect);
+        }
+    }
+    else //Draw normal in game
+    {
+        if(!hidden)
+        {
+            if(flash)
+            {
+                if(getMS() > flashCount)
+                {
+                    flashCount = getMS() + 300;
+                    flashDir = !flashDir;
+                }
 
-			if (flash)
-			{
-				//LOGTOUCH("fc = %lld",flashCount);
-				//LOGTOUCH("flashDir = %d",flashDir);
+                if(flashDir)
+                    return false;
+            }
 
-				if (current_timestamp() > flashCount)
-				{
-					flashCount = current_timestamp() + 300;
-					flashDir = !flashDir;
-				}
+            if(id == -1)
+                gl_drawRect(glTex, controlPos.left, controlPos.top, glRect);
+            else //Highlight buttons if pressed
+            {
+                //glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+                gl_drawRect(glTex, controlPos.left, controlPos.top, glRect);
+                //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            }
+        }
+    }
 
-				if (flashDir)
-					return false;
-			}
+    if(repeat)
+    {
+        if(id != -1)
+        {
+            if(getMS() > repeatTime)
+            {
+                repeatTime = getMS() + REPEAT_INTERVAL;
 
-			if (id==-1)
-				drawRect(glTex,controlPos.left,controlPos.top,glRect);
-			else //Highlight buttons if pressed
-			{
-				//glBlendFunc(GL_CONSTANT_COLOR, GL_ONE_MINUS_SRC_ALPHA);
-				drawRect(glTex,controlPos.left,controlPos.top,glRect);
-				//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			}
-		}
-	}
+                signal_button.emit(BUTTONEXT_DOWN, value);
+                signal_button.emit(BUTTONEXT_UP, value);
+            }
+        }
+    }
 
-	if (repeat)
-	{
-		if (id != -1)
-		{
-			if (getMS() > repeatTime)
-			{
-				repeatTime = getMS() + REPEAT_INTERVAL;
-
-
-				signal_button.emit(BUTTONEXT_DOWN,value);
-				signal_button.emit(BUTTONEXT_UP,value);
-			}
-		}
-	}
-    
     return false;
 }
 
 void ButtonExt::saveXML(TiXmlDocument &doc)
 {
-	TiXmlElement * root = new TiXmlElement(tag.c_str());
-	doc.LinkEndChild( root );
+    TiXmlElement *root = new TiXmlElement(tag.c_str());
+    doc.LinkEndChild(root);
 
-	ControlSuper::saveXML(*root);
+    ControlSuper::saveXML(*root);
 }
 
 void ButtonExt::loadXML(TiXmlDocument &doc)
 {
-	TiXmlHandle hDoc(&doc);
-	TiXmlElement* pElem=hDoc.FirstChild( tag ).Element();
+    TiXmlHandle hDoc(&doc);
+    TiXmlElement *pElem = hDoc.FirstChild(tag).Element();
 
-	if (!pElem) //Check exists, if not just leave as default
-		return;
+    if(!pElem)  //Check exists, if not just leave as default
+        return;
 
-	ControlSuper::loadXML(*pElem);
+    ControlSuper::loadXML(*pElem);
 }

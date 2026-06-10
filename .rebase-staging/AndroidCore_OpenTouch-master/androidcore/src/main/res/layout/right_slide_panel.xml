@@ -1,0 +1,30 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/relative_top_right_panel"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:layout_alignParentRight="true"
+    android:layout_marginRight="0dp">
+
+    <LinearLayout
+        android:id="@+id/linear_right_hidden_panel"
+        android:layout_width="100dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentRight="true"
+        android:background="#e9e6e6e6"
+        android:orientation="vertical">
+
+    </LinearLayout>
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/imagebutton_entry_open_right"
+        android:layout_width="50dp"
+        android:layout_height="80dp"
+        android:layout_centerVertical="true"
+        android:layout_toLeftOf="@id/linear_right_hidden_panel"
+        android:background="@null"
+        android:focusable="false"
+        app:srcCompat="@drawable/right_arrow">
+
+    </androidx.appcompat.widget.AppCompatImageButton>
+</RelativeLayout>

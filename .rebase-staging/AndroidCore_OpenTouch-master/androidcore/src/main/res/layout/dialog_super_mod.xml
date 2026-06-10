@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:animateLayoutChanges="true"
+    android:background="#123456">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_toLeftOf="@+id/sort_imageButton"
+        android:animateLayoutChanges="true"
+        android:orientation="vertical">
+
+        <RelativeLayout
+            android:id="@+id/search_relativeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <EditText
+                android:importantForAutofill="no"
+                android:id="@+id/search_editText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_toLeftOf="@+id/clear_search_imageButton"
+                android:imeOptions="actionSearch|flagNoExtractUi"
+                android:inputType="text"
+                android:maxLines="1" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/clear_search_imageButton"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_alignParentRight="true"
+                android:background="@drawable/focusable"
+                app:srcCompat="@drawable/ic_clear_white_24dp" />
+        </RelativeLayout>
+
+        <ListView
+            android:id="@+id/listView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:divider="#FFFFFF"
+            android:dividerHeight="1dp" />
+    </LinearLayout>
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/search_imageButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentTop="true"
+        android:layout_toLeftOf="@id/sort_imageButton"
+        android:layout_marginBottom="5dp"
+        android:background="@null"
+        android:scaleType="fitXY"
+        app:srcCompat="@drawable/ic_search" />
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/sort_imageButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginLeft="5dp"
+        android:layout_marginBottom="5dp"
+        android:background="@null"
+        android:scaleType="fitXY"
+        app:srcCompat="@drawable/ic_sort_24dp" />
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/add_imageButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="5dp"
+        android:layout_marginBottom="5dp"
+        android:background="@null"
+        android:scaleType="fitXY"
+        app:srcCompat="@drawable/ic_add_circle_outline_white" />
+
+</RelativeLayout>

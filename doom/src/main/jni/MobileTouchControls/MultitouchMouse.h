@@ -3,6 +3,7 @@
 #include "GLRect.h"
 #include "PointF.h"
 #include "OpenGLUtils.h"
+#include "TapDetect.h"
 
 #ifndef _MultitouchMouse_H_
 #define _MultitouchMouse_H_
@@ -16,67 +17,62 @@
 #define MULTITOUCHMOUSE_2_UP   5
 
 #define MULTITOUCHMOUSE_ZOOM   6
-#define MULTITOUCHMOUSE_LONG_PRESS   7
 
 namespace touchcontrols
 {
 
-class MultitouchMouse : public ControlSuper
-{
-	bool pressed;
-	bool hideGraphics;
+    class MultitouchMouse : public ControlSuper
+    {
+        bool pressed;
+        bool hideGraphics;
 
-	int id;
+        int id;
 
-	int id2;
+        int id2;
 
-	std::string image;
+        std::string image;
 
-	GLuint glTex;
+        GLuint glTex;
 
-	GLRect glRect;
-	GLLines *glLines;
+        GLRect glRect;
+        GLLines *glLines;
 
+        PointF last, last2;
 
-	PointF last,last2;
+        PointF anchor;
 
-	PointF anchor;
+        TapDetect tapDetect;
 
+    public:
+        sigc::signal<void, int, float, float, float, float> signal_action;
 
-	//Double tap stuff
-	int tapState; //0 = waiting for first press, 1 = waiting for first lift,
-	int tapCounter;
+        sigc::signal<void, int> signal_double_tap;
 
-	//enum mode{
-public:
-	sigc::signal<void,int, float,float,float,float> signal_action;
+        MultitouchMouse(std::string tag, RectF pos, std::string image_filename);
 
-	sigc::signal<void, int> signal_double_tap;
+        void setHideGraphics(bool v);
 
+        void resetOutput();
 
-	MultitouchMouse(std::string tag,RectF pos,std::string image_filename);
+        bool processPointer(int action, int pid, float x, float y);
 
-	void setHideGraphics(bool v);
+        bool drawGL(bool);
 
-	void resetOutput();
+        bool initGL();
 
-	bool processPointer(int action, int pid, float x, float y);
+        void updateSize();
 
-	bool drawGL(bool);
+        void saveXML(TiXmlDocument &doc);
 
-	bool initGL();
+        void loadXML(TiXmlDocument &doc);
 
-	void updateSize();
+    private:
 
-	void saveXML(TiXmlDocument &doc);
+        void reset();
 
-	void loadXML(TiXmlDocument &doc);
-private:
+        float distancePoints(PointF p1, PointF p2);
 
-	void reset();
-	float distancePoints(PointF p1,PointF p2);
-
-};
+    };
 
 }
 
