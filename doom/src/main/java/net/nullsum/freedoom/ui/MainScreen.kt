@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import net.nullsum.freedoom.R
 import net.nullsum.freedoom.ui.browse.BrowseScreen
 import net.nullsum.freedoom.ui.browse.BrowseState
+import net.nullsum.freedoom.ui.editor.MapEditorScreen
 import net.nullsum.freedoom.ui.launch.LaunchScreen
 import net.nullsum.freedoom.ui.launch.LaunchState
 import net.nullsum.freedoom.ui.options.OptionsScreen
@@ -32,7 +33,7 @@ import net.nullsum.freedoom.ui.options.OptionsScreen
 fun MainScreen() {
     val activity = requireNotNull(LocalActivity.current)
     val launchState = remember { LaunchState(activity) }
-    val pagerState = rememberPagerState(pageCount = { 4 })
+    val pagerState = rememberPagerState(pageCount = { 5 })
     val scope = rememberCoroutineScope()
     // Hoisted here (with MainScreen's scope) so in-flight downloads survive tab swipes
     // even when the pager disposes the browse page.
@@ -42,6 +43,7 @@ fun MainScreen() {
         stringResource(R.string.gamepad_tab),
         stringResource(R.string.options_tab),
         stringResource(R.string.browse_tab),
+        stringResource(R.string.editor_tab),
     )
 
     // Re-scan when returning to the launch tab (e.g. after the base dir changed in Options).
@@ -85,7 +87,8 @@ fun MainScreen() {
                 )
                 1 -> AndroidFragment<GamePadFragment>(modifier = Modifier.fillMaxSize())
                 2 -> OptionsScreen(modifier = Modifier.fillMaxSize())
-                else -> BrowseScreen(state = browseState, modifier = Modifier.fillMaxSize())
+                3 -> BrowseScreen(state = browseState, modifier = Modifier.fillMaxSize())
+                else -> MapEditorScreen(modifier = Modifier.fillMaxSize())
             }
         }
     }

@@ -96,5 +96,8 @@ dependencies {
     implementation(libs.androidx.fragment.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // PNG->WAD generator (native libpng2wad.so via CMake) used by the map editor.
+    implementation(project(":png2wad-sdk"))
+
     testImplementation(libs.junit)
 }
