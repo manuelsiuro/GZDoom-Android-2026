@@ -25,6 +25,7 @@ import net.nullsum.freedoom.R
 import net.nullsum.freedoom.ui.browse.BrowseScreen
 import net.nullsum.freedoom.ui.browse.BrowseState
 import net.nullsum.freedoom.ui.editor.MapEditorScreen
+import net.nullsum.freedoom.ui.editor.MapEditorState
 import net.nullsum.freedoom.ui.launch.LaunchScreen
 import net.nullsum.freedoom.ui.launch.LaunchState
 import net.nullsum.freedoom.ui.options.OptionsScreen
@@ -38,6 +39,10 @@ fun MainScreen() {
     // Hoisted here (with MainScreen's scope) so in-flight downloads survive tab swipes
     // even when the pager disposes the browse page.
     val browseState = remember { BrowseState(activity, scope) }
+    // Hoisted likewise so the in-progress drawing + project survive tab swipes (the pager
+    // disposes the editor page when it's >2 tabs away). Process-death recovery is handled by
+    // the screen's own disk restore.
+    val editorState = remember { MapEditorState(activity, scope) }
     val titles = listOf(
         stringResource(R.string.app_name),
         stringResource(R.string.gamepad_tab),
@@ -88,7 +93,7 @@ fun MainScreen() {
                 1 -> AndroidFragment<GamePadFragment>(modifier = Modifier.fillMaxSize())
                 2 -> OptionsScreen(modifier = Modifier.fillMaxSize())
                 3 -> BrowseScreen(state = browseState, modifier = Modifier.fillMaxSize())
-                else -> MapEditorScreen(modifier = Modifier.fillMaxSize())
+                else -> MapEditorScreen(state = editorState, modifier = Modifier.fillMaxSize())
             }
         }
     }

@@ -36,12 +36,6 @@ class LaunchState(private val activity: Activity) {
 
     val baseDir: String get() = AppSettings.getQuakeFullDir()
 
-    // Engine/bundled files that must not be offered as IWADs (same list as the legacy fragment).
-    private val excludedFiles = setOf(
-        "prboom-plus.wad", "gzdoom.pk3", "gzdoom_dev.pk3",
-        "lights_dt.pk3", "brightmaps_dt.pk3", "lights.pk3", "brightmaps.pk3",
-    )
-
     /** First-run unpack + initial scan. Replaces the legacy 10-second restart hack. */
     suspend fun initialize() {
         if (initialized) return
@@ -65,16 +59,7 @@ class LaunchState(private val activity: Activity) {
 
     suspend fun refreshGames() {
         // Scan order (filesystem order) is what the legacy int "last_iwad" indexed into.
-        val scanOrder = withContext(Dispatchers.IO) {
-            File(baseDir).listFiles().orEmpty()
-                .filter { !it.isDirectory }
-                .filter { f ->
-                    val name = f.name.lowercase()
-                    (name.endsWith(".wad") || name.endsWith(".pk3") || name.endsWith(".pk7")) &&
-                        name !in excludedFiles
-                }
-                .map { WadEntry(it.name, it.length()) }
-        }
+        val scanOrder = withContext(Dispatchers.IO) { scanIwads(baseDir) }
         games = scanOrder.sortedBy { it.file.lowercase() }
 
         val lastName = AppSettings.getStringOption(activity, "last_iwad_name", null)

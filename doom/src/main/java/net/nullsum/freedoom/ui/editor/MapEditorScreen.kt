@@ -1,36 +1,53 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package net.nullsum.freedoom.ui.editor
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
 import android.widget.Toast
-import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,479 +55,511 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.doomandroid.png2wad.Png2WadConverter
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import net.nullsum.freedoom.AppSettings
-import net.nullsum.freedoom.Game
-import net.nullsum.freedoom.Utils
-import net.nullsum.freedoom.ui.launch.buildLaunchArgs
-import java.io.File
-import java.io.FileOutputStream
-
-// Tile colors (ARGB) — must match the png2wad GetTileTypeFromPixel() table.
-private val COLOR_WALL = Color(0xFFFFFFFF)
-private val COLOR_ROOM = Color(0xFF000000)
-private val COLOR_SP_FLOOR = Color(0xFFFF0000)
-private val COLOR_SP_CEILING = Color(0xFF008000)
-private val COLOR_SKY = Color(0xFF0000FF)
-private val COLOR_DOOR = Color(0xFF808000)
-private val COLOR_SECRET = Color(0xFFFF00FF)
-private val COLOR_START = Color(0xFFFFFF00)
-private val COLOR_EXIT = Color(0xFF00FF00)
-
-// Theme colors — selected via the top-left pixel; must match [Themes] in DEFAULT_PREFERENCES.
-private val THEME_TECH = Color(0xFFFFFFFF) // Default theme = white per [Themes] Default=255,255,255
-private val THEME_CAVE = Color(0xFF808080)
-private val THEME_HELL = Color(0xFFFF0000)
-private val THEME_CITY = Color(0xFF8080FF)
-
-private val TILES = listOf(
-    "Wall" to COLOR_WALL,
-    "Room" to COLOR_ROOM,
-    "Sp. Floor" to COLOR_SP_FLOOR,
-    "Sp. Ceiling" to COLOR_SP_CEILING,
-    "Sky" to COLOR_SKY,
-    "Door" to COLOR_DOOR,
-    "Secret" to COLOR_SECRET,
-    "Start" to COLOR_START,
-    "Exit" to COLOR_EXIT,
-)
-
-private val THEMES = listOf(
-    "Tech" to THEME_TECH,
-    "Cave" to THEME_CAVE,
-    "Hell" to THEME_HELL,
-    "City" to THEME_CITY,
-)
-
-private const val GENERATED_WAD_NAME = "generated.wad"
-
-@Composable
-fun MapEditorScreen(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val activity = LocalActivity.current
-    val coroutineScope = rememberCoroutineScope()
-
-    val gridSize = 16
-    var pixels by remember { mutableStateOf(Array(gridSize * gridSize) { COLOR_ROOM }) }
-    var selectedColor by remember { mutableStateOf(COLOR_WALL) }
-    var selectedTheme by remember { mutableStateOf(THEME_TECH) }
-    var isBusy by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("Theme (top-left pixel)", style = MaterialTheme.typography.titleMedium)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            THEMES.forEach { (name, color) ->
-                PaletteItem(name, color, selectedTheme == color) { selectedTheme = color }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text("Tile palette", style = MaterialTheme.typography.titleMedium)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            TILES.take(5).forEach { (name, color) ->
-                PaletteItem(name, color, selectedColor == color) { selectedColor = color }
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            TILES.drop(5).forEach { (name, color) ->
-                PaletteItem(name, color, selectedColor == color) { selectedColor = color }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-            modifier = Modifier
-                .aspectRatio(1f)
-                .fillMaxWidth()
-                .border(2.dp, Color.Gray),
-        ) {
-            Canvas(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures { offset ->
-                            val cell = size.width / gridSize
-                            val col = (offset.x / cell).toInt().coerceIn(0, gridSize - 1)
-                            val row = (offset.y / cell).toInt().coerceIn(0, gridSize - 1)
-                            if (col != 0 || row != 0) {
-                                val np = pixels.clone(); np[row * gridSize + col] = selectedColor; pixels = np
-                            }
-                        }
-                    }
-                    .pointerInput(Unit) {
-                        detectDragGestures { change, _ ->
-                            val cell = size.width / gridSize
-                            val col = (change.position.x / cell).toInt().coerceIn(0, gridSize - 1)
-                            val row = (change.position.y / cell).toInt().coerceIn(0, gridSize - 1)
-                            if (col != 0 || row != 0) {
-                                val np = pixels.clone(); np[row * gridSize + col] = selectedColor; pixels = np
-                            }
-                        }
-                    },
-            ) {
-                val cell = size.width / gridSize
-                for (row in 0 until gridSize) {
-                    for (col in 0 until gridSize) {
-                        val color = if (row == 0 && col == 0) selectedTheme else pixels[row * gridSize + col]
-                        drawRect(color, Offset(col * cell, row * cell), Size(cell, cell))
-                    }
-                }
-                for (i in 0..gridSize) {
-                    drawLine(Color.DarkGray, Offset(0f, i * cell), Offset(size.width, i * cell), 1f)
-                    drawLine(Color.DarkGray, Offset(i * cell, 0f), Offset(i * cell, size.height), 1f)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                if (activity == null) return@Button
-                isBusy = true
-                coroutineScope.launch {
-                    val wad = generateWad(context, gridSize, pixels, selectedTheme)
-                    if (wad != null) {
-                        launchGeneratedMap(activity, wad)
-                    } else {
-                        Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
-                    }
-                    isBusy = false
-                }
-            },
-            enabled = !isBusy,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-        ) {
-            Text(if (isBusy) "Working…" else "Generate & Play")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedButton(
-            onClick = {
-                isBusy = true
-                coroutineScope.launch {
-                    val wad = generateWad(context, gridSize, pixels, selectedTheme)
-                    Toast.makeText(
-                        context,
-                        if (wad != null) "WAD generated: ${wad.absolutePath}" else "Failed to generate WAD",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    isBusy = false
-                }
-            },
-            enabled = !isBusy,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-        ) {
-            Text("Generate only")
-        }
-    }
-}
-
-@Composable
-private fun PaletteItem(name: String, color: Color, isSelected: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(60.dp)) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(color)
-                .border(3.dp, if (isSelected) Color.White else Color.DarkGray)
-                .clickable { onClick() },
-        )
-        Text(name, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-    }
-}
+import net.nullsum.freedoom.ui.editor.data.ProjectSummary
+import net.nullsum.freedoom.ui.editor.model.MapTheme
+import net.nullsum.freedoom.ui.editor.model.TileType
+import net.nullsum.freedoom.ui.editor.model.WadFormat
+import net.nullsum.freedoom.ui.launch.WadEntry
 
 /**
- * Renders the grid to a PNG, writes Preferences.ini, and runs the native png2wad
- * converter. The output WAD is written into the Freedoom mods dir so it can be
- * loaded with "-file mods/generated.wad". Returns the WAD file on success.
+ * The in-app map studio: a paint canvas plus tools, a tile palette, per-map management,
+ * generation tuning, a test-IWAD picker and named projects. All durable state lives in the
+ * hoisted [MapEditorState]; this is just the Material 3 shell.
  */
-private suspend fun generateWad(
-    context: Context,
-    gridSize: Int,
-    pixels: Array<Color>,
-    theme: Color,
-): File? = withContext(Dispatchers.IO) {
-    try {
-        val bitmap = Bitmap.createBitmap(gridSize, gridSize, Bitmap.Config.ARGB_8888)
-        for (row in 0 until gridSize) {
-            for (col in 0 until gridSize) {
-                val c = if (row == 0 && col == 0) theme else pixels[row * gridSize + col]
-                bitmap.setPixel(
-                    col, row,
-                    android.graphics.Color.argb(
-                        (c.alpha * 255).toInt(),
-                        (c.red * 255).toInt(),
-                        (c.green * 255).toInt(),
-                        (c.blue * 255).toInt(),
-                    ),
+@Composable
+fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        state.loadCurrentOrNew()
+        state.loadIwads()
+    }
+
+    var showSize by remember { mutableStateOf(false) }
+    var showTheme by remember { mutableStateOf(false) }
+    var showMaps by remember { mutableStateOf(false) }
+    var showTuning by remember { mutableStateOf(false) }
+    var showProjects by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        EditorHeader(
+            state = state,
+            onOpenProjects = { showProjects = true },
+        )
+
+        // Canvas hero.
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            MapCanvas(state = state, modifier = Modifier.fillMaxSize())
+            if (state.isBusy) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color(0xAA000000)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        state.genStatus?.let {
+                            Spacer(Modifier.height(8.dp))
+                            Text(it, color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+
+        TilePaletteRow(state)
+
+        EditorToolbar(
+            state = state,
+            onSize = { showSize = true },
+            onTheme = { showTheme = true },
+            onMaps = { showMaps = true },
+            onTuning = { showTuning = true },
+        )
+
+        ActionRow(
+            state = state,
+            onResult = { ok, msg ->
+                if (!ok) Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                else if (msg.isNotEmpty()) Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            },
+        )
+    }
+
+    if (showSize) SizeDialog(state) { showSize = false }
+    if (showTheme) ThemeDialog(state) { showTheme = false }
+    if (showMaps) MapsSheet(state) { showMaps = false }
+    if (showTuning) TuningSheet(state) { showTuning = false }
+    if (showProjects) ProjectsSheet(state) { showProjects = false }
+}
+
+// ---------------------------------------------------------------------------- header
+
+@Composable
+private fun EditorHeader(state: MapEditorState, onOpenProjects: () -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+    var iwadMenuOpen by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedTextField(
+            value = state.project.name,
+            onValueChange = { state.rename(it) },
+            label = { Text("Level name") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+        )
+
+        // Test IWAD picker.
+        Box {
+            OutlinedButton(onClick = { iwadMenuOpen = true }) {
+                Text(state.project.iwadFile.removeSuffix(".wad"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            DropdownMenu(expanded = iwadMenuOpen, onDismissRequest = { iwadMenuOpen = false }) {
+                if (state.availableIwads.isEmpty()) {
+                    DropdownMenuItem(text = { Text("No IWADs found") }, onClick = { iwadMenuOpen = false })
+                }
+                state.availableIwads.forEach { wad: WadEntry ->
+                    DropdownMenuItem(
+                        text = { Text(wad.file) },
+                        onClick = { state.setIwad(wad.file); iwadMenuOpen = false },
+                    )
+                }
+            }
+        }
+
+        Box {
+            TextButton(onClick = { menuOpen = true }) { Text("⋮") }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Projects…") },
+                    onClick = { menuOpen = false; onOpenProjects() },
                 )
             }
         }
-
-        val pngFile = File(context.cacheDir, "temp_map.png")
-        FileOutputStream(pngFile).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-
-        val configFile = File(context.cacheDir, "Preferences.ini")
-        configFile.writeText(DEFAULT_PREFERENCES)
-
-        val modsDir = File(AppSettings.getQuakeFullDir(), "mods").apply { mkdirs() }
-        val wadFile = File(modsDir, GENERATED_WAD_NAME)
-
-        val ok = Png2WadConverter().generateWad(
-            arrayOf(pngFile.absolutePath),
-            wadFile.absolutePath,
-            configFile.absolutePath,
-        )
-        if (ok && wadFile.exists()) wadFile else null
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
     }
 }
 
-/**
- * Launches the GZDoom engine on the freshly generated map. Mirrors the Intent
- * contract of [net.nullsum.freedoom.ui.launch.LaunchState.launchGame] and jumps
- * straight into MAP01 via "+map MAP01".
- */
-private suspend fun launchGeneratedMap(activity: Activity, wadFile: File) {
-    val base = AppSettings.getQuakeFullDir()
-    withContext(Dispatchers.IO) {
-        AppSettings.createDirectories(activity)
-        // Ensure the IWAD + engine resources exist (the editor tab may be used
-        // before the launch tab has unpacked them).
-        if (!File(base, "freedoom2.wad").exists()) {
-            Utils.copyFreedoomFilesToSD(activity)
+// ----------------------------------------------------------------------------- palette
+
+@Composable
+private fun TilePaletteRow(state: MapEditorState) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(TileType.entries.toList()) { tile ->
+            val selected = state.selectedTile == tile && state.activeTool != EditorTool.Eraser
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable {
+                        state.selectedTile = tile
+                        if (state.activeTool == EditorTool.Eraser || state.activeTool == EditorTool.Pan) {
+                            state.activeTool = EditorTool.Brush
+                        }
+                    }
+                    .padding(2.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(tile.composeColor, RoundedCornerShape(6.dp))
+                        .border(
+                            width = if (selected) 3.dp else 1.dp,
+                            color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFF555555),
+                            shape = RoundedCornerShape(6.dp),
+                        ),
+                )
+                Text(tile.displayName, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            }
         }
-        Utils.copyAsset(activity, "gzdoom.pk3", base)
-        Utils.copyAsset(activity, "gzdoom.sf2", base)
     }
-
-    // Path relative to the engine working dir (game_path == base).
-    val modArgs = "-file mods/${wadFile.name} "
-    val intent = Intent(activity, Game::class.java).apply {
-        action = Intent.ACTION_MAIN
-        addCategory(Intent.CATEGORY_LAUNCHER)
-        putExtra("res_div", AppSettings.getIntOption(activity, "gzdoom_res_div", 1))
-        putExtra("game_path", base)
-        putExtra("game", "net.nullsum.freedoom")
-        putExtra("args", buildLaunchArgs("-iwad freedoom2.wad", modArgs, "+map MAP01", base))
-    }
-    activity.startActivity(intent)
 }
 
-private val DEFAULT_PREFERENCES = """[Options]
-BuildNodes=false
-Doom1Format=false
-Episode=1
-GenerateEntranceAndExit=true
-GenerateThings=true
+// ----------------------------------------------------------------------------- toolbar
 
-[Things]
-Types.AmmoSmall=2008,2007,2047,2010
-Types.AmmoLarge=2048,2046,2049,17
-Types.Armor=2018,2019
-Types.Health=2012,2011
-Types.MonstersVeryHard=64,69,3003
-Types.MonstersHard=3005,69
-Types.MonstersMedium=3002,3006,58,65
-Types.MonstersEasy=3004,9,3001
-Types.PowerUps=8,2023,2022,2024,2013
-Types.WeaponsLow=2002,2005,2001,82
-Types.WeaponsHigh=2006,2004,2003
+@Composable
+private fun EditorToolbar(
+    state: MapEditorState,
+    onSize: () -> Unit,
+    onTheme: () -> Unit,
+    onMaps: () -> Unit,
+    onTuning: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ToolChip("Brush", state.activeTool == EditorTool.Brush) { state.activeTool = EditorTool.Brush }
+            ToolChip("Erase", state.activeTool == EditorTool.Eraser) { state.activeTool = EditorTool.Eraser }
+            ToolChip("Fill", state.activeTool == EditorTool.Bucket) { state.activeTool = EditorTool.Bucket }
+            ToolChip("Pan", state.activeTool == EditorTool.Pan) { state.activeTool = EditorTool.Pan }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = { state.undo() }, enabled = state.canUndo) { Text("Undo") }
+            TextButton(onClick = { state.redo() }, enabled = state.canRedo) { Text("Redo") }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AssistChip(onClick = onSize, label = { Text("Size ${state.gridWidth}×${state.gridHeight}") })
+            AssistChip(onClick = onTheme, label = { Text("Theme: ${state.theme.displayName}") })
+            AssistChip(onClick = onMaps, label = { Text("Maps (${state.project.maps.size})") })
+            AssistChip(onClick = onTuning, label = { Text("Tuning") })
+        }
+    }
+}
 
-Count.AmmoLarge=4,8
-Count.AmmoSmall=8,12
-Count.Armor=2,4
-Count.Health=8,10
-Count.MonstersAverage=15,25
-Count.MonstersEasy=15,25
-Count.MonstersHard=5,10
-Count.MonstersVeryHard=2,5
-Count.PowerUps=0,2
-Count.WeaponsHigh=1,3
-Count.WeaponsLow=2,4
+@Composable
+private fun ToolChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
+}
 
-[Themes]
-Default=255,255,255
-Cave=128,128,128
-City=128,128,255
-Hell=255,0,0
+// ----------------------------------------------------------------------------- actions
 
-[Theme.Default]
-Height.Default=0,64
-Height.DoorSide=0,64
-Height.Entrance=4,64
-Height.Exit=4,64
-Height.Exterior=0,128
-Height.SpecialCeiling=0,60
-Height.SpecialFloor=-4,64
+@Composable
+private fun ActionRow(state: MapEditorState, onResult: (Boolean, String) -> Unit) {
+    val scope = rememberCoroutineScope()
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedButton(
+            onClick = {
+                scope.launch {
+                    val r = state.generate()
+                    onResult(r != null, if (r != null) "WAD generated: ${r.wadFile.name}" else "Failed to generate WAD")
+                }
+            },
+            enabled = !state.isBusy,
+            modifier = Modifier.weight(1f).height(48.dp),
+        ) { Text("Generate") }
 
-LightLevel.Default=192
-LightLevel.DoorSide=192
-LightLevel.Entrance=192
-LightLevel.Exit=255
-LightLevel.Exterior=255
-LightLevel.SpecialCeiling=255
-LightLevel.SpecialFloor=192
+        Button(
+            onClick = {
+                scope.launch {
+                    val ok = state.generateAndLaunch()
+                    if (!ok) onResult(false, "Failed to generate WAD")
+                }
+            },
+            enabled = !state.isBusy,
+            modifier = Modifier.weight(1f).height(48.dp),
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+            Spacer(Modifier.width(4.dp))
+            Text("Test")
+        }
+    }
+}
 
-SectorSpecial.Default=0
-SectorSpecial.DoorSide=0
-SectorSpecial.Entrance=0
-SectorSpecial.Exit=8
-SectorSpecial.Exterior=0
-SectorSpecial.SpecialCeiling=17
-SectorSpecial.SpecialFloor=7
+// ------------------------------------------------------------------------- size dialog
 
-Textures.Ceiling=CEIL3_1,CEIL3_3,FLAT18,FLAT20,FLAT4,FLAT5_5
-Textures.CeilingSpecial=CEIL3_4,FLAT17,FLAT2,FLOOR1_7,GRNLITE1,TLITE6_1,TLITE6_4,TLITE6_5,TLITE6_6
-Textures.Door=DOOR1,DOOR3
-Textures.DoorSide=LITE5
-Textures.Floor=FLAT1_1,FLAT1_2,FLAT5,FLAT5_5,FLOOR0_1,FLOOR0_2,FLOOR1_1,FLOOR3_3,FLOOR4_1,FLOOR5_3,FLOOR5_4
-Textures.FloorEntrance=CEIL4_3
-Textures.FloorExit=FLAT22
-Textures.FloorExterior=FLOOR6_2,FLAT10
-Textures.FloorSpecial=NUKAGE1
-Textures.Wall=STARTAN2,CEMENT6,GRAY1,ICKWALL1,SLADWALL,BIGBRIK3,BRONZE4,BROVINE2,SPACEW2,SPACEW4,TEKGREN2
-Textures.WallExterior=
+@Composable
+private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
+    var customW by remember { mutableStateOf(state.gridWidth.toString()) }
+    var customH by remember { mutableStateOf(state.gridHeight.toString()) }
+    var keepContent by remember { mutableStateOf(true) }
 
-[Theme.Cave]
-Height.Default=0,64
-Height.DoorSide=0,64
-Height.Entrance=4,64
-Height.Exit=4,64
-Height.Exterior=0,128
-Height.SpecialCeiling=0,64
-Height.SpecialFloor=-4,64
+    fun apply(w: Int, h: Int) {
+        state.setSize(w, h, if (keepContent) ResizeMode.CropPad else ResizeMode.Clear)
+        onDismiss()
+    }
 
-LightLevel.Default=164
-LightLevel.DoorSide=164
-LightLevel.Entrance=164
-LightLevel.Exit=255
-LightLevel.Exterior=192
-LightLevel.SpecialCeiling=164
-LightLevel.SpecialFloor=192
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Grid size") },
+        text = {
+            Column {
+                Text("Presets", style = MaterialTheme.typography.labelLarge)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(GRID_PRESETS) { p ->
+                        FilterChip(
+                            selected = state.gridWidth == p && state.gridHeight == p,
+                            onClick = { customW = p.toString(); customH = p.toString() },
+                            label = { Text("$p²") },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("Custom (W×H, $MIN_GRID–$MAX_GRID)", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = customW,
+                        onValueChange = { customW = it.filter(Char::isDigit).take(3) },
+                        label = { Text("W") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("×")
+                    OutlinedTextField(
+                        value = customH,
+                        onValueChange = { customH = it.filter(Char::isDigit).take(3) },
+                        label = { Text("H") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = keepContent, onClick = { keepContent = true })
+                    Text("Keep drawing (crop/pad)")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = !keepContent, onClick = { keepContent = false })
+                    Text("Clear")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val w = customW.toIntOrNull() ?: state.gridWidth
+                val h = customH.toIntOrNull() ?: state.gridHeight
+                apply(w, h)
+            }) { Text("Apply") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
 
-SectorSpecial.Default=0
-SectorSpecial.DoorSide=0
-SectorSpecial.Entrance=0
-SectorSpecial.Exit=8
-SectorSpecial.Exterior=0
-SectorSpecial.SpecialCeiling=0
-SectorSpecial.SpecialFloor=0
+// ------------------------------------------------------------------------ theme dialog
 
-Textures.Ceiling=FLAT5_7,FLAT5_8,FLOOR6_2,MFLR8_2
-Textures.CeilingSpecial=FLAT5_2
-Textures.Door=BIGDOOR5
-Textures.DoorSide=METAL,SUPPORT3
-Textures.Floor=FLAT10,FLAT5_7,FLAT5_8,FLOOR6_2,MFLR8_2,MFLR8_4
-Textures.FloorEntrance=CEIL4_3
-Textures.FloorExit=FLAT22
-Textures.FloorExterior=
-Textures.FloorSpecial=FWATER1
-Textures.Wall=ASHWALL2,ROCK1,STONE4,STONE6
-Textures.WallExterior=
+@Composable
+private fun ThemeDialog(state: MapEditorState, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Theme") },
+        text = {
+            Column {
+                MapTheme.entries.forEach { t ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { state.setTheme(t); onDismiss() }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = state.theme == t, onClick = { state.setTheme(t); onDismiss() })
+                        Spacer(Modifier.width(8.dp))
+                        Box(Modifier.size(20.dp).background(t.composeColor, CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(t.displayName)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
 
-[Theme.City]
-Height.Default=0,64
-Height.DoorSide=0,64
-Height.Entrance=4,64
-Height.Exit=4,64
-Height.Exterior=0,256
-Height.SpecialCeiling=0,64
-Height.SpecialFloor=-4,64
+// -------------------------------------------------------------------------- maps sheet
 
-LightLevel.Default=192
-LightLevel.DoorSide=192
-LightLevel.Entrance=192
-LightLevel.Exit=255
-LightLevel.Exterior=220
-LightLevel.SpecialCeiling=255
-LightLevel.SpecialFloor=192
+@Composable
+private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
+            Text("Maps", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Each map becomes MAP01, MAP02… in the WAD. Pick one to edit; set the test target.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            state.project.maps.forEachIndexed { i, _ ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    val isCurrent = i == state.currentMapIndex
+                    Text(
+                        "MAP%02d".format(i + 1),
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable { state.selectMap(i) }.weight(1f),
+                    )
+                    // Test-target radio.
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { state.setTestMap(i) }) {
+                        RadioButton(selected = state.project.testMapIndex == i, onClick = { state.setTestMap(i) })
+                        Text("test", style = MaterialTheme.typography.labelSmall)
+                    }
+                    TextButton(onClick = { state.duplicateMap(i) }) { Text("Dup") }
+                    TextButton(onClick = { state.moveMap(i, i - 1) }, enabled = i > 0) { Text("↑") }
+                    TextButton(onClick = { state.moveMap(i, i + 1) }, enabled = i < state.project.maps.lastIndex) { Text("↓") }
+                    TextButton(
+                        onClick = { state.deleteMap(i) },
+                        enabled = state.project.maps.size > 1,
+                    ) { Text("Del") }
+                }
+                HorizontalDivider()
+            }
+            Spacer(Modifier.height(8.dp))
+            FilledTonalButton(
+                onClick = { state.addMap() },
+                enabled = state.project.maps.size < net.nullsum.freedoom.ui.editor.model.MapProject.MAX_MAPS,
+            ) { Text("Add map") }
+        }
+    }
+}
 
-SectorSpecial.Default=0
-SectorSpecial.DoorSide=0
-SectorSpecial.Entrance=0
-SectorSpecial.Exit=8
-SectorSpecial.Exterior=0
-SectorSpecial.SpecialCeiling=0
-SectorSpecial.SpecialFloor=0
+// ------------------------------------------------------------------------ tuning sheet
 
-Textures.Ceiling=CEIL3_1,FLAT5_4,FLAT9
-Textures.CeilingSpecial=CEIL3_4
-Textures.Door=DOOR1,DOOR3
-Textures.DoorSide=LITE5
-Textures.Floor=FLAT3,FLAT5,FLOOR0_2,FLOOR0_6,FLOOR0_7,FLOOR3_3
-Textures.FloorEntrance=CEIL4_3
-Textures.FloorExit=FLAT22
-Textures.FloorExterior=FLAT1,RROCK03
-Textures.FloorSpecial=FLAT14,FLOOR1_1,FLOOR1_6
-Textures.Wall=STARTAN2,CEMENT6,GRAY1,ICKWALL1,SLADWALL,BIGBRIK3,BRONZE4,BROVINE2,SPACEW2,SPACEW4,TEKGREN2
-Textures.WallExterior=BIGBRIK2,BLAKWAL2,BRICK1,BRICK5,BRICK11
+@Composable
+private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
+            Text("Generation tuning", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Relative densities. The engine also scales by map area, so bigger maps get more.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            DensitySlider("Monsters", state.project.tuning.monsterDensity) { state.setMonsterDensity(it) }
+            DensitySlider("Items", state.project.tuning.itemDensity) { state.setItemDensity(it) }
+            DensitySlider("Ammo", state.project.tuning.ammoDensity) { state.setAmmoDensity(it) }
 
-[Theme.Hell]
-Height.Default=0,64
-Height.DoorSide=0,64
-Height.Entrance=4,64
-Height.Exit=4,64
-Height.Exterior=0,128
-Height.SpecialCeiling=0,64
-Height.SpecialFloor=-4,64
+            Spacer(Modifier.height(12.dp))
+            Text("WAD format", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.project.format == WadFormat.DOOM2,
+                    onClick = { state.setFormat(WadFormat.DOOM2) },
+                    label = { Text("Doom II (MAP01)") },
+                )
+                FilterChip(
+                    selected = state.project.format == WadFormat.DOOM1,
+                    onClick = { state.setFormat(WadFormat.DOOM1) },
+                    label = { Text("Doom I (ExMy)") },
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    }
+}
 
-LightLevel.Default=164
-LightLevel.DoorSide=164
-LightLevel.Entrance=164
-LightLevel.Exit=255
-LightLevel.Exterior=192
-LightLevel.SpecialCeiling=164
-LightLevel.SpecialFloor=192
+@Composable
+private fun DensitySlider(label: String, value: Float, onChange: (Float) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text("$label  ${(value * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+        Slider(value = value, onValueChange = onChange, valueRange = 0f..1f)
+    }
+}
 
-SectorSpecial.Default=0
-SectorSpecial.DoorSide=0
-SectorSpecial.Entrance=0
-SectorSpecial.Exit=8
-SectorSpecial.Exterior=0
-SectorSpecial.SpecialCeiling=0
-SectorSpecial.SpecialFloor=5
+// ---------------------------------------------------------------------- projects sheet
 
-Textures.Ceiling=CEIL1_1,FLAT5_1,FLAT5_2,FLAT5_3
-Textures.CeilingSpecial=FLAT5_6,SFLR6_1,SFLR6_4
-Textures.Door=BIGDOOR5
-Textures.DoorSide=METAL,SUPPORT3
-Textures.Floor=FLAT1_1,FLAT1_2,FLAT5_1,FLAT5_2,FLAT5_3
-Textures.FloorEntrance=GATE4
-Textures.FloorExit=GATE1,GATE2,GATE3
-Textures.FloorExterior=FLAT5_7,FLAT5_8,FLOOR6_1,FLOOR6_2,MFLR8_2,MFLR8_3
-Textures.FloorSpecial=LAVA1
-Textures.Wall=GSTONE1,GSTVINE1,MARBGRAY,MARBLE2,SKINEDGE,SKSNAKE1
-Textures.WallExterior=
-"""
+@Composable
+private fun ProjectsSheet(state: MapEditorState, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var saveName by remember { mutableStateOf(state.project.name) }
+    var projects by remember { mutableStateOf<List<ProjectSummary>>(emptyList()) }
+
+    LaunchedEffect(Unit) { projects = state.listProjects() }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
+            Text("Projects", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = saveName,
+                    onValueChange = { saveName = it },
+                    label = { Text("Save as") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Button(onClick = {
+                    scope.launch {
+                        state.saveNamedAs(saveName)
+                        projects = state.listProjects()
+                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text("Save") }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text("Saved", style = MaterialTheme.typography.labelLarge)
+            if (projects.isEmpty()) {
+                Text("No saved projects yet.", style = MaterialTheme.typography.bodySmall)
+            }
+            projects.forEach { p ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(p.name)
+                        Text("${p.mapCount} map(s)", style = MaterialTheme.typography.labelSmall)
+                    }
+                    TextButton(onClick = {
+                        scope.launch { state.openProject(p.file); onDismiss() }
+                    }) { Text("Open") }
+                    TextButton(onClick = {
+                        scope.launch { state.deleteProject(p.file); projects = state.listProjects() }
+                    }) { Text("Delete") }
+                }
+                HorizontalDivider()
+            }
+        }
+    }
+}
