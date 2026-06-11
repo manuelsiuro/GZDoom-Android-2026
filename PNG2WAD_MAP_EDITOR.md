@@ -65,35 +65,35 @@ editor grid ──► 16×16 PNG (cacheDir/temp_map.png)
 | Tab wiring (5th tab) | `doom/src/main/java/net/nullsum/freedoom/ui/MainScreen.kt` |
 | Launch arg builder (reused) | `doom/src/main/java/net/nullsum/freedoom/ui/launch/LaunchArgs.kt` |
 | JNI wrapper | `com.doomandroid.png2wad.Png2WadConverter` (in the `:png2wad-sdk` module) |
-| Native converter (C/C++) | `../png2wad/android/src/main/cpp/` (see "Module layout" below) |
+| Native converter (C/C++) | `png2wad-sdk/src/main/cpp/` (see "Module layout" below) |
 
 ---
 
-## Module layout & the dependency on `../png2wad`
+## Module layout
 
-The native converter is the **`:png2wad-sdk`** Gradle module, included by path:
+The native converter is the **`:png2wad-sdk`** Gradle module, **vendored in this
+repo** under [`png2wad-sdk/`](png2wad-sdk/) — no sibling checkout required:
 
 ```kotlin
 // settings.gradle.kts
 include(":png2wad-sdk")
-project(":png2wad-sdk").projectDir = file("../png2wad/android")
+project(":png2wad-sdk").projectDir = file("png2wad-sdk")
 
 // doom/build.gradle.kts
 implementation(project(":png2wad-sdk"))
 ```
 
-> ⚠️ **This project depends on the sibling `../png2wad` repo** for the native
-> sources. Keep `png2wad` checked out next to this repo. The standalone
-> `AndroidPng2WadApplication` editor app is **no longer needed** — its editor now
-> lives here.
->
-> To make this repo fully self-contained later, copy `png2wad/android` into this
-> project (e.g. `:png2wad-sdk` as a real submodule/dir) and update the
-> `projectDir` line. The C++ sources, `CMakeLists.txt`, and `Png2WadConverter.kt`
-> are all that's required.
+The module is a standard `com.android.library` (compileSdk 36, minSdk 23) whose
+`src/main/cpp/` holds the C/C++ converter (`CMakeLists.txt`, the png2wad sources,
+plus a bundled `zdbsp`/`zlib`) and whose `src/main/java/` holds the
+`com.doomandroid.png2wad.Png2WadConverter` JNI wrapper. Gradle runs the CMake
+build automatically and packages `libpng2wad.so` (arm64-v8a + armeabi-v7a) into
+the APK next to the engine libs.
 
-Gradle runs the SDK's CMake build automatically and packages `libpng2wad.so`
-(arm64-v8a + armeabi-v7a) into the APK next to the engine libs.
+Upstream sources: **png2wad** by [@akaAgar](https://github.com/akaAgar/png2wad)
+(GPLv3 — see [`png2wad-sdk/LICENSE`](png2wad-sdk/LICENSE)). The standalone
+`AndroidPng2WadApplication` editor app is **no longer needed** — its editor lives
+here.
 
 ---
 

@@ -18,8 +18,8 @@ running, and **playable on modern 64-bit Android devices**.
   (`Tech`/`Cave`/`Hell`/`City`) and paint tiles (walls, rooms, doors, secrets, special floors/ceilings,
   sky, player start, exit), then tap **Generate & Play** to boot straight into `MAP01`, or
   **Generate only** to just write the WAD. Under the hood it renders the grid to a PNG and runs a
-  bundled native converter (`libpng2wad.so`, built from the sibling
-  [`png2wad`](PNG2WAD_MAP_EDITOR.md) sources via the `:png2wad-sdk` module) to emit a **nodeless
+  bundled native converter (`libpng2wad.so`, built from the vendored
+  [`png2wad-sdk/`](png2wad-sdk/) module) to emit a **nodeless
   Doom-format PWAD** into `<base>/mods/generated.wad`; GZDoom builds the nodes/blockmap on load.
   See [`PNG2WAD_MAP_EDITOR.md`](PNG2WAD_MAP_EDITOR.md) for the tile palette, pipeline, and the
   strict-lump-order fix that made generated WADs load on this 1.9-era engine.

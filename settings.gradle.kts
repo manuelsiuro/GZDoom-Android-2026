@@ -26,8 +26,8 @@ rootProject.name = "GZDoom-Android"
 include(":doom")
 include(":touchcontrols")
 
-// PNG->WAD generator SDK (native libpng2wad.so + Png2WadConverter). Source lives
-// in the sibling png2wad repo; included here so the map editor can generate maps
-// and launch them in-engine for end-to-end testing.
+// PNG->WAD generator SDK (native libpng2wad.so + Png2WadConverter). Vendored under
+// png2wad-sdk/ so the map editor can generate maps and launch them in-engine without
+// depending on a sibling checkout. Upstream sources: github.com/akaAgar/png2wad (GPLv3).
 include(":png2wad-sdk")
-project(":png2wad-sdk").projectDir = file("../png2wad/android")
+project(":png2wad-sdk").projectDir = file("png2wad-sdk")
