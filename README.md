@@ -13,6 +13,16 @@ running, and **playable on modern 64-bit Android devices**.
 
 ## ✨ What's new in 2026
 
+- **In-app map editor (PNG2WAD).** A new **editor** tab lets you draw a level on a 16×16 colored
+  grid and generate a playable Doom map on-device — no PC tools. Pick a **theme**
+  (`Tech`/`Cave`/`Hell`/`City`) and paint tiles (walls, rooms, doors, secrets, special floors/ceilings,
+  sky, player start, exit), then tap **Generate & Play** to boot straight into `MAP01`, or
+  **Generate only** to just write the WAD. Under the hood it renders the grid to a PNG and runs a
+  bundled native converter (`libpng2wad.so`, built from the sibling
+  [`png2wad`](PNG2WAD_MAP_EDITOR.md) sources via the `:png2wad-sdk` module) to emit a **nodeless
+  Doom-format PWAD** into `<base>/mods/generated.wad`; GZDoom builds the nodes/blockmap on load.
+  See [`PNG2WAD_MAP_EDITOR.md`](PNG2WAD_MAP_EDITOR.md) for the tile palette, pipeline, and the
+  strict-lump-order fix that made generated WADs load on this 1.9-era engine.
 - **Built-in WAD browser & downloader.** A new **Browse** tab fetches add-ons straight from the
   Doomworld [/idgames archive](https://www.doomworld.com/idgames/) — search by title/filename/author,
   see ratings and sizes, and one-tap download (with mirror fail-over) that unzips into the add-on
@@ -96,6 +106,9 @@ swiftshader_indirect` — or do visual checks on hardware.
 - **Graphics:** [jwzgles](https://www.jwz.org/jwzgl/) GL ES 1.x-over-ES2 wrapper.
 - **Input:** [emileb/MobileTouchControls](https://github.com/emileb/MobileTouchControls).
 - **Platform:** [SDL](https://www.libsdl.org/) 1.x, [SAFFAL](https://github.com/emileb/SAFFAL).
+- **Map editor:** **png2wad** PNG→WAD converter (originally a C# tool by
+  [@akaAgar](https://github.com/akaAgar/png2wad), ported to C/C++ here), built as `libpng2wad.so`
+  via the `:png2wad-sdk` module.
 
 ## Why Freedoom?
 While the Doom engine and its many spin-offs are open-sourced, most of Doom's "assets" such as
@@ -114,6 +127,7 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
 - [x] Integrate an idgames level browser/downloader (Browse tab)
 - [x] Add a WAD-download feature (idgames + classic shareware/freeware games)
 - [x] Import-your-own-copy flow for the commercial IWADs (Doom, Doom II, Final Doom, …)
+- [x] In-app PNG2WAD map editor (draw a grid → generate a playable map → launch it)
 - [ ] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x / Vulkan (modern GZDoom 4.x)
 
 ## Links to the Freedoom community
