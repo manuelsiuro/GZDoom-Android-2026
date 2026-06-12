@@ -70,6 +70,8 @@ data class MapProject(
     val maps: List<MapDoc> = listOf(MapDoc()),
     val tuning: Tuning = Tuning(),
     val testMapIndex: Int = 0,
+    /** When false, the converter spawns only a player start (no monsters/items) — a sandbox map. */
+    val generateThings: Boolean = true,
 ) {
     companion object {
         const val MAX_MAPS = 32

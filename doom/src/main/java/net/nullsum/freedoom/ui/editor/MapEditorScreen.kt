@@ -3,6 +3,7 @@
 package net.nullsum.freedoom.ui.editor
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +11,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -43,6 +46,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -56,12 +60,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.nullsum.freedoom.ui.editor.data.ProjectSummary
+import net.nullsum.freedoom.ui.editor.generate.renderMapBitmap
+import net.nullsum.freedoom.ui.editor.launch.shareWad
 import net.nullsum.freedoom.ui.editor.model.MapTheme
 import net.nullsum.freedoom.ui.editor.model.TileType
 import net.nullsum.freedoom.ui.editor.model.WadFormat
@@ -96,6 +104,12 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
         // Canvas hero.
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             MapCanvas(state = state, modifier = Modifier.fillMaxSize())
+            // Fit-to-screen: resets zoom/pan so you can't get lost after navigating.
+            FilledTonalButton(
+                onClick = { state.resetView() },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            ) { Text("Fit") }
             if (state.isBusy) {
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color(0xAA000000)),
@@ -144,6 +158,8 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
 private fun EditorHeader(state: MapEditorState, onOpenProjects: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     var iwadMenuOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -182,6 +198,25 @@ private fun EditorHeader(state: MapEditorState, onOpenProjects: () -> Unit) {
                 DropdownMenuItem(
                     text = { Text("Projects…") },
                     onClick = { menuOpen = false; onOpenProjects() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Share WAD…") },
+                    onClick = {
+                        menuOpen = false
+                        scope.launch {
+                            val wad = state.generateForShare()
+                            if (wad != null) shareWad(context, wad)
+                            else Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Clear map (Room)") },
+                    onClick = { menuOpen = false; state.clearMap(TileType.Room) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Fill with walls") },
+                    onClick = { menuOpen = false; state.clearMap(TileType.Wall) },
                 )
             }
         }
@@ -244,7 +279,17 @@ private fun EditorToolbar(
             ToolChip("Brush", state.activeTool == EditorTool.Brush) { state.activeTool = EditorTool.Brush }
             ToolChip("Erase", state.activeTool == EditorTool.Eraser) { state.activeTool = EditorTool.Eraser }
             ToolChip("Fill", state.activeTool == EditorTool.Bucket) { state.activeTool = EditorTool.Bucket }
+            ToolChip("Line", state.activeTool == EditorTool.Line) { state.activeTool = EditorTool.Line }
+            ToolChip("Rect", state.activeTool == EditorTool.Rect) { state.activeTool = EditorTool.Rect }
+            ToolChip("Pick", state.activeTool == EditorTool.Eyedropper) { state.activeTool = EditorTool.Eyedropper }
             ToolChip("Pan", state.activeTool == EditorTool.Pan) { state.activeTool = EditorTool.Pan }
+            if (state.activeTool == EditorTool.Rect) {
+                FilterChip(
+                    selected = state.rectFilled,
+                    onClick = { state.rectFilled = !state.rectFilled },
+                    label = { Text("Filled") },
+                )
+            }
             Spacer(Modifier.width(8.dp))
             TextButton(onClick = { state.undo() }, enabled = state.canUndo) { Text("Undo") }
             TextButton(onClick = { state.redo() }, enabled = state.canRedo) { Text("Redo") }
@@ -265,6 +310,17 @@ private fun EditorToolbar(
 @Composable
 private fun ToolChip(label: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
+}
+
+/** A space-frugal text button for the cramped map-row actions (Dup / move / delete). */
+@Composable
+private fun CompactAction(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        modifier = Modifier.widthIn(min = 36.dp),
+    ) { Text(label) }
 }
 
 // ----------------------------------------------------------------------------- actions
@@ -419,31 +475,36 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
-            state.project.maps.forEachIndexed { i, _ ->
+            state.project.maps.forEachIndexed { i, mapDoc ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     val isCurrent = i == state.currentMapIndex
+                    val thumb = remember(mapDoc) { renderMapBitmap(mapDoc).asImageBitmap() }
+                    Image(
+                        bitmap = thumb,
+                        contentDescription = null,
+                        filterQuality = FilterQuality.None,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .border(1.dp, Color(0xFF555555)),
+                    )
                     Text(
                         "MAP%02d".format(i + 1),
+                        maxLines = 1,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                         color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable { state.selectMap(i) }.weight(1f),
+                        modifier = Modifier.clickable { state.selectMap(i) },
                     )
-                    // Test-target radio.
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { state.setTestMap(i) }) {
-                        RadioButton(selected = state.project.testMapIndex == i, onClick = { state.setTestMap(i) })
-                        Text("test", style = MaterialTheme.typography.labelSmall)
-                    }
-                    TextButton(onClick = { state.duplicateMap(i) }) { Text("Dup") }
-                    TextButton(onClick = { state.moveMap(i, i - 1) }, enabled = i > 0) { Text("↑") }
-                    TextButton(onClick = { state.moveMap(i, i + 1) }, enabled = i < state.project.maps.lastIndex) { Text("↓") }
-                    TextButton(
-                        onClick = { state.deleteMap(i) },
-                        enabled = state.project.maps.size > 1,
-                    ) { Text("Del") }
+                    Spacer(Modifier.weight(1f))
+                    // Test-target radio (compact; the label is the section help text above).
+                    RadioButton(selected = state.project.testMapIndex == i, onClick = { state.setTestMap(i) })
+                    CompactAction("Dup") { state.duplicateMap(i) }
+                    CompactAction("↑", enabled = i > 0) { state.moveMap(i, i - 1) }
+                    CompactAction("↓", enabled = i < state.project.maps.lastIndex) { state.moveMap(i, i + 1) }
+                    CompactAction("✕", enabled = state.project.maps.size > 1) { state.deleteMap(i) }
                 }
                 HorizontalDivider()
             }
@@ -469,6 +530,17 @@ private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = state.project.generateThings,
+                    onCheckedChange = { state.setGenerateThings(it) },
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Auto-populate (monsters & items)")
+            }
+            Spacer(Modifier.height(8.dp))
+
             DensitySlider("Monsters", state.project.tuning.monsterDensity) { state.setMonsterDensity(it) }
             DensitySlider("Items", state.project.tuning.itemDensity) { state.setItemDensity(it) }
             DensitySlider("Ammo", state.project.tuning.ammoDensity) { state.setAmmoDensity(it) }

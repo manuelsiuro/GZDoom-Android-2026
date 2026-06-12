@@ -28,9 +28,24 @@ import net.nullsum.freedoom.ui.editor.model.WadFormat
 import net.nullsum.freedoom.ui.launch.WadEntry
 import net.nullsum.freedoom.ui.launch.scanIwads
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 /** The active editing tool. Pan lets a one-finger drag move the view (two fingers always transform). */
-enum class EditorTool { Brush, Eraser, Bucket, Pan }
+enum class EditorTool { Brush, Eraser, Bucket, Line, Rect, Eyedropper, Pan }
+
+/**
+ * An in-progress line/rectangle the user is dragging out. Held in state so the canvas can draw a
+ * live preview before it is committed to the grid on release. Coordinates are grid cells.
+ */
+data class ShapePreview(
+    val sx: Int,
+    val sy: Int,
+    val ex: Int,
+    val ey: Int,
+    val tile: TileType,
+    val filled: Boolean,
+    val isLine: Boolean,
+)
 
 /** Preset square grid sizes offered as quick chips; custom W×H is also allowed. */
 val GRID_PRESETS = listOf(16, 24, 32, 48, 64)
@@ -65,6 +80,13 @@ class MapEditorState(
 
     var selectedTile by mutableStateOf(TileType.Wall)
     var activeTool by mutableStateOf(EditorTool.Brush)
+
+    /** Whether the rectangle tool fills the box (vs drawing only its outline). */
+    var rectFilled by mutableStateOf(false)
+
+    /** The line/rectangle currently being dragged out, for the canvas to preview. */
+    var shapePreview by mutableStateOf<ShapePreview?>(null)
+        private set
 
     // Viewport (kept here so zoom/pan survive tab switches).
     var scale by mutableFloatStateOf(1f)
@@ -133,6 +155,69 @@ class MapEditorState(
         val replacement = if (activeTool == EditorTool.Eraser) TileType.Room else selectedTile
         val filled = MapGridOps.floodFill(m.tiles, m.width, m.height, x, y, replacement) ?: return
         commitMapEdit(m.copy(tiles = filled))
+    }
+
+    // ---- shape tools (line / rectangle) ----
+
+    /** Begin dragging out a line/rectangle from a cell. */
+    fun startShape(x: Int, y: Int) {
+        val m = currentMap
+        val cx = x.coerceIn(0, m.width - 1)
+        val cy = y.coerceIn(0, m.height - 1)
+        shapePreview = ShapePreview(cx, cy, cx, cy, selectedTile, rectFilled, activeTool == EditorTool.Line)
+    }
+
+    /** Update the end of the in-progress shape as the finger moves. */
+    fun updateShape(x: Int, y: Int) {
+        val m = currentMap
+        shapePreview = shapePreview?.copy(
+            ex = x.coerceIn(0, m.width - 1),
+            ey = y.coerceIn(0, m.height - 1),
+        )
+    }
+
+    /** Stamp the previewed shape onto the grid as a single undo step. */
+    fun commitShape() {
+        val p = shapePreview ?: return
+        shapePreview = null
+        val m = currentMap
+        val newTiles = if (p.isLine) {
+            MapGridOps.drawLine(m.tiles, m.width, m.height, p.sx, p.sy, p.ex, p.ey, p.tile)
+        } else {
+            MapGridOps.drawRect(m.tiles, m.width, m.height, p.sx, p.sy, p.ex, p.ey, p.tile, p.filled)
+        }
+        if (!newTiles.contentEquals(m.tiles)) pushUndoAndCommit(m.copy(tiles = newTiles))
+    }
+
+    /** Discard an in-progress shape (e.g. when a second finger starts a pinch). */
+    fun cancelShape() {
+        shapePreview = null
+    }
+
+    /** Eyedropper: adopt the tile under a cell as the active tile and return to the brush. */
+    fun pickTileAt(x: Int, y: Int) {
+        val m = currentMap
+        if (x !in 0 until m.width || y !in 0 until m.height) return
+        selectedTile = m.tileAt(x, y)
+        activeTool = EditorTool.Brush
+    }
+
+    /** Fill the whole current map with one tile (one undo step). */
+    fun clearMap(tile: TileType) {
+        val m = currentMap
+        pushUndoAndCommit(m.copy(tiles = IntArray(m.width * m.height) { tile.ordinal }))
+    }
+
+    /** Reset zoom/pan — at scale 1 / offset 0 the grid is drawn to fit the viewport. */
+    fun resetView() {
+        scale = 1f
+        offset = Offset.Zero
+    }
+
+    fun setGenerateThings(enabled: Boolean) {
+        if (project.generateThings == enabled) return
+        project = project.copy(generateThings = enabled)
+        markDirty()
     }
 
     // ---- undo / redo ----
@@ -324,6 +409,9 @@ class MapEditorState(
         return true
     }
 
+    /** Generates the WAD and returns its file for sharing, or null on failure. */
+    suspend fun generateForShare(): File? = generate()?.wadFile
+
     // ---- internals ----
 
     private fun commitMapEdit(newMap: MapDoc) = pushUndoAndCommit(newMap)
@@ -354,7 +442,7 @@ class MapEditorState(
     private fun markDirty() {
         saveJob?.cancel()
         saveJob = scope.launch {
-            delay(AUTOSAVE_DEBOUNCE_MS)
+            delay(AUTOSAVE_DEBOUNCE_MS.milliseconds)
             ProjectStore.autosave(project)
         }
     }

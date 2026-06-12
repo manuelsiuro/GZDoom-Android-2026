@@ -26,7 +26,7 @@ fun buildPreferencesIni(project: MapProject): String {
         append("Doom1Format=").append(doom1).append('\n')
         append("Episode=").append(project.episode.coerceIn(1, 9)).append('\n')
         append("GenerateEntranceAndExit=true\n")
-        append("GenerateThings=true\n\n")
+        append("GenerateThings=").append(project.generateThings).append("\n\n")
 
         append("[Things]\n")
         append(thingTypesBlock)

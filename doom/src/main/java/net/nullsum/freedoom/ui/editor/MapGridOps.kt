@@ -71,4 +71,64 @@ object MapGridOps {
         }
         return out
     }
+
+    /**
+     * The in-bounds cell indices (`y*width+x`) on the Bresenham line from ([x0],[y0]) to
+     * ([x1],[y1]). Endpoints outside the grid are tolerated — only the cells that fall inside
+     * are returned.
+     */
+    fun lineCells(width: Int, height: Int, x0: Int, y0: Int, x1: Int, y1: Int): IntArray {
+        val out = ArrayList<Int>()
+        var x = x0
+        var y = y0
+        val dx = kotlin.math.abs(x1 - x0)
+        val dy = -kotlin.math.abs(y1 - y0)
+        val sx = if (x0 < x1) 1 else -1
+        val sy = if (y0 < y1) 1 else -1
+        var err = dx + dy
+        while (true) {
+            if (x in 0 until width && y in 0 until height) out.add(y * width + x)
+            if (x == x1 && y == y1) break
+            val e2 = 2 * err
+            if (e2 >= dy) { err += dy; x += sx }
+            if (e2 <= dx) { err += dx; y += sy }
+        }
+        return out.toIntArray()
+    }
+
+    /**
+     * The in-bounds cell indices of a rectangle spanning the two corners. [filled] returns the
+     * solid box; otherwise just its 1-cell-thick outline. Corners may be given in any order and
+     * may lie partly off-grid (clamped to the grid).
+     */
+    fun rectCells(width: Int, height: Int, x0: Int, y0: Int, x1: Int, y1: Int, filled: Boolean): IntArray {
+        val minX = minOf(x0, x1)
+        val maxX = maxOf(x0, x1)
+        val minY = minOf(y0, y1)
+        val maxY = maxOf(y0, y1)
+        val out = ArrayList<Int>()
+        for (y in maxOf(minY, 0)..minOf(maxY, height - 1)) {
+            for (x in maxOf(minX, 0)..minOf(maxX, width - 1)) {
+                val edge = x == minX || x == maxX || y == minY || y == maxY
+                if (filled || edge) out.add(y * width + x)
+            }
+        }
+        return out.toIntArray()
+    }
+
+    /** Copies [tiles] and stamps [tile] along the Bresenham line; returns the new array. */
+    fun drawLine(tiles: IntArray, width: Int, height: Int, x0: Int, y0: Int, x1: Int, y1: Int, tile: TileType): IntArray {
+        val out = tiles.copyOf()
+        val v = tile.ordinal
+        for (idx in lineCells(width, height, x0, y0, x1, y1)) out[idx] = v
+        return out
+    }
+
+    /** Copies [tiles] and stamps [tile] over the rectangle (outline or [filled]); returns the new array. */
+    fun drawRect(tiles: IntArray, width: Int, height: Int, x0: Int, y0: Int, x1: Int, y1: Int, tile: TileType, filled: Boolean): IntArray {
+        val out = tiles.copyOf()
+        val v = tile.ordinal
+        for (idx in rectCells(width, height, x0, y0, x1, y1, filled)) out[idx] = v
+        return out
+    }
 }

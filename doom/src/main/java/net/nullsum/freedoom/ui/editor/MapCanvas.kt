@@ -58,6 +58,7 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                     var painting = false
                     var bucketDone = false
                     var transforming = false
+                    var shaping = false
                     // The initial down is acted on lazily, on the first follow-up event, so we
                     // can still tell a tap/drag (1 finger) from a pinch (2 fingers) and avoid a
                     // stray dot when the user starts a two-finger zoom. `seeded` guards it.
@@ -66,18 +67,22 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                     fun seedDown() {
                         if (seeded) return
                         seeded = true
+                        val cell = screenToCell(state, down.position, size.width, size.height)
                         when (tool) {
                             EditorTool.Pan -> {} // pan acts on movement, not the down
+                            EditorTool.Eyedropper -> cell?.let { state.pickTileAt(it.x, it.y) }
                             EditorTool.Bucket -> {
-                                screenToCell(state, down.position, size.width, size.height)
-                                    ?.let { state.bucketAt(it.x, it.y) }
+                                cell?.let { state.bucketAt(it.x, it.y) }
                                 bucketDone = true
+                            }
+                            EditorTool.Line, EditorTool.Rect -> cell?.let {
+                                state.startShape(it.x, it.y)
+                                shaping = true
                             }
                             else -> { // Brush / Eraser
                                 state.beginStroke()
                                 painting = true
-                                screenToCell(state, down.position, size.width, size.height)
-                                    ?.let { state.paintAt(it.x, it.y) }
+                                cell?.let { state.paintAt(it.x, it.y) }
                             }
                         }
                     }
@@ -88,8 +93,9 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
 
                         if (pressed.size >= 2) {
                             // Two fingers → pinch-zoom + pan. Commit to transform: never seed a
-                            // paint, and abandon any in-progress stroke.
+                            // paint, and abandon any in-progress stroke or shape.
                             if (painting) { state.endStroke(); painting = false }
+                            if (shaping) { state.cancelShape(); shaping = false }
                             seeded = true
                             transforming = true
                             applyTransform(
@@ -119,8 +125,15 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                 state.offset += change.positionChange()
                                 change.consume()
                             }
-                            tool == EditorTool.Bucket -> {
-                                change.consume() // the fill already fired on the seeded down
+                            tool == EditorTool.Bucket || tool == EditorTool.Eyedropper -> {
+                                change.consume() // these fire once on the seeded down
+                            }
+                            tool == EditorTool.Line || tool == EditorTool.Rect -> {
+                                if (shaping) {
+                                    screenToCell(state, change.position, size.width, size.height)
+                                        ?.let { state.updateShape(it.x, it.y) }
+                                }
+                                change.consume()
                             }
                             else -> { // Brush / Eraser: paint each dragged-over cell
                                 screenToCell(state, change.position, size.width, size.height)
@@ -130,6 +143,7 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                         }
                     }
                     if (painting) state.endStroke()
+                    if (shaping) state.commitShape()
                 }
             },
     ) {
@@ -148,6 +162,7 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
             // bumps during a live stroke.
             @Suppress("UNUSED_EXPRESSION") state.project
             @Suppress("UNUSED_EXPRESSION") state.strokeRevision
+            @Suppress("UNUSED_EXPRESSION") state.shapePreview
             drawGrid(state, size)
         }
     }
@@ -177,6 +192,21 @@ private fun DrawScope.drawGrid(state: MapEditorState, size: Size) {
         }
         for (i in 0..gh) {
             drawLine(GRID_LINE_COLOR, Offset(0f, i * cell), Offset(w, i * cell), stroke)
+        }
+    }
+
+    // Live overlay of the line/rectangle being dragged out (drawn translucent on top).
+    state.shapePreview?.let { p ->
+        val cells = if (p.isLine) {
+            MapGridOps.lineCells(gw, gh, p.sx, p.sy, p.ex, p.ey)
+        } else {
+            MapGridOps.rectCells(gw, gh, p.sx, p.sy, p.ex, p.ey, p.filled)
+        }
+        val color = p.tile.composeColor.copy(alpha = 0.7f)
+        for (idx in cells) {
+            val cx = idx % gw
+            val cy = idx / gw
+            drawRect(color, Offset(cx * cell, cy * cell), Size(cell, cell))
         }
     }
 }

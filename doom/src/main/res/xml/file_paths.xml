@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- The map editor writes generated WADs under the app-specific external files dir
+         (<external>/Freedoom/config/mods/). Expose the whole external-files tree so the
+         share sheet can read them via a content:// URI. -->
+    <external-files-path name="files" path="." />
+</paths>
