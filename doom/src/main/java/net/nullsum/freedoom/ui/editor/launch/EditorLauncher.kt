@@ -37,7 +37,8 @@ suspend fun launchProject(activity: Activity, project: MapProject, result: Gener
 
     val iwadArgs = WadEntry(project.iwadFile, 0L).iwadArgs
     val modArgs = "-file mods/${result.wadFile.name} "
-    val mapLump = testMapLump(project)
+    // ZDoom/GZDoom -skill is 1-based (1 = ITYTD … 5 = Nightmare).
+    val extraArgs = "${testMapLump(project)} -skill ${project.skill.coerceIn(1, 5)}"
 
     val intent = Intent(activity, Game::class.java).apply {
         action = Intent.ACTION_MAIN
@@ -45,7 +46,7 @@ suspend fun launchProject(activity: Activity, project: MapProject, result: Gener
         putExtra("res_div", AppSettings.getIntOption(activity, "gzdoom_res_div", 1))
         putExtra("game_path", base)
         putExtra("game", "net.nullsum.freedoom")
-        putExtra("args", buildLaunchArgs(iwadArgs, modArgs, mapLump, base))
+        putExtra("args", buildLaunchArgs(iwadArgs, modArgs, extraArgs, base))
     }
     activity.startActivity(intent)
 }

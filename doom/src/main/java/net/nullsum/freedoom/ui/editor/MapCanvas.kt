@@ -195,13 +195,15 @@ private fun DrawScope.drawGrid(state: MapEditorState, size: Size) {
         }
     }
 
-    // Live overlay of the line/rectangle being dragged out (drawn translucent on top).
+    // Live overlay of the line/rectangle being dragged out (drawn translucent on top), mirrored
+    // to match the active symmetry so the preview shows exactly what will be committed.
     state.shapePreview?.let { p ->
-        val cells = if (p.isLine) {
+        val base = if (p.isLine) {
             MapGridOps.lineCells(gw, gh, p.sx, p.sy, p.ex, p.ey)
         } else {
             MapGridOps.rectCells(gw, gh, p.sx, p.sy, p.ex, p.ey, p.filled)
         }
+        val cells = MapGridOps.expandSymmetry(base, gw, gh, state.symmetry)
         val color = p.tile.composeColor.copy(alpha = 0.7f)
         for (idx in cells) {
             val cx = idx % gw

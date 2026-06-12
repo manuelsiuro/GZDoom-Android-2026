@@ -84,6 +84,12 @@ class MapEditorState(
     /** Whether the rectangle tool fills the box (vs drawing only its outline). */
     var rectFilled by mutableStateOf(false)
 
+    /** Mirror painting/shapes across the grid centre. */
+    var symmetry by mutableStateOf(MapGridOps.SymmetryMode.None)
+
+    /** Brush tip size in cells (1, 2 or 3) for Brush/Eraser. */
+    var brushSize by mutableStateOf(1)
+
     /** The line/rectangle currently being dragged out, for the canvas to preview. */
     var shapePreview by mutableStateOf<ShapePreview?>(null)
         private set
@@ -126,15 +132,20 @@ class MapEditorState(
         strokeSnapshot = currentMap.copy(tiles = currentMap.tiles.copyOf())
     }
 
-    /** Paint one cell with the active tool (Brush → selected tile, Eraser → Room). In place. */
+    /**
+     * Paint at a cell with the active tool (Brush → selected tile, Eraser → Room), honouring the
+     * brush size (a size×size tip) and symmetry (mirrored tips). In place; bumps [strokeRevision].
+     */
     fun paintAt(x: Int, y: Int) {
         val m = currentMap
-        if (x !in 0 until m.width || y !in 0 until m.height) return
         val value = if (activeTool == EditorTool.Eraser) TileType.Room.ordinal else selectedTile.ordinal
-        val idx = y * m.width + x
-        if (m.tiles[idx] == value) return
-        m.tiles[idx] = value
-        strokeRevision++
+        val tip = MapGridOps.blockCells(m.width, m.height, x, y, brushSize)
+        val cells = MapGridOps.expandSymmetry(tip, m.width, m.height, symmetry)
+        var changed = false
+        for (idx in cells) {
+            if (m.tiles[idx] != value) { m.tiles[idx] = value; changed = true }
+        }
+        if (changed) strokeRevision++
     }
 
     /** Commit a stroke: record undo + publish a new project instance if anything changed. */
@@ -149,12 +160,19 @@ class MapEditorState(
         }
     }
 
-    /** Flood-fill from a cell with the selected tile (no-op for the Pan/Eraser-less paths). */
+    /** Flood-fill from a cell (and its symmetry mirrors) with the selected tile. */
     fun bucketAt(x: Int, y: Int) {
         val m = currentMap
         val replacement = if (activeTool == EditorTool.Eraser) TileType.Room else selectedTile
-        val filled = MapGridOps.floodFill(m.tiles, m.width, m.height, x, y, replacement) ?: return
-        commitMapEdit(m.copy(tiles = filled))
+        val seeds = MapGridOps.mirrorIndices(m.width, m.height, x, y, symmetry)
+            .ifEmpty { listOf(y * m.width + x) }
+        var tiles = m.tiles
+        var changed = false
+        for (seed in seeds) {
+            val res = MapGridOps.floodFill(tiles, m.width, m.height, seed % m.width, seed / m.width, replacement)
+            if (res != null) { tiles = res; changed = true }
+        }
+        if (changed) commitMapEdit(m.copy(tiles = tiles))
     }
 
     // ---- shape tools (line / rectangle) ----
@@ -176,17 +194,24 @@ class MapEditorState(
         )
     }
 
-    /** Stamp the previewed shape onto the grid as a single undo step. */
+    /** Stamp the previewed shape (mirrored by symmetry) onto the grid as a single undo step. */
     fun commitShape() {
         val p = shapePreview ?: return
         shapePreview = null
         val m = currentMap
-        val newTiles = if (p.isLine) {
-            MapGridOps.drawLine(m.tiles, m.width, m.height, p.sx, p.sy, p.ex, p.ey, p.tile)
+        val baseCells = if (p.isLine) {
+            MapGridOps.lineCells(m.width, m.height, p.sx, p.sy, p.ex, p.ey)
         } else {
-            MapGridOps.drawRect(m.tiles, m.width, m.height, p.sx, p.sy, p.ex, p.ey, p.tile, p.filled)
+            MapGridOps.rectCells(m.width, m.height, p.sx, p.sy, p.ex, p.ey, p.filled)
         }
-        if (!newTiles.contentEquals(m.tiles)) pushUndoAndCommit(m.copy(tiles = newTiles))
+        val cells = MapGridOps.expandSymmetry(baseCells, m.width, m.height, symmetry)
+        val v = p.tile.ordinal
+        val newTiles = m.tiles.copyOf()
+        var changed = false
+        for (idx in cells) {
+            if (newTiles[idx] != v) { newTiles[idx] = v; changed = true }
+        }
+        if (changed) pushUndoAndCommit(m.copy(tiles = newTiles))
     }
 
     /** Discard an in-progress shape (e.g. when a second finger starts a pinch). */
@@ -217,6 +242,29 @@ class MapEditorState(
     fun setGenerateThings(enabled: Boolean) {
         if (project.generateThings == enabled) return
         project = project.copy(generateThings = enabled)
+        markDirty()
+    }
+
+    /** Replace every [from] tile in the current map with [to] (one undo step). */
+    fun replaceTile(from: TileType, to: TileType) {
+        if (from == to) return
+        val m = currentMap
+        val newTiles = MapGridOps.replaceTile(m.tiles, from.ordinal, to.ordinal)
+        if (!newTiles.contentEquals(m.tiles)) pushUndoAndCommit(m.copy(tiles = newTiles))
+    }
+
+    /** Add a ready-made map (e.g. a template) as a new slot and switch to editing it. */
+    fun addMapFromDoc(doc: MapDoc) {
+        if (project.maps.size >= MapProject.MAX_MAPS) return
+        project = project.copy(maps = project.maps + doc)
+        selectMap(project.maps.lastIndex)
+    }
+
+    /** Set the test-launch skill (1 = easiest … 5 = Nightmare). */
+    fun setSkill(skill: Int) {
+        val s = skill.coerceIn(1, 5)
+        if (project.skill == s) return
+        project = project.copy(skill = s)
         markDirty()
     }
 

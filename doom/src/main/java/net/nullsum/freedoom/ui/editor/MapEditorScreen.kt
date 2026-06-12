@@ -83,6 +83,7 @@ import net.nullsum.freedoom.ui.launch.WadEntry
 @Composable
 fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         state.loadCurrentOrNew()
@@ -94,11 +95,30 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     var showMaps by remember { mutableStateOf(false) }
     var showTuning by remember { mutableStateOf(false) }
     var showProjects by remember { mutableStateOf(false) }
+    var showReplace by remember { mutableStateOf(false) }
+    var showTemplates by remember { mutableStateOf(false) }
+    var testWarnings by remember { mutableStateOf<List<String>?>(null) }
+
+    val startTest = {
+        scope.launch {
+            if (!state.generateAndLaunch()) {
+                Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
+            }
+        }
+        Unit
+    }
+    val onTest = {
+        val map = state.project.maps[state.project.testMapIndex.coerceIn(0, state.project.maps.lastIndex)]
+        val warnings = validateMap(map)
+        if (warnings.isEmpty()) startTest() else testWarnings = warnings
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         EditorHeader(
             state = state,
             onOpenProjects = { showProjects = true },
+            onReplaceTile = { showReplace = true },
+            onTemplates = { showTemplates = true },
         )
 
         // Canvas hero.
@@ -138,6 +158,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
 
         ActionRow(
             state = state,
+            onTest = onTest,
             onResult = { ok, msg ->
                 if (!ok) Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 else if (msg.isNotEmpty()) Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
@@ -150,12 +171,26 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     if (showMaps) MapsSheet(state) { showMaps = false }
     if (showTuning) TuningSheet(state) { showTuning = false }
     if (showProjects) ProjectsSheet(state) { showProjects = false }
+    if (showReplace) ReplaceTileDialog(state) { showReplace = false }
+    if (showTemplates) TemplatesDialog(state) { showTemplates = false }
+    testWarnings?.let { warnings ->
+        ValidationDialog(
+            warnings = warnings,
+            onTestAnyway = { testWarnings = null; startTest() },
+            onDismiss = { testWarnings = null },
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------- header
 
 @Composable
-private fun EditorHeader(state: MapEditorState, onOpenProjects: () -> Unit) {
+private fun EditorHeader(
+    state: MapEditorState,
+    onOpenProjects: () -> Unit,
+    onReplaceTile: () -> Unit,
+    onTemplates: () -> Unit,
+) {
     var menuOpen by remember { mutableStateOf(false) }
     var iwadMenuOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -209,6 +244,14 @@ private fun EditorHeader(state: MapEditorState, onOpenProjects: () -> Unit) {
                             else Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
                         }
                     },
+                )
+                DropdownMenuItem(
+                    text = { Text("New from template…") },
+                    onClick = { menuOpen = false; onTemplates() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Replace tile…") },
+                    onClick = { menuOpen = false; onReplaceTile() },
                 )
                 DropdownMenuItem(
                     text = { Text("Clear map (Room)") },
@@ -290,6 +333,17 @@ private fun EditorToolbar(
                     label = { Text("Filled") },
                 )
             }
+            // Symmetry (cycles Off → mirror-LR → mirror-UD → 4-way) and brush tip size.
+            FilterChip(
+                selected = state.symmetry != MapGridOps.SymmetryMode.None,
+                onClick = { state.symmetry = nextSymmetry(state.symmetry) },
+                label = { Text(symmetryLabel(state.symmetry)) },
+            )
+            FilterChip(
+                selected = state.brushSize > 1,
+                onClick = { state.brushSize = if (state.brushSize >= 3) 1 else state.brushSize + 1 },
+                label = { Text("Tip ${state.brushSize}×") },
+            )
             Spacer(Modifier.width(8.dp))
             TextButton(onClick = { state.undo() }, enabled = state.canUndo) { Text("Undo") }
             TextButton(onClick = { state.redo() }, enabled = state.canRedo) { Text("Redo") }
@@ -312,6 +366,20 @@ private fun ToolChip(label: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
 }
 
+private fun nextSymmetry(m: MapGridOps.SymmetryMode): MapGridOps.SymmetryMode = when (m) {
+    MapGridOps.SymmetryMode.None -> MapGridOps.SymmetryMode.Horizontal
+    MapGridOps.SymmetryMode.Horizontal -> MapGridOps.SymmetryMode.Vertical
+    MapGridOps.SymmetryMode.Vertical -> MapGridOps.SymmetryMode.Both
+    MapGridOps.SymmetryMode.Both -> MapGridOps.SymmetryMode.None
+}
+
+private fun symmetryLabel(m: MapGridOps.SymmetryMode): String = when (m) {
+    MapGridOps.SymmetryMode.None -> "Sym Off"
+    MapGridOps.SymmetryMode.Horizontal -> "Sym ↔"
+    MapGridOps.SymmetryMode.Vertical -> "Sym ↕"
+    MapGridOps.SymmetryMode.Both -> "Sym ✛"
+}
+
 /** A space-frugal text button for the cramped map-row actions (Dup / move / delete). */
 @Composable
 private fun CompactAction(label: String, enabled: Boolean = true, onClick: () -> Unit) {
@@ -326,7 +394,7 @@ private fun CompactAction(label: String, enabled: Boolean = true, onClick: () ->
 // ----------------------------------------------------------------------------- actions
 
 @Composable
-private fun ActionRow(state: MapEditorState, onResult: (Boolean, String) -> Unit) {
+private fun ActionRow(state: MapEditorState, onTest: () -> Unit, onResult: (Boolean, String) -> Unit) {
     val scope = rememberCoroutineScope()
     Row(
         modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -344,12 +412,7 @@ private fun ActionRow(state: MapEditorState, onResult: (Boolean, String) -> Unit
         ) { Text("Generate") }
 
         Button(
-            onClick = {
-                scope.launch {
-                    val ok = state.generateAndLaunch()
-                    if (!ok) onResult(false, "Failed to generate WAD")
-                }
-            },
+            onClick = onTest,
             enabled = !state.isBusy,
             modifier = Modifier.weight(1f).height(48.dp),
         ) {
@@ -559,6 +622,23 @@ private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
                     label = { Text("Doom I (ExMy)") },
                 )
             }
+
+            Spacer(Modifier.height(12.dp))
+            Text("Test skill", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                SKILL_NAMES.forEachIndexed { idx, name ->
+                    val level = idx + 1
+                    FilterChip(
+                        selected = state.project.skill == level,
+                        onClick = { state.setSkill(level) },
+                        label = { Text(name) },
+                    )
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
             TextButton(onClick = onDismiss) { Text("Close") }
         }
@@ -634,4 +714,108 @@ private fun ProjectsSheet(state: MapEditorState, onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+// Doom skill abbreviations, index 0..4 → skill 1..5.
+private val SKILL_NAMES = listOf("ITYTD", "HNTR", "HMP", "UV", "NM")
+
+// -------------------------------------------------------------------- replace-tile dialog
+
+@Composable
+private fun ReplaceTileDialog(state: MapEditorState, onDismiss: () -> Unit) {
+    var from by remember { mutableStateOf(TileType.Wall) }
+    var to by remember { mutableStateOf(TileType.Door) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Replace tile") },
+        text = {
+            Column {
+                Text("Replace every…", style = MaterialTheme.typography.labelLarge)
+                TileSwatchRow(selected = from) { from = it }
+                Spacer(Modifier.height(12.dp))
+                Text("…with", style = MaterialTheme.typography.labelLarge)
+                TileSwatchRow(selected = to) { to = it }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { state.replaceTile(from, to); onDismiss() }) { Text("Replace") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun TileSwatchRow(selected: TileType, onPick: (TileType) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TileType.entries.forEach { tile ->
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(tile.composeColor, RoundedCornerShape(6.dp))
+                    .border(
+                        width = if (tile == selected) 3.dp else 1.dp,
+                        color = if (tile == selected) MaterialTheme.colorScheme.primary else Color(0xFF555555),
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .clickable { onPick(tile) },
+            )
+        }
+    }
+}
+
+// ----------------------------------------------------------------------- templates dialog
+
+@Composable
+private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New from template") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text("Adds a new map from a starter layout.", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                MapTemplates.all.forEach { tpl ->
+                    val thumb = remember(tpl.name) { renderMapBitmap(tpl.build()).asImageBitmap() }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { state.addMapFromDoc(tpl.build()); onDismiss() }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Image(
+                            bitmap = thumb,
+                            contentDescription = null,
+                            filterQuality = FilterQuality.None,
+                            modifier = Modifier.size(44.dp).border(1.dp, Color(0xFF555555)),
+                        )
+                        Text(tpl.name)
+                    }
+                    HorizontalDivider()
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+// ---------------------------------------------------------------------- validation dialog
+
+@Composable
+private fun ValidationDialog(warnings: List<String>, onTestAnyway: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Heads up") },
+        text = {
+            Column {
+                warnings.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onTestAnyway) { Text("Test anyway") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

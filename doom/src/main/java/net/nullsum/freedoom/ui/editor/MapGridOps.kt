@@ -131,4 +131,53 @@ object MapGridOps {
         for (idx in rectCells(width, height, x0, y0, x1, y1, filled)) out[idx] = v
         return out
     }
+
+    /** How edits are mirrored across the grid's centre. */
+    enum class SymmetryMode { None, Horizontal, Vertical, Both }
+
+    /**
+     * The cell ([x],[y]) plus its mirror partners under [mode] — Horizontal mirrors left↔right
+     * (`w-1-x`), Vertical top↔bottom (`h-1-y`), Both is 4-way. Out-of-range inputs and duplicate
+     * partners (on a centre line) are dropped.
+     */
+    fun mirrorIndices(width: Int, height: Int, x: Int, y: Int, mode: SymmetryMode): List<Int> {
+        if (x !in 0 until width || y !in 0 until height) return emptyList()
+        val xs = if (mode == SymmetryMode.Horizontal || mode == SymmetryMode.Both) intArrayOf(x, width - 1 - x) else intArrayOf(x)
+        val ys = if (mode == SymmetryMode.Vertical || mode == SymmetryMode.Both) intArrayOf(y, height - 1 - y) else intArrayOf(y)
+        val out = LinkedHashSet<Int>()
+        for (yy in ys) for (xx in xs) out.add(yy * width + xx)
+        return out.toList()
+    }
+
+    /** Union of every cell in [cells] with its [mode] mirror partners. */
+    fun expandSymmetry(cells: IntArray, width: Int, height: Int, mode: SymmetryMode): IntArray {
+        if (mode == SymmetryMode.None) return cells
+        val out = LinkedHashSet<Int>()
+        for (idx in cells) {
+            out.addAll(mirrorIndices(width, height, idx % width, idx / width, mode))
+        }
+        return out.toIntArray()
+    }
+
+    /** The in-bounds cell indices of a [size]×[size] square centred on ([x],[y]) (brush tip). */
+    fun blockCells(width: Int, height: Int, x: Int, y: Int, size: Int): IntArray {
+        if (size <= 1) return if (x in 0 until width && y in 0 until height) intArrayOf(y * width + x) else IntArray(0)
+        val half = (size - 1) / 2
+        val out = ArrayList<Int>(size * size)
+        for (dy in -half until size - half) {
+            for (dx in -half until size - half) {
+                val cx = x + dx
+                val cy = y + dy
+                if (cx in 0 until width && cy in 0 until height) out.add(cy * width + cx)
+            }
+        }
+        return out.toIntArray()
+    }
+
+    /** Copies [tiles] and replaces every [fromOrdinal] cell with [toOrdinal]; returns the new array. */
+    fun replaceTile(tiles: IntArray, fromOrdinal: Int, toOrdinal: Int): IntArray {
+        val out = tiles.copyOf()
+        for (i in out.indices) if (out[i] == fromOrdinal) out[i] = toOrdinal
+        return out
+    }
 }

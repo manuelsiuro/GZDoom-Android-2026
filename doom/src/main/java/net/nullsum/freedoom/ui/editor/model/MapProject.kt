@@ -72,6 +72,8 @@ data class MapProject(
     val testMapIndex: Int = 0,
     /** When false, the converter spawns only a player start (no monsters/items) — a sandbox map. */
     val generateThings: Boolean = true,
+    /** Test-launch skill, 1 (I'm Too Young To Die) … 5 (Nightmare). */
+    val skill: Int = 3,
 ) {
     companion object {
         const val MAX_MAPS = 32
