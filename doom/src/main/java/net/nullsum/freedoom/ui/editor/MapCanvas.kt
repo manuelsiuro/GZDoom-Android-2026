@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -38,34 +39,58 @@ private val CANVAS_BG = Color(0xFF101014)
  */
 @Composable
 fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
-    Canvas(
+    // IMPORTANT: the gesture node (Box) must NOT carry the graphicsLayer transform, and the
+    // draw node (Canvas) must NOT carry the pointerInput. If both lived on one node, Compose
+    // hit-testing would report pointer positions already mapped into the post-transform
+    // (content) space, and screenToCell would invert the zoom/pan a second time — so after any
+    // pan/zoom, taps would hit the wrong cell or fall out of bounds. Keeping input in screen
+    // space (outer Box) and the transform on the inner Canvas keeps both consistent.
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(CANVAS_BG)
             .clipToBounds()
-            .graphicsLayer {
-                scaleX = state.scale
-                scaleY = state.scale
-                translationX = state.offset.x
-                translationY = state.offset.y
-                transformOrigin = TransformOrigin(0f, 0f)
-            }
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
                     val tool = state.activeTool
                     var painting = false
                     var bucketDone = false
                     var transforming = false
+                    // The initial down is acted on lazily, on the first follow-up event, so we
+                    // can still tell a tap/drag (1 finger) from a pinch (2 fingers) and avoid a
+                    // stray dot when the user starts a two-finger zoom. `seeded` guards it.
+                    var seeded = false
+
+                    fun seedDown() {
+                        if (seeded) return
+                        seeded = true
+                        when (tool) {
+                            EditorTool.Pan -> {} // pan acts on movement, not the down
+                            EditorTool.Bucket -> {
+                                screenToCell(state, down.position, size.width, size.height)
+                                    ?.let { state.bucketAt(it.x, it.y) }
+                                bucketDone = true
+                            }
+                            else -> { // Brush / Eraser
+                                state.beginStroke()
+                                painting = true
+                                screenToCell(state, down.position, size.width, size.height)
+                                    ?.let { state.paintAt(it.x, it.y) }
+                            }
+                        }
+                    }
 
                     while (true) {
                         val event = awaitPointerEvent()
                         val pressed = event.changes.filter { it.pressed }
-                        if (pressed.isEmpty()) break
 
                         if (pressed.size >= 2) {
-                            // Two fingers → pinch-zoom + pan. Abandon any in-progress stroke.
+                            // Two fingers → pinch-zoom + pan. Commit to transform: never seed a
+                            // paint, and abandon any in-progress stroke.
                             if (painting) { state.endStroke(); painting = false }
+                            seeded = true
                             transforming = true
                             applyTransform(
                                 state,
@@ -74,32 +99,33 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                 event.calculateCentroid(),
                             )
                             event.changes.forEach { it.consume() }
-                        } else {
-                            val change = pressed.first()
-                            when {
-                                transforming -> {
-                                    // Winding down from a pinch: keep panning, don't paint a jump.
-                                    state.offset += change.positionChange()
-                                    change.consume()
-                                }
-                                tool == EditorTool.Pan -> {
-                                    state.offset += change.positionChange()
-                                    change.consume()
-                                }
-                                tool == EditorTool.Bucket -> {
-                                    if (!bucketDone) {
-                                        screenToCell(state, change.position, size.width, size.height)
-                                            ?.let { state.bucketAt(it.x, it.y) }
-                                        bucketDone = true
-                                    }
-                                    change.consume()
-                                }
-                                else -> { // Brush / Eraser
-                                    if (!painting) { state.beginStroke(); painting = true }
-                                    screenToCell(state, change.position, size.width, size.height)
-                                        ?.let { state.paintAt(it.x, it.y) }
-                                    change.consume()
-                                }
+                            continue
+                        }
+
+                        // Zero or one pointer: first single-pointer event means this is a
+                        // tap/drag (not a pinch), so it's now safe to act on the initial down.
+                        if (!transforming) seedDown()
+
+                        if (pressed.isEmpty()) break // gesture ended
+
+                        val change = pressed.first()
+                        when {
+                            transforming -> {
+                                // Winding down from a pinch: keep panning, don't paint a jump.
+                                state.offset += change.positionChange()
+                                change.consume()
+                            }
+                            tool == EditorTool.Pan -> {
+                                state.offset += change.positionChange()
+                                change.consume()
+                            }
+                            tool == EditorTool.Bucket -> {
+                                change.consume() // the fill already fired on the seeded down
+                            }
+                            else -> { // Brush / Eraser: paint each dragged-over cell
+                                screenToCell(state, change.position, size.width, size.height)
+                                    ?.let { state.paintAt(it.x, it.y) }
+                                change.consume()
                             }
                         }
                     }
@@ -107,11 +133,23 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                 }
             },
     ) {
-        // Subscribe to edits: project identity changes on committed edits, strokeRevision
-        // bumps during a live stroke.
-        @Suppress("UNUSED_EXPRESSION") state.project
-        @Suppress("UNUSED_EXPRESSION") state.strokeRevision
-        drawGrid(state, size)
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = state.scale
+                    scaleY = state.scale
+                    translationX = state.offset.x
+                    translationY = state.offset.y
+                    transformOrigin = TransformOrigin(0f, 0f)
+                },
+        ) {
+            // Subscribe to edits: project identity changes on committed edits, strokeRevision
+            // bumps during a live stroke.
+            @Suppress("UNUSED_EXPRESSION") state.project
+            @Suppress("UNUSED_EXPRESSION") state.strokeRevision
+            drawGrid(state, size)
+        }
     }
 }
 
