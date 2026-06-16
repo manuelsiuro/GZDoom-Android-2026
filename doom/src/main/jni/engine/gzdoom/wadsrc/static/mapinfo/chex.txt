@@ -14,7 +14,7 @@ gameinfo
 	finalemusic = "$MUSIC_VICTOR"
 	finaleflat = "FLOOR4_8"
 	finalepage = "CREDIT", "VICTORY2", "ENDPIC"
-	infopage = "HELP1", "CREDIT"
+	infopage = "HELP1", "*", "CREDIT"
 	quitsound = "menu/quit1"
 	borderflat = "CEIL5_1"
 	border = DoomBorder
@@ -56,7 +56,7 @@ gameinfo
 	menufontcolor_header = "YELLOW"
 	menufontcolor_highlight = "BLUE"
 	menufontcolor_selection = "GOLD"
-	menubackbutton = "M_BACK_H"
+	menubackbutton = "M_BACK_C"
 	playerclasses = "ChexPlayer"
 	pausesign = "M_PAUSE"
 	gibfactor = 1

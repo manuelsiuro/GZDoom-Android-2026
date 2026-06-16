@@ -1,3 +1,20 @@
+/*
+** i_interface.cpp
+**
+**
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2019-2025 GZDoom Maintainers and Contributors
+** Copyright 2020 Christoph Oelckers
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+*/
+
 #include "i_interface.h"
 #include "st_start.h"
 #include "gamestate.h"
@@ -46,7 +63,6 @@ CVAR(String, defaultnetargs, "", CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Int, defaultnetplayers, 8, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Int, defaultnethostport, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Int, defaultnetticdup, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-CVAR(Int, defaultnetmode, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Int, defaultnetgamemode, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, defaultnetaltdm, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(String, defaultnetaddress, "", CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
@@ -110,7 +126,6 @@ FStartupSelectionInfo::FStartupSelectionInfo(const TArray<WadStuff>& wads, FArgs
 	DefaultNetPlayers = defaultnetplayers;
 	DefaultNetHostPort = defaultnethostport;
 	DefaultNetTicDup = defaultnetticdup;
-	DefaultNetMode = defaultnetmode;
 	DefaultNetGameMode = defaultnetgamemode;
 	DefaultNetAltDM = defaultnetaltdm;
 	DefaultNetHostTeam = defaultnethostteam;
@@ -154,7 +169,6 @@ int FStartupSelectionInfo::SaveInfo()
 			defaultnetplayers = DefaultNetPlayers;
 			defaultnethostport = DefaultNetHostPort;
 			defaultnetticdup = DefaultNetTicDup;
-			defaultnetmode = DefaultNetMode;
 			defaultnetgamemode = DefaultNetGameMode;
 			defaultnetaltdm = DefaultNetAltDM;
 			defaultnethostteam = DefaultNetHostTeam;
@@ -168,9 +182,9 @@ int FStartupSelectionInfo::SaveInfo()
 		}
 
 		if (!DefaultNetArgs.IsEmpty())
-			Args->AppendArgsString(DefaultNetArgs);
+			Args->AppendRawArgsString(DefaultNetArgs);
 		if (!AdditionalNetArgs.IsEmpty())
-			Args->AppendArgsString(AdditionalNetArgs);
+			Args->AppendRawArgsString(AdditionalNetArgs);
 
 		return DefaultNetIWAD;
 	}
@@ -180,7 +194,7 @@ int FStartupSelectionInfo::SaveInfo()
 	defaultargs = saveargs ? DefaultArgs.GetChars() : "";
 
 	if (!DefaultArgs.IsEmpty())
-		Args->AppendArgsString(DefaultArgs);
+		Args->AppendRawArgsString(DefaultArgs);
 
 	return DefaultIWAD;
 }

@@ -1,76 +1,61 @@
-//-----------------------------------------------------------------------------
-//
-// Copyright 1993-1996 id Software
-// Copyright 1994-1996 Raven Software
-// Copyright 1999-2016 Randy Heit
-// Copyright 2002-2016 Christoph Oelckers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/
-//
-//-----------------------------------------------------------------------------
-//
-//
-// DESCRIPTION:  the automap code
-//
-//-----------------------------------------------------------------------------
+/*
+** am_map.cpp
+**
+** The automap code
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1994-1996 Raven Software
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+*/
 
 #include <stdio.h>
 #include <array>
 
-#include "doomdef.h"
-
-#include "g_level.h"
-#include "st_stuff.h"
-#include "p_local.h"
-#include "p_lnspec.h"
-#include "filesystem.h"
+#include "a_keys.h"
 #include "a_sharedglobal.h"
-#include "d_event.h"
-#include "gi.h"
-#include "p_setup.h"
+#include "am_map.h"
 #include "c_bind.h"
-#include "serializer_doom.h"
-#include "r_sky.h"
-#include "sbar.h"
-#include "d_player.h"
-#include "p_blockmap.h"
-#include "g_game.h"
-#include "v_video.h"
-#include "d_main.h"
-#include "v_draw.h"
-
-#include "m_cheat.h"
+#include "c_buttons.h"
 #include "c_dispatch.h"
+#include "d_buttons.h"
+#include "d_event.h"
+#include "d_main.h"
 #include "d_netinf.h"
-
-// State.
+#include "d_player.h"
+#include "doomdef.h"
+#include "earcut.hpp"
+#include "filesystem.h"
+#include "g_game.h"
+#include "g_levellocals.h"
+#include "gi.h"
+#include "gstrings.h"
+#include "m_cheat.h"
+#include "p_blockmap.h"
+#include "p_lnspec.h"
+#include "p_local.h"
+#include "p_setup.h"
+#include "po_man.h"
+#include "r_sky.h"
 #include "r_state.h"
 #include "r_utility.h"
-
-// Data.
-#include "gstrings.h"
-
-#include "am_map.h"
-#include "po_man.h"
-#include "a_keys.h"
-#include "g_levellocals.h"
-#include "actorinlines.h"
-#include "earcut.hpp"
-#include "c_buttons.h"
-#include "d_buttons.h"
+#include "sbar.h"
+#include "serializer_doom.h"
+#include "st_stuff.h"
 #include "texturemanager.h"
+#include "v_draw.h"
+#include "v_video.h"
 
+#include "actorinlines.h"
 
 //=============================================================================
 //
@@ -171,7 +156,7 @@ CVAR(Bool, am_showitems, false, CVAR_ARCHIVE);
 CVAR(Bool, am_showtime, true, CVAR_ARCHIVE);
 CVAR(Bool, am_showtotaltime, false, CVAR_ARCHIVE);
 CVAR(Bool, am_showlevelname, true, CVAR_ARCHIVE);
-CVAR(Int, am_colorset, 0, CVAR_ARCHIVE);
+CVAR(Int, am_colorset, -1, CVAR_ARCHIVE);
 CVAR(Bool, am_customcolors, true, CVAR_ARCHIVE);
 CVAR(Int, am_map_secrets, 1, CVAR_ARCHIVE);
 CVAR(Int, am_drawmapback, 1, CVAR_ARCHIVE);
@@ -713,28 +698,42 @@ static void AM_initColors(bool overlayed)
 	{
 		AMColors = AMMod;
 	}
-	else switch (am_colorset)
+	else 
 	{
-	default:
-		/* Use the custom colors in the am_* cvars */
-		AMColors.initFromCVars(cv_standard);
-		break;
+		int set = am_colorset;
+		if (set == -1)
+		{
+			if (gameinfo.gametype & GAME_DoomChex)
+				set = 1;
+			else if (gameinfo.gametype & GAME_Strife)
+				set = 2;
+			else if (gameinfo.gametype & GAME_Raven)
+				set = 3;
+		}
 
-	case 1:	// Doom
-		// Use colors corresponding to the original Doom's
-		AMColors.initFromColors(DoomColors, false);
-		break;
+		switch (set)
+		{
+		default:
+			/* Use the custom colors in the am_* cvars */
+			AMColors.initFromCVars(cv_standard);
+			break;
 
-	case 2:	// Strife
-		// Use colors corresponding to the original Strife's
-		AMColors.initFromColors(StrifeColors, false);
-		break;
+		case 1:	// Doom
+			// Use colors corresponding to the original Doom's
+			AMColors.initFromColors(DoomColors, false);
+			break;
 
-	case 3:	// Raven
-		// Use colors corresponding to the original Raven's
-		AMColors.initFromColors(RavenColors, true);
-		break;
+		case 2:	// Strife
+			// Use colors corresponding to the original Strife's
+			AMColors.initFromColors(StrifeColors, false);
+			break;
 
+		case 3:	// Raven
+			// Use colors corresponding to the original Raven's
+			AMColors.initFromColors(RavenColors, true);
+			break;
+
+		}
 	}
 }
 
@@ -980,6 +979,8 @@ class DAutomap :public DAutomapBase
 
 	TArray<FVector2> points;
 
+	int line_thickness_scaled; // line thickness scaled to resolution
+
 	// translates between frame-buffer and map distances
 	double FTOM(double x)
 	{
@@ -1037,13 +1038,14 @@ class DAutomap :public DAutomapBase
 	void drawMarks();
 	void drawAuthorMarkers();
 	void drawCrosshair(const AMColor &color);
-
+	void CalculateLineThicknessScaled();
 
 public:
 	bool Responder(event_t* ev, bool last) override;
 	void Ticker(void) override;
 	void Drawer(int bottom) override;
 	void NewResolution() override;
+	void NewUIScale() override;
 	void LevelInit() override;
 	void UpdateShowAllLines() override;
 	void Serialize(FSerializer &arc) override;
@@ -1334,6 +1336,8 @@ void DAutomap::startDisplay()
 	m_y = players[pnum].camera->Y() - m_h/2;
 	changeWindowLoc();
 
+	NewUIScale();
+
 	// for saving & restoring
 	old_m_x = m_x;
 	old_m_y = m_y;
@@ -1409,6 +1413,29 @@ void DAutomap::maxOutWindowScale ()
 
 //=============================================================================
 //
+// Pre-calculate scaled line thickness
+//
+//=============================================================================
+
+void DAutomap::NewUIScale()
+{
+	if (StatusBar == nullptr)
+	{
+		line_thickness_scaled = 1;
+		return;
+	}
+
+	double sc = min<double>(StatusBar->SBarScale.X, StatusBar->SBarScale.Y);
+	line_thickness_scaled = xs_CRoundToInt(sc);
+
+	if (line_thickness_scaled <= 0)
+	{
+		line_thickness_scaled = 1;
+	}
+}
+
+//=============================================================================
+//
 // Called right after the resolution has changed
 //
 //=============================================================================
@@ -1430,6 +1457,7 @@ void DAutomap::NewResolution()
 		maxOutWindowScale();
 	f_w = twod->GetWidth();
 	f_h = StatusBar->GetTopOfStatusbar();
+	NewUIScale();
 	activateNewScale();
 }
 
@@ -1574,7 +1602,7 @@ void DAutomap::clearFB (const AMColor &color)
 		// only draw background when using a mod defined custom color set or Raven colors, if am_drawmapback is 2.
 		if (!am_customcolors || !AMMod.defined)
 		{
-			drawback &= (am_colorset == 3);
+			drawback &= (am_colorset == 3) || (am_colorset == -1 && (gameinfo.gametype & GAME_Raven));
 		}
 	}
 
@@ -1752,14 +1780,16 @@ void DAutomap::drawMline (mline_t *ml, const AMColor &color)
 		const int x2 = f_x + fl.b.x;
 		const int y2 = f_y + fl.b.y;
 
+		const int thickness = (am_linethickness > 0) ? am_linethickness : line_thickness_scaled;
+
 		if (am_lineantialiasing) {
 			// Draw 5 lines (am_linethickness 2) or 9 lines (am_linethickness >= 3)
 			// slightly offset from each other, but with lower opacity
 			// as a bruteforce way to achieve antialiased line drawing.
-			const int aa_alpha_divide = am_linethickness >= 3 ? 3 : 2;
+			const int aa_alpha_divide = thickness >= 3 ? 3 : 2;
 
 			// Subtract to line thickness to compensate for the antialiasing making lines thicker.
-			const int aa_linethickness = max(1, am_linethickness - 2);
+			const int aa_linethickness = max(1, thickness - 2);
 
 			if (aa_linethickness >= 2) {
 				// Top row.
@@ -1779,7 +1809,7 @@ void DAutomap::drawMline (mline_t *ml, const AMColor &color)
 			} else {
 				// Use more efficient thin line drawing routine.
 				// Top row.
-				if (am_linethickness >= 3) {
+				if (thickness >= 3) {
 					// If original line thickness is 2, do not add diagonal lines to allow thin lines to be represented.
 					// This part is not needed for thick antialiased drawing, as original line thickness is always greater than 3.
 					twod->AddLine(DVector2(x1 - 1, y1 - 1), DVector2(x2 - 1, y2 - 1), nullptr, color.RGB, uint8_t(am_linealpha * 255 / aa_alpha_divide));
@@ -1793,7 +1823,7 @@ void DAutomap::drawMline (mline_t *ml, const AMColor &color)
 				twod->AddLine(DVector2(x1, y1), DVector2(x2, y2), nullptr, color.RGB, uint8_t(am_linealpha * 255 / aa_alpha_divide));
 
 				// Bottom row.
-				if (am_linethickness >= 3) {
+				if (thickness >= 3) {
 					// If original line thickness is 2, do not add diagonal lines to allow thin lines to be represented.
 					// This part is not needed for thick antialiased drawing, as original line thickness is always greater than 3.
 					twod->AddLine(DVector2(x1 - 1, y1 + 1), DVector2(x2 - 1, y2 + 1), nullptr, color.RGB, uint8_t(am_linealpha * 255 / aa_alpha_divide));
@@ -1802,8 +1832,8 @@ void DAutomap::drawMline (mline_t *ml, const AMColor &color)
 				twod->AddLine(DVector2(x1, y1 - 1), DVector2(x2, y2 - 1), nullptr, color.RGB, uint8_t(am_linealpha * 255 / aa_alpha_divide));
 			}
 		} else {
-			if (am_linethickness >= 2) {
-				twod->AddThickLine(DVector2(x1, y1), DVector2(x2, y2), am_linethickness, color.RGB, uint8_t(am_linealpha * 255));
+			if (thickness >= 2) {
+				twod->AddThickLine(DVector2(x1, y1), DVector2(x2, y2), thickness, color.RGB, uint8_t(am_linealpha * 255));
 			} else {
 				// Use more efficient thin line drawing routine.
 				twod->AddLine(DVector2(x1, y1), DVector2(x2, y2), nullptr, color.RGB, uint8_t(am_linealpha * 255));
@@ -2038,6 +2068,12 @@ void DAutomap::drawSubsectors()
 			continue;
 		}
 
+		// [XA] don't draw hidden subsectors for am_cheat 4 and up
+		if (am_cheat >= 4 && (sub->render_sector->MoreFlags & SECMF_HIDDEN))
+		{
+			continue;
+		}
+
 		if (am_portaloverlay && sub->render_sector->PortalGroup != MapPortalGroup && sub->render_sector->PortalGroup != 0)
 		{
 			continue;
@@ -2155,7 +2191,8 @@ void DAutomap::drawSubsectors()
 
 		// If this subsector has not actually been seen yet (because you are cheating
 		// to see it on the map), tint and desaturate it.
-		if (!(sub->flags & SSECMF_DRAWN))
+		// [XA] show it at its true color on am_cheat 4 though, since that's the intent of the feature.
+		if (!(sub->flags & SSECMF_DRAWN) && am_cheat < 4)
 		{
 			colormap.LightColor = PalEntry(
 				(colormap.LightColor.r + 255) / 2,
@@ -2855,7 +2892,7 @@ void DAutomap::drawPlayers ()
 		}
 
 		// We don't always want to show allies on the automap.
-		if (dmflags2 & DF2_NO_AUTOMAP_ALLIES && i != consoleplayer)
+		if (dmflags2 & DF2_NO_AUTOMAP_ALLIES && (int)i != consoleplayer)
 			continue;
 		
 		if (deathmatch && !demoplayback &&
@@ -2865,7 +2902,7 @@ void DAutomap::drawPlayers ()
 			continue;
 		}
 
-		if (p->mo->Alpha < 1.)
+		if (p->mo->InterpolatedAlpha(r_viewpoint.TicFrac) < 1.)
 		{
 			color = AMColors[AMColors.AlmostBackgroundColor];
 		}
@@ -3001,11 +3038,12 @@ void DAutomap::drawThings ()
 
 					if (texture == nullptr) goto drawTriangle;	// fall back to standard display if no sprite can be found.
 
-					const double spriteXScale = (t->Scale.X * (10. / 16.) * scale_mtof);
-					const double spriteYScale = (t->Scale.Y * (10. / 16.) * scale_mtof);
+					const DVector2 scale = t->InterpolatedScale(r_viewpoint.TicFrac);
+					const double spriteXScale = (scale.X * (10. / 16.) * scale_mtof);
+					const double spriteYScale = (scale.Y * (10. / 16.) * scale_mtof);
 
 					if (am_thingrenderstyles) DrawMarker(texture, p.x, p.y, 0, !!(frame->Flip & (1 << rotation)),
-						spriteXScale, spriteYScale, t->Translation, t->Alpha, t->fillcolor, t->RenderStyle);
+						spriteXScale, spriteYScale, t->Translation, t->InterpolatedAlpha(r_viewpoint.TicFrac), t->fillcolor, t->RenderStyle);
 					else DrawMarker(texture, p.x, p.y, 0, !!(frame->Flip & (1 << rotation)),
 						spriteXScale, spriteYScale, t->Translation, 1., 0, LegacyRenderStyles[STYLE_Normal]);
 				}

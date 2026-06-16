@@ -1,33 +1,22 @@
 /*
 ** v_blend.cpp
+**
 ** Screen blending stuff
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
-** All rights reserved.
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -53,6 +42,7 @@
 CVAR(Float, underwater_fade_scalar, 1.0f, CVAR_ARCHIVE) // [Nash] user-settable underwater blend intensity
 CVAR( Float, blood_fade_scalar, 1.0f, CVAR_ARCHIVE )	// [SP] Pulled from Skulltag - changed default from 0.5 to 1.0
 CVAR( Float, pickup_fade_scalar, 1.0f, CVAR_ARCHIVE )	// [SP] Uses same logic as blood_fade_scalar except for pickups
+CVAR(Float, powerup_fade_scalar, 1.0f, CVAR_ARCHIVE) // [Sal] Adjust screen fades for all inventory items
 
 // [RH] Amount of red flash for up to 114 damage points. Calculated by hand
 //		using a logarithmic scale and my trusty HP48G.
@@ -113,11 +103,13 @@ void V_AddPlayerBlend (player_t *CPlayer, float blend[4], float maxinvalpha, int
 			VMCall(func, params, 1, &ret, 1);
 		}
 
-
 		if (color.a != 0)
 		{
-			V_AddBlend (color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f, blend);
-			if (color.a/255.f > maxinvalpha) maxinvalpha = color.a/255.f;
+			// [Sal] Allow powerup fades to be adjusted.
+			float invalpha = (color.a * powerup_fade_scalar) / 255.f;
+
+			V_AddBlend (color.r/255.f, color.g/255.f, color.b/255.f, invalpha, blend);
+			if (invalpha > maxinvalpha) maxinvalpha = invalpha;
 		}
 	}
 	if (CPlayer->bonuscount)
@@ -236,7 +228,7 @@ FVector4 V_CalcBlend(sector_t* viewsector, PalEntry* modulateColor)
 	{
 		player = players[consoleplayer].camera->player;
 		if (player)
-			fullbright = (player->fixedcolormap != NOFIXEDCOLORMAP || player->extralight == INT_MIN || player->fixedlightlevel != -1);
+			fullbright = (player->fixedcolormap != NOFIXEDCOLORMAP || player->extralight == INT_MIN || player->fixedlightlevel != -1 || player->bForceFullbright);
 	}
 
 	// don't draw sector based blends when any fullbright screen effect is active.
@@ -308,31 +300,29 @@ FVector4 V_CalcBlend(sector_t* viewsector, PalEntry* modulateColor)
 			V_AddBlend(blendv.r / 255.f, blendv.g / 255.f, blendv.b / 255.f, cnt / 255.0f, blend);
 		}
 	}
-	else if (player && player->fixedlightlevel != -1 && player->fixedcolormap == NOFIXEDCOLORMAP)
+	else if (player && (player->fixedlightlevel != -1 || player->bForceFullbright) && player->fixedcolormap == NOFIXEDCOLORMAP)
 	{
 		// Draw fixedlightlevel effects as a 2D overlay. The hardware renderer just processes such a scene fullbright without any lighting.
-		auto torchtype = PClass::FindActor(NAME_PowerTorch);
-		auto litetype = PClass::FindActor(NAME_PowerLightAmp);
 		PalEntry color = 0xffffffff;
-		for (AActor* in = player->mo->Inventory; in; in = in->Inventory)
+		EFullbrightMode fbmode = player->GetFullbrightMode();
+		if (fbmode != FBMODE_NONE)
 		{
-			// Need special handling for light amplifiers 
-			if (in->IsKindOf(torchtype))
+			if (fbmode == FBMODE_TORCH)
 			{
-				// The software renderer already bakes the torch flickering into its output, so this must be omitted here.
+				// The software renderer already bakes the torch flickering into its output, so this must be omitted
+				// here.
 				float r = vid_rendermode < 4 ? 1.f : (0.8f + (7 - player->fixedlightlevel) / 70.0f);
-				if (r > 1.0f) r = 1.0f;
+				if (r > 1.0f)
+					r = 1.0f;
 				int rr = (int)(r * 255);
-				int b = rr;
-				if (gl_enhanced_nightvision) b = b * 3 / 4;
+				int b  = rr;
+				if (gl_enhanced_nightvision)
+					b = b * 3 / 4;
 				color = PalEntry(255, rr, rr, b);
 			}
-			else if (in->IsKindOf(litetype))
+			else if (fbmode == FBMODE_NIGHTVISION)
 			{
-				if (gl_enhanced_nightvision)
-				{
-					color = PalEntry(255, 104, 255, 104);
-				}
+				color = PalEntry(255, 104, 255, 104);
 			}
 		}
 		if (modulateColor)

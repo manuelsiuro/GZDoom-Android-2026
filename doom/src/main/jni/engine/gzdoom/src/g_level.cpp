@@ -1,33 +1,23 @@
 /*
 ** g_level.cpp
+**
 ** controls movement between levels
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
-** All rights reserved.
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2006-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -477,7 +467,7 @@ void G_NewInit ()
 	// Destroy thinkers that may remain after change level failure
 	// Usually, the list contains just a sentinel when such error occurred
 	primaryLevel->Thinkers.DestroyThinkersInList(STAT_TRAVELLING);
-	primaryLevel->ClientsideThinkers.DestroyThinkersInList(STAT_TRAVELLING); // This isn't currently supported, but maybe in the future
+	primaryLevel->ClientSideThinkers.DestroyThinkersInList(STAT_TRAVELLING); // This isn't currently supported, but maybe in the future
 
 	G_ClearSnapshots ();
 	netgame = false;
@@ -607,7 +597,7 @@ void G_InitNew (const char *mapname, bool bTitleLevel)
 	for (auto Level : AllLevels())
 	{
 		Level->Thinkers.DestroyThinkersInList(STAT_STATIC);
-		Level->ClientsideThinkers.DestroyThinkersInList(STAT_STATIC);
+		Level->ClientSideThinkers.DestroyThinkersInList(STAT_STATIC);
 	}
 
 	if (paused)
@@ -1381,6 +1371,8 @@ void G_DoLoadLevel(const FString &nextmapname, int position, bool autosave, bool
 	// clear cmd building stuff
 	buttonMap.ResetButtonStates();
 
+	WantsFlechetteItem = false;
+	SendWeaponSlot = WST_NONE;
 	SendItemUse = nullptr;
 	SendItemDrop = nullptr;
 	mousex = mousey = 0;
@@ -1417,6 +1409,7 @@ void FLevelLocals::DoLoadLevel(const FString &nextmapname, int position, bool au
 		laststartpos = position;
 
 	Init();
+	bScoreboardToggled = false;
 	StatusBar->DetachAllMessages ();
 
 	// Force 'teamplay' to 'true' if need be.
@@ -1431,7 +1424,7 @@ void FLevelLocals::DoLoadLevel(const FString &nextmapname, int position, bool au
 	{
 		FString mapname = nextmapname;
 		mapname.ToUpper();
-		Printf(PRINT_HIGH | PRINT_NONOTIFY, "\n" TEXTCOLOR_NORMAL "%s\n\n" TEXTCOLOR_BOLD "%s - %s\n\n", console_bar, mapname.GetChars(), LevelName.GetChars());
+		Printf(PRINT_NONOTIFY, "\n" TEXTCOLOR_NORMAL "%s\n\n" TEXTCOLOR_BOLD "%s - %s\n\n", console_bar, mapname.GetChars(), LevelName.GetChars());
 	}
 
 	// Set the sky map.
@@ -1757,7 +1750,7 @@ void FLevelLocals::LinkActorToLevel(AActor& mo)
 static int RemoveTravellingObjects(FLevelLocals& level, TArray<DThinker*>& toCallBack, bool clientSide)
 {
 	int failNum = 0;
-	auto it = clientSide ? level.GetClientsideThinkerIterator<DThinker>(NAME_None, STAT_TRAVELLING) : level.GetThinkerIterator<DThinker>(NAME_None, STAT_TRAVELLING);
+	auto it = clientSide ? level.GetClientSideThinkerIterator<DThinker>(NAME_None, STAT_TRAVELLING) : level.GetThinkerIterator<DThinker>(NAME_None, STAT_TRAVELLING);
 	DThinker* th = nullptr;
 	while ((th = it.Next()) != nullptr)
 	{
@@ -1872,13 +1865,16 @@ int FLevelLocals::FinishTravel()
 	// remaining thinkers that were set to travel when they left if recovering from a snapshot,
 	// otherwise they'll pile up infinitely.
 	Thinkers.CleanUpTravellers(savegamerestore);
-	ClientsideThinkers.CleanUpTravellers(savegamerestore);
+	ClientSideThinkers.CleanUpTravellers(savegamerestore);
 
 	// Some ZScript will be called here so we have to do this last.
 	for (size_t i = 0u; i < MAXPLAYERS; ++i)
 	{
-		if (PlayerInGame(i) && !(Players[i]->mo->ObjectFlags & OF_EuthanizeMe) && toCallBack.Find(Players[i]->mo) < toCallBack.Size())
+		if (PlayerInGame(i) && Players[i]->mo != nullptr && !(Players[i]->mo->ObjectFlags & OF_EuthanizeMe) && toCallBack.Find(Players[i]->mo) < toCallBack.Size())
+		{
+			Players[i]->LastSafePos.Update(*Players[i]->mo, true);
 			Players[i]->mo->SetState(Players[i]->mo->SpawnState);
+		}
 	}
 
 	for (auto th : toCallBack)
@@ -1953,6 +1949,7 @@ void FLevelLocals::Init()
 	skyspeed1 = info->skyspeed1;
 	skyspeed2 = info->skyspeed2;
 	skymistspeed = info->skymistspeed;
+	skymistyscale = info->skymistyscale;
 	skytexture1 = TexMan.GetTextureID(info->SkyPic1.GetChars(), ETextureType::Wall, FTextureManager::TEXMAN_Overridable | FTextureManager::TEXMAN_ReturnFirst);
 	skytexture2 = TexMan.GetTextureID(info->SkyPic2.GetChars(), ETextureType::Wall, FTextureManager::TEXMAN_Overridable | FTextureManager::TEXMAN_ReturnFirst);
 	skymisttexture = TexMan.GetTextureID(info->SkyMistPic.GetChars(), ETextureType::Wall, FTextureManager::TEXMAN_Overridable | FTextureManager::TEXMAN_ReturnFirst);
@@ -2428,7 +2425,7 @@ void FLevelLocals::Mark()
 		GC::Mark(localEventManager->LastEventHandler);
 	}
 	Thinkers.MarkRoots();
-	ClientsideThinkers.MarkRoots();
+	ClientSideThinkers.MarkRoots();
 	canvasTextureInfo.Mark();
 	for (auto &c : CorpseQueue)
 	{
@@ -2526,13 +2523,13 @@ void FLevelLocals::SetCompatLineOnSide(bool state)
 	else for (auto &l : lines) l.flags &= ~ML_COMPATSIDE;
 }
 
-int FLevelLocals::GetCompatibility(int mask)
+ELevelCompatFlags FLevelLocals::GetCompatibility(ELevelCompatFlags mask)
 {
 	if (info == nullptr) return mask;
 	else return (mask & ~info->compatmask) | (info->compatflags & info->compatmask);
 }
 
-int FLevelLocals::GetCompatibility2(int mask)
+ELevelCompatFlags2 FLevelLocals::GetCompatibility2(ELevelCompatFlags2 mask)
 {
 	return (info == nullptr) ? mask
 		: (mask & ~info->compatmask2) | (info->compatflags2 & info->compatmask2);
@@ -2541,7 +2538,7 @@ int FLevelLocals::GetCompatibility2(int mask)
 void FLevelLocals::ApplyCompatibility()
 {
 	int old = i_compatflags;
-	i_compatflags = GetCompatibility(compatflags) | ii_compatflags;
+	i_compatflags = GetCompatibility(ELevelCompatFlags::FromInt(compatflags)) | (ii_compatflags);
 	if ((old ^ i_compatflags) & COMPATF_POLYOBJ)
 	{
 		ClearAllSubsectorLinks();
@@ -2550,17 +2547,17 @@ void FLevelLocals::ApplyCompatibility()
 
 void FLevelLocals::ApplyCompatibility2()
 {
-	i_compatflags2 = GetCompatibility2(compatflags2) | ii_compatflags2;
+	i_compatflags2 = GetCompatibility2(ELevelCompatFlags2::FromInt(compatflags2)) | ii_compatflags2;
 }
 
-AActor* FLevelLocals::SelectActorFromTID(int tid, size_t index, AActor* defactor)
+AActor* FLevelLocals::SelectActorFromTID(int tid, size_t index, bool clientSide, AActor* defactor)
 {
 	if (tid == 0)
 		return defactor;
 
 	AActor* actor = nullptr;
 	size_t cur = 0u;
-	auto it = GetActorIterator(tid);
+	auto it = clientSide ? GetClientSideActorIterator(tid) : GetActorIterator(tid);
 	while ((actor = it.Next()) != nullptr)
 	{
 		if (cur == index)

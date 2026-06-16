@@ -94,10 +94,11 @@ class LaunchState(private val activity: Activity) {
         val base = baseDir
 
         withContext(Dispatchers.IO) {
-            // GZDoom 4.15 (__MOBILE__) loads its base data from ./res relative
-            // to the game dir: res/gzdoom_dev_gl3.pk3 + res/game_support.pk3.
-            Utils.copyAsset(activity, "gzdoom_dev_gl3.pk3", "$base/res")
-            Utils.copyAsset(activity, "game_support.pk3", "$base/res")
+            // UZDoom 5.0 (__MOBILE__) loads its base data from ./res relative to
+            // the game dir: res/uzdoom.pk3 (BASEWAD) + res/uzdoom_game_support.pk3
+            // (OPTIONALWAD, also carries IWADINFO). See engine src/version.h.
+            Utils.copyAsset(activity, "uzdoom.pk3", "$base/res")
+            Utils.copyAsset(activity, "uzdoom_game_support.pk3", "$base/res")
             Utils.copyAsset(activity, "game_widescreen_gfx.pk3", base)
             // Autoload extras are searched via $PROGDIR (= the game dir).
             Utils.copyAsset(activity, "lights.pk3", base)

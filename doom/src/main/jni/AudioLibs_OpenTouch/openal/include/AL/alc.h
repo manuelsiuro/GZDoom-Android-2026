@@ -21,6 +21,15 @@ extern "C" {
  #define ALC_APIENTRY
 #endif
 
+/* See al.h: UZDoom 5.0's thirdparty/alext.h annotates ALC prototypes with
+ * ALC_API_NOEXCEPT/ALC_API_NOEXCEPT17; define as no-ops for this older header. */
+#ifndef ALC_API_NOEXCEPT
+#define ALC_API_NOEXCEPT
+#endif
+#ifndef ALC_API_NOEXCEPT17
+#define ALC_API_NOEXCEPT17
+#endif
+
 #if defined(TARGET_OS_MAC) && TARGET_OS_MAC
  #pragma export on
 #endif

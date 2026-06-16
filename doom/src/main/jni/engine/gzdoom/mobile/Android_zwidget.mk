@@ -3,14 +3,14 @@ LOCAL_PATH := $(call my-dir)/../libraries/ZWidget/
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := zwidget
+LOCAL_MODULE := zwidget_uz
 
 LOCAL_C_INCLUDES :=     $(LOCAL_PATH)/include \
                         $(LOCAL_PATH)/include/zwidget \
                         $(LOCAL_PATH)/src \
                         $(SDL_INCLUDE_PATHS) \
 
-LOCAL_CPPFLAGS :=  -std=c++17 -fexceptions -fpermissive -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp -fsigned-char -DUSE_SDL2
+LOCAL_CPPFLAGS :=  -std=c++17 -fexceptions -frtti -fpermissive -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp -fsigned-char -DUSE_SDL2
 
 LOCAL_SRC_FILES =  	\
 	src/core/canvas.cpp \
@@ -45,9 +45,9 @@ LOCAL_SRC_FILES =  	\
 	src/window/stub/stub_save_file_dialog.cpp \
     src/window/sdl2/sdl2_display_backend.cpp \
     src/window/sdl2/sdl2_display_window.cpp \
+    src/systemdialogs/save_file_dialog.cpp \
 
-
-LOCAL_CFLAGS += -fvisibility=hidden -fdata-sections -ffunction-sections
+LOCAL_CFLAGS += -fdata-sections -ffunction-sections
 
 include $(BUILD_STATIC_LIBRARY)
 

@@ -3,7 +3,7 @@
  ** Implements base class for the different MIDI formats
  **
  **---------------------------------------------------------------------------
- ** Copyright 2008-2016 Randy Heit
+ ** Copyright 2008-2016 Marisa Heit
  ** Copyright 2017-2018 Christoph Oelckers
  ** All rights reserved.
  **
@@ -37,8 +37,8 @@
 #include "midisource.h"
 
 
-char MIDI_EventLengths[7] = { 2, 2, 2, 2, 1, 1, 2 };
-char MIDI_CommonLengths[15] = { 0, 1, 2, 1, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0 };
+const unsigned char MIDI_EventLengths[7] = { 2, 2, 2, 2, 1, 1, 2 };
+const unsigned char MIDI_CommonLengths[15] = { 0, 1, 2, 1, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0 };
 
 
 //==========================================================================

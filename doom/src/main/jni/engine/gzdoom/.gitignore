@@ -5,11 +5,11 @@
 *.AppImage
 *.flatpak
 flatpak/
-gzdoom-crash.log
+uzdoom-crash.log
 fmodapi*linux/
-
-# generated code
-/src/gitinfo.h
+gitinfo.h
+wadsrc*/**/language.csv
+wadsrc*/**/language.0
 
 # editor/tooling/os files
 *~
@@ -20,6 +20,7 @@ fmodapi*linux/
 .vscode
 .cache
 *.kate-swp
+.kate*
 *.geany
 
 # private dev files

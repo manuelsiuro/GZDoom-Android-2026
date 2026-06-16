@@ -1,22 +1,22 @@
 /*
-**  Vulkan backend
-**  Copyright (c) 2016-2020 Magnus Norddahl
+** vk_commandbuffer.cpp
 **
-**  This software is provided 'as-is', without any express or implied
-**  warranty.  In no event will the authors be held liable for any damages
-**  arising from the use of this software.
+** Vulkan backend
 **
-**  Permission is granted to anyone to use this software for any purpose,
-**  including commercial applications, and to alter it and redistribute it
-**  freely, subject to the following restrictions:
+**---------------------------------------------------------------------------
 **
-**  1. The origin of this software must not be misrepresented; you must not
-**     claim that you wrote the original software. If you use this software
-**     in a product, an acknowledgment in the product documentation would be
-**     appreciated but is not required.
-**  2. Altered source versions must be plainly marked as such, and must not be
-**     misrepresented as being the original software.
-**  3. This notice may not be removed or altered from any source distribution.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2016-2020 Magnus Norddahl
+**
+** SPDX-License-Identifier: Zlib
+**
+**---------------------------------------------------------------------------
 **
 */
 
@@ -116,10 +116,11 @@ void VkCommandBufferManager::FlushCommands(VulkanCommandBuffer** commands, size_
 	if (mNextSubmit > 0)
 		submit.AddWait(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, mSubmitSemaphore[(mNextSubmit - 1) % maxConcurrentSubmitCount].get());
 
-	if (finish && fb->GetFramebufferManager()->PresentImageIndex != -1)
+	auto framebuffers = fb->GetFramebufferManager();
+	if (finish && framebuffers->PresentImageIndex != -1)
 	{
-		submit.AddWait(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, fb->GetFramebufferManager()->SwapChainImageAvailableSemaphore.get());
-		submit.AddSignal(fb->GetFramebufferManager()->RenderFinishedSemaphore.get());
+		submit.AddWait(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, framebuffers->SwapChainImageAvailableSemaphore.get());
+		submit.AddSignal(framebuffers->RenderFinishedSemaphores[framebuffers->PresentImageIndex].get());
 	}
 
 	if (!lastsubmit)

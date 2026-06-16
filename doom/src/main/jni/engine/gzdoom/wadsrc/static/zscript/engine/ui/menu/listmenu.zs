@@ -1,38 +1,25 @@
 /*
 ** listmenu.zs
+**
 ** The main menu class
 **
 **---------------------------------------------------------------------------
+**
 ** Copyright 2010-2020 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
-
-
 
 class ListMenuDescriptor : MenuDescriptor native
 {
@@ -94,6 +81,8 @@ class ListMenu : Menu
 		Animated = mDesc.mAnimated;
 		DontBlur = mDesc.mDontBlur;
 		DontDim = mDesc.mDontDim;
+		if (mDesc.mTooltipFont)
+			mTooltipFont = mDesc.mTooltipFont;
 		if (desc.mCenter)
 		{
 			double center = 160;
@@ -124,6 +113,18 @@ class ListMenu : Menu
 		{
 			mDesc.mItems[i].OnMenuCreated();
 		}
+
+		// Now that all items have been initialized, check if any have a tooltip to display.
+		foreach (item : mDesc.mItems)
+		{
+			if (item.GetTooltip().IsNotEmpty())
+			{
+				DrawTooltips = true;
+				break;
+			}
+		}
+
+		UpdateTooltip(GetSelectedTooltip());
 	}
 
 	//=============================================================================
@@ -162,6 +163,7 @@ class ListMenu : Menu
 				if (mDesc.mitems[i].Selectable() && mDesc.mItems[i].CheckHotkey(ch))
 				{
 					mDesc.mSelectedItem = i;
+					UpdateTooltip(GetSelectedTooltip());
 					MenuSound("menu/cursor");
 					return true;
 				}
@@ -171,6 +173,7 @@ class ListMenu : Menu
 				if (mDesc.mitems[i].Selectable() && mDesc.mItems[i].CheckHotkey(ch))
 				{
 					mDesc.mSelectedItem = i;
+					UpdateTooltip(GetSelectedTooltip());
 					MenuSound("menu/cursor");
 					return true;
 				}
@@ -200,6 +203,7 @@ class ListMenu : Menu
 			}
 			while (!mDesc.mItems[mDesc.mSelectedItem].Selectable() && mDesc.mSelectedItem != startedAt);
 			if (mDesc.mSelectedItem == startedAt) mDesc.mSelectedItem = oldSelect;
+			else UpdateTooltip(GetSelectedTooltip());
 			MenuSound("menu/cursor");
 			return true;
 
@@ -211,6 +215,7 @@ class ListMenu : Menu
 			}
 			while (!mDesc.mItems[mDesc.mSelectedItem].Selectable() && mDesc.mSelectedItem != startedAt);
 			if (mDesc.mSelectedItem == startedAt) mDesc.mSelectedItem = oldSelect;
+			else UpdateTooltip(GetSelectedTooltip());
 			MenuSound("menu/cursor");
 			return true;
 
@@ -274,6 +279,7 @@ class ListMenu : Menu
 							//MenuSound("menu/cursor");
 						}
 						mDesc.mSelectedItem = i;
+						UpdateTooltip(GetSelectedTooltip());
 						mDesc.mItems[i].MouseEvent(type, x, y);
 						return true;
 					}
@@ -281,6 +287,7 @@ class ListMenu : Menu
 			}
 		}
 		mDesc.mSelectedItem = -1;
+		UpdateTooltip("");
 		return Super.MouseEvent(type, x, y);
 	}
 
@@ -366,6 +373,19 @@ class ListMenu : Menu
 			}
 		}
 		mDesc.mLineSpacing = newspace;
+	}
+
+	//=============================================================================
+	//
+	//
+	//
+	//=============================================================================
+
+	version("4.15.1") string GetSelectedTooltip() const
+	{
+		return mDesc && mDesc.mSelectedItem >= 0 && mDesc.mSelectedItem < mDesc.mItems.Size() && mDesc.mItems[mDesc.mSelectedItem]
+				? mDesc.mItems[mDesc.mSelectedItem].GetTooltip()
+				: "";
 	}
 }
 

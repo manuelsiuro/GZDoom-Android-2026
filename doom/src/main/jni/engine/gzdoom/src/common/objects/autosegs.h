@@ -1,33 +1,23 @@
 /*
 ** autosegs.h
+**
 ** Arrays built at link-time
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
-** All rights reserved.
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2008-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -54,13 +44,13 @@
 #define NO_SANITIZE_M
 #endif
 
-class FAutoSeg
-{
-	const char *name;
-	void **begin;
-	void **end;
+#include <tarray.h>
 
-	template <typename T>
+template<typename T>
+class FAutoSeg
+{ // register things automatically without segment hackery
+
+	template <typename T2>
 	struct ArgumentType;
 
 	template <typename Ret, typename Func, typename Arg>
@@ -90,94 +80,56 @@ class FAutoSeg
 	template <typename Func, typename Ret>
 	static constexpr bool HasReturnTypeV = HasReturnType<Func, Ret>::Value;
 
-	void Initialize();
-
 public:
-	explicit FAutoSeg(const char *name)
-	: name(name)
-	, begin(nullptr)
-	, end(nullptr)
-	{
-		Initialize();
-	}
-
-	FAutoSeg(void** begin, void** end)
-	: name(nullptr)
-	, begin(begin)
-	, end(end)
-	{
-	}
+	TArray<T*> fields {TArray<T*>::NoInit}; // skip constructor for fields, globals are zero-initialized, so this is fine
 
 	template <typename Func>
-	void NO_SANITIZE_M ForEach(Func func, std::enable_if_t<HasReturnTypeV<Func, void>> * = nullptr)
+	void ForEach(Func func, std::enable_if_t<HasReturnTypeV<Func, void>> * = nullptr)
 	{
-		using CallableType = decltype(&Func::operator());
-		using ArgType = typename ArgumentType<CallableType>::Type;
-
-		for (void **it = begin; it < end; ++it)
+		for (T * elem : fields)
 		{
-			if (uintptr_t(it) > 0xffff && *it && uintptr_t(*it) > 0xffff)
-			{
-				func(reinterpret_cast<ArgType>(*it));
-			}
+			func(elem);
 		}
 	}
 
 	template <typename Func>
-	void NO_SANITIZE_M ForEach(Func func, std::enable_if_t<HasReturnTypeV<Func, bool>> * = nullptr)
+	void ForEach(Func func, std::enable_if_t<HasReturnTypeV<Func, bool>> * = nullptr)
 	{
-		using CallableType = decltype(&Func::operator());
-		using ArgType = typename ArgumentType<CallableType>::Type;
-
-		for (void **it = begin; it < end; ++it)
+		for (T * elem : fields)
 		{
-			if (uintptr_t(it) > 0xffff && *it && uintptr_t(*it) > 0xffff)
+			if (!func(elem))
 			{
-				if (!func(reinterpret_cast<ArgType>(*it)))
-				{
-					return;
-				};
+				return;
 			}
 		}
 	}
 };
 
+template<typename T>
+struct FAutoSegEntry
+{
+	FAutoSegEntry(FAutoSeg<T> &seg, T* value)
+	{
+		seg.fields.push_back(value);
+	}
+};
+
+struct AFuncDesc;
+struct FieldDesc;
+struct ClassReg;
+struct FPropertyInfo;
+struct FMapOptInfo;
+struct FCVarDecl;
+
 namespace AutoSegs
 {
-	extern FAutoSeg ActionFunctons;
-	extern FAutoSeg TypeInfos;
-	extern FAutoSeg ClassFields;
-	extern FAutoSeg Properties;
-	extern FAutoSeg MapInfoOptions;
-	extern FAutoSeg CVarDecl;
+	extern FAutoSeg<AFuncDesc> ActionFunctons;
+	extern FAutoSeg<FieldDesc> ClassFields;
+	extern FAutoSeg<ClassReg> TypeInfos;
+	extern FAutoSeg<FPropertyInfo> Properties;
+	extern FAutoSeg<FMapOptInfo> MapInfoOptions;
+	extern FAutoSeg<FCVarDecl> CVarDecl;
 }
 
-#define AUTOSEG_AREG areg
-#define AUTOSEG_CREG creg
-#define AUTOSEG_FREG freg
-#define AUTOSEG_GREG greg
-#define AUTOSEG_YREG yreg
-#define AUTOSEG_VREG vreg
-
-#define AUTOSEG_STR(string) AUTOSEG_STR2(string)
-#define AUTOSEG_STR2(string) #string
-
-#ifdef __MACH__
-#define AUTOSEG_MACH_SEGMENT "__DATA"
-#define AUTOSEG_MACH_SECTION(section) AUTOSEG_MACH_SEGMENT "," AUTOSEG_STR(section)
-#define SECTION_AREG AUTOSEG_MACH_SECTION(AUTOSEG_AREG)
-#define SECTION_CREG AUTOSEG_MACH_SECTION(AUTOSEG_CREG)
-#define SECTION_FREG AUTOSEG_MACH_SECTION(AUTOSEG_FREG)
-#define SECTION_GREG AUTOSEG_MACH_SECTION(AUTOSEG_GREG)
-#define SECTION_YREG AUTOSEG_MACH_SECTION(AUTOSEG_YREG)
-#define SECTION_VREG AUTOSEG_MACH_SECTION(AUTOSEG_VREG)
-#else
-#define SECTION_AREG AUTOSEG_STR(AUTOSEG_AREG)
-#define SECTION_CREG AUTOSEG_STR(AUTOSEG_CREG)
-#define SECTION_FREG AUTOSEG_STR(AUTOSEG_FREG)
-#define SECTION_GREG AUTOSEG_STR(AUTOSEG_GREG)
-#define SECTION_YREG AUTOSEG_STR(AUTOSEG_YREG)
-#define SECTION_VREG AUTOSEG_STR(AUTOSEG_VREG)
-#endif
 
 #endif

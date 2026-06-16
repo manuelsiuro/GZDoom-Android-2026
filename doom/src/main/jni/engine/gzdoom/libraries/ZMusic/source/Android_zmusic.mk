@@ -5,7 +5,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 
-LOCAL_MODULE    := zmusic_g4d
+LOCAL_MODULE    := zmusic_uz
 
 LOCAL_CPPFLAGS := -DHAVE_SNDFILE -DHAVE_FLUIDSYNTH -DHAVE_MPG123 -fexceptions -std=c++11 -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp  -fsigned-char
 
@@ -22,7 +22,7 @@ $(LOCAL_PATH)/../thirdparty/timidity \
 $(LOCAL_PATH)/../thirdparty/timidityplus \
 $(LOCAL_PATH)/../thirdparty/wildmidi \
 $(LOCAL_PATH)/../thirdparty/game-music-emu \
-$(LOCAL_PATH)/../thirdparty/miniz \
+$(LOCAL_PATH)/../../miniz \
 $(TOP_DIR)/AudioLibs_OpenTouch/fluidsynth-lite/include \
 $(TOP_DIR)/AudioLibs_OpenTouch/libsndfile-android/jni/ \
 $(TOP_DIR)/AudioLibs_OpenTouch/libmpg123 \
@@ -61,6 +61,7 @@ LOCAL_SRC_FILES =  	\
 	zmusic/configuration.cpp \
 	zmusic/zmusic.cpp \
 	zmusic/critsec.cpp \
+	zmusic/file_zip.cpp \
 	../thirdparty/miniz/miniz.c \
 	loader/test.c
 

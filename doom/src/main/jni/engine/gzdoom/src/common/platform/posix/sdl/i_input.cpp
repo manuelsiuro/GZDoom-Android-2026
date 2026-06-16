@@ -4,42 +4,33 @@
 ** Handles input from keyboard, mouse, and joystick
 **
 **---------------------------------------------------------------------------
-** Copyright 2005-2016 Randy Heit
+**
+** Copyright 2005-2016 Marisa Heit
+** Copyright 2010-2016 Christoph Oelckers
 ** Copyright 2017-2025 GZDoom Maintainers and Contributors
-** All rights reserved.
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_events.h>
+#include <assert.h>
+#include <ctype.h>
+#include <stdio.h>
 
+#include "basics.h"
 #include "c_buttons.h"
-#include "c_console.h"
 #include "c_cvars.h"
+#include "d_eventbase.h"
 #include "d_gui.h"
 #include "dikeys.h"
 #include "engineerrors.h"
@@ -48,13 +39,24 @@
 #include "keydef.h"
 #include "m_haptics.h"
 #include "m_joy.h"
+#include "tarray.h"
 #include "utf8.h"
 #include "v_video.h"
+#include "version.h"
 
 bool GUICapture;
 static bool NativeMouse = true;
 
-CVAR (Bool,  use_mouse,				true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR (Bool, use_mouse, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CUSTOM_CVARD (Int, joykey_stop_conflict, -1, CVAR_ARCHIVE|CVAR_GLOBALCONFIG,
+	"Detect joypad/keyboard conflicts, dropping events as needed. "
+	"Useful for handheld PCs such as the SteamDeck. "
+	"-1: auto-detect, 0: disabled, 1: detected, 2: forced"
+)
+{
+	if (self < -1) self = -1;
+	else if (self > 2) self = 2;
+}
 
 extern int WaitingForKey;
 
@@ -244,16 +246,12 @@ void I_SetMouseCapture()
 {
 	// Clear out any mouse movement.
 	SDL_GetRelativeMouseState (NULL, NULL);
-	SDL_SetRelativeMouseMode (SDL_TRUE);
-#ifdef __MOBILE__
-	// Need to clear this again because setting mode above adds relative values
-	SDL_GetRelativeMouseState (NULL, NULL);
-#endif
+	SDL_CaptureMouse (SDL_TRUE);
 }
 
 void I_ReleaseMouseCapture()
 {
-	SDL_SetRelativeMouseMode (SDL_FALSE);
+	SDL_CaptureMouse (SDL_FALSE);
 }
 
 static void MouseRead ()
@@ -266,6 +264,9 @@ static void MouseRead ()
 	}
 
 	SDL_GetRelativeMouseState (&x, &y);
+
+	if (joykey_stop_conflict > 0) return;
+
 	PostMouseMove (x, y);
 }
 
@@ -276,25 +277,91 @@ static void I_CheckNativeMouse ()
 	bool captureModeInGame = sysCallbacks.CaptureModeInGame && sysCallbacks.CaptureModeInGame();
 	bool wantNative = !focus || (!use_mouse || GUICapture || !captureModeInGame);
 
-	if (!wantNative && sysCallbacks.WantNativeMouse && sysCallbacks.WantNativeMouse())
+	if (!wantNative && sysCallbacks.WantNativeMouse && sysCallbacks.WantNativeMouse() && joykey_stop_conflict <= 0)
 		wantNative = true;
 
 	if (wantNative != NativeMouse)
 	{
 		NativeMouse = wantNative;
 		SDL_ShowCursor (wantNative);
-		if (wantNative)
-			I_ReleaseMouseCapture ();
-		else
-			I_SetMouseCapture ();
+		if (wantNative) {
+			SDL_SetRelativeMouseMode (SDL_FALSE);
+		} else {
+			SDL_GetRelativeMouseState (NULL, NULL);
+			SDL_SetRelativeMouseMode (SDL_TRUE);
+		}
 	}
 }
+
 
 void MessagePump (const SDL_Event &sev)
 {
 	static int lastx = 0, lasty = 0;
 	int x, y;
 	event_t event = { 0,0,0,0,0,0,0 };
+
+	if (joykey_stop_conflict == -1 || joykey_stop_conflict == 1)
+	{
+		const int threshold = 1;
+
+		static SDL_Window *window;
+		static unsigned eventTimestamp;
+		static bool seenKeyEvent, seenJoyEvent;
+		static int duplicateEvents;
+
+		if (eventTimestamp == 0)
+		{
+			eventTimestamp = duplicateEvents = 0;
+			seenKeyEvent = seenJoyEvent = false;
+
+			if (joykey_stop_conflict == 1)
+				joykey_stop_conflict = -1;
+		}
+
+		if (joykey_stop_conflict == -1)
+		{
+			if (eventTimestamp != sev.common.timestamp)
+			{
+				if (seenKeyEvent != seenJoyEvent)
+					duplicateEvents = 0;
+				eventTimestamp = sev.common.timestamp;
+				seenKeyEvent = seenJoyEvent = false;
+			}
+
+			switch (sev.type)
+			{
+				case SDL_KEYDOWN:
+					seenKeyEvent = true;
+					if (!window) window = SDL_GetWindowFromID(sev.key.windowID);
+					break;
+				case SDL_JOYBUTTONDOWN:
+				case SDL_CONTROLLERBUTTONDOWN:
+					seenJoyEvent = true;
+					break;
+			}
+
+			if (seenJoyEvent && seenKeyEvent && ++duplicateEvents >= threshold)
+			{
+				joykey_stop_conflict = 1;
+
+				// TODO: use CustomMessageBox https://github.com/ZDoom/gzdoom/pull/1821
+				if (window) SDL_HideWindow(window);
+				SDL_ShowSimpleMessageBox(
+					SDL_MESSAGEBOX_INFORMATION,
+					GAMENAME,
+					"Simultaneous input from a gamepad and keyboard detected!\n"
+					"All keyboard/mouse input has been temporarily disabled.\n"
+					"\n"
+					"If using a handheld PC, try switching from DESKTOP to GAMEPAD bindings.\n"
+					"This can generally be done by holding down START.\n"
+					"\n"
+					"To disable this detection, set joykey_stop_conflict to 0.",
+					window
+				);
+				if (window) SDL_ShowWindow(window);
+			}
+		}
+	}
 
 	switch (sev.type)
 	{
@@ -308,6 +375,7 @@ void MessagePump (const SDL_Event &sev)
 
 	case SDL_MOUSEBUTTONDOWN:
 	case SDL_MOUSEBUTTONUP:
+		if (joykey_stop_conflict > 0 && sev.type == SDL_MOUSEBUTTONDOWN) break;
 		if (!GUICapture)
 		{
 			event.type = sev.type == SDL_MOUSEBUTTONDOWN ? EV_KeyDown : EV_KeyUp;
@@ -377,6 +445,7 @@ void MessagePump (const SDL_Event &sev)
 		break;
 
 	case SDL_MOUSEMOTION:
+		if (joykey_stop_conflict > 0) break;
 		if (GUICapture)
 		{
 			event.data1 = sev.motion.x;
@@ -397,6 +466,7 @@ void MessagePump (const SDL_Event &sev)
 		break;
 
 	case SDL_MOUSEWHEEL:
+		if (joykey_stop_conflict > 0) break;
 		if (GUICapture)
 		{
 			event.type = EV_GUI_Event;
@@ -430,6 +500,7 @@ void MessagePump (const SDL_Event &sev)
 
 	case SDL_KEYDOWN:
 	case SDL_KEYUP:
+		if (joykey_stop_conflict > 0 && sev.type == SDL_KEYDOWN) break;
 		if (!GUICapture)
 		{
 			if (sev.key.repeat)
@@ -516,6 +587,7 @@ void MessagePump (const SDL_Event &sev)
 		break;
 
 	case SDL_TEXTINPUT:
+		if (joykey_stop_conflict > 0 && sev.type == SDL_TEXTINPUT) break;
 		if (GUICapture)
 		{
 			int size;

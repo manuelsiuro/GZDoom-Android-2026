@@ -182,7 +182,6 @@ int Instruments::read_config_file(const char *name)
 	char tmp[1024], *cp;
 	ToneBank *bank = NULL;
 	int i, j, k, line = 0, words;
-	static int rcf_count = 0;
 
 	if (rcf_count > 50)
 	{
@@ -822,7 +821,7 @@ void Renderer::MarkInstrument(int banknum, int percussion, int instr)
 }
 
 
-static void default_cmsg(int type, int verbosity_level, const char* fmt, ...)
+void printMessage(int type, int verbosity_level, const char* fmt, ...)
 {
 	if (verbosity_level >= VERB_NOISY) return;	// Don't waste time on diagnostics.
 
@@ -831,9 +830,6 @@ static void default_cmsg(int type, int verbosity_level, const char* fmt, ...)
 	ZMusic_Print(type, fmt, args);
 	va_end(args);
 }
-
-// Allow hosting applications to capture the messages and deal with them themselves.
-void (*printMessage)(int type, int verbosity_level, const char* fmt, ...) = default_cmsg;
 
 
 }

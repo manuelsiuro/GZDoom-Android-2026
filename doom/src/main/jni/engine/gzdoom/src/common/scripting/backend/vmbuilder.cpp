@@ -1,33 +1,23 @@
 /*
 ** vmbuilder.cpp
 **
+**
+**
 **---------------------------------------------------------------------------
-** Copyright -2016 Randy Heit
+**
+** Copyright 2009-2016 Marisa Heit
 ** Copyright 2016-2017 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -42,8 +32,15 @@
 CVAR(Bool, strictdecorate, false, CVAR_GLOBALCONFIG | CVAR_ARCHIVE)
 CVAR(Bool, warningstoerrors, false, CVAR_GLOBALCONFIG | CVAR_ARCHIVE)
 
+FARG(dumpjitmod, "", "", "",
+	"");
+FARG_ADVANCED(dumpdisasm , "Debug", "",
+	"Dissembles compiled VM code and dumps output to disasm.txt");
+
 EXTERN_CVAR(Bool, vm_jit)
 EXTERN_CVAR(Bool, vm_jit_aot)
+
+EXTERN_FARG(dumpjit);
 
 struct VMRemap
 {
@@ -975,8 +972,8 @@ void FFunctionBuildList::Build()
 
 	if (FScriptPosition::ErrorCounter == 0)
 	{
-		if (Args->CheckParm("-dumpjit")) DumpJit(true);
-		else if (Args->CheckParm("-dumpjitmod")) DumpJit(false);
+		if (Args->CheckParm(FArg_dumpjit)) DumpJit(true);
+		else if (Args->CheckParm(FArg_dumpjitmod)) DumpJit(false);
 	}
 	mItems.Clear();
 	mItems.ShrinkToFit();
@@ -1202,12 +1199,10 @@ ExpEmit FunctionCallEmitter::EmitCall(VMFunctionBuilder *build, TArray<ExpEmit> 
 
 VMDisassemblyDumper::VMDisassemblyDumper(const FileOperationType operation)
 {
-	static const char *const DUMP_ARG_NAME = "-dumpdisasm";
-
-	if (Args->CheckParm(DUMP_ARG_NAME))
+	if (Args->CheckParm(FArg_dumpdisasm))
 	{
 		dump = fopen("disasm.txt", operation == Overwrite ? "w" : "a");
-		namefilter = Args->CheckValue(DUMP_ARG_NAME);
+		namefilter = Args->CheckValue(FArg_dumpdisasm);
 		namefilter.ToLower();
 	}
 }

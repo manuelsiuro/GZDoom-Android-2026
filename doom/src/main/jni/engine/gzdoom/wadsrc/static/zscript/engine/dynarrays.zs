@@ -1,5 +1,32 @@
-// The VM uses 7 integral data types, so for dynamic array support we need one specific set of functions for each of these types.
-// Do not use these structs directly, they are incomplete and only needed to create prototypes for the needed functions.
+/*
+** dynarrays.zs
+**
+**
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2006-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
+**---------------------------------------------------------------------------
+**
+** The VM uses 7 integral data types, so for dynamic array support we need
+** one specific set of functions for each of these types.
+**
+** Do not use these structs directly, they are incomplete and only needed
+** to create prototypes for the needed functions.
+*/
 
 struct DynArray_I8 native unsafe(internal)
 {
@@ -155,6 +182,26 @@ struct DynArray_String native unsafe(internal)
 	native bool Pop ();
 	native void Delete (uint index, int deletecount = 1);
 	native void Insert (uint index, String item);
+	native void ShrinkToFit ();
+	native void Grow (uint amount);
+	native void Resize (uint amount);
+	native int Reserve(uint amount);
+	native int Max() const;
+	native void Clear ();
+}
+
+struct DynArray_TRS native unsafe(internal)
+{
+	native readonly int Size;
+
+	native void Copy(DynArray_TRS other);
+	native void Move(DynArray_TRS other);
+	native void Append (DynArray_TRS other);
+	native int Find(TRS item) const;
+	native int Push(TRS item);
+	native bool Pop ();
+	native void Delete (uint index, int deletecount = 1);
+	native void Insert (uint index, TRS item);
 	native void ShrinkToFit ();
 	native void Grow (uint amount);
 	native void Resize (uint amount);

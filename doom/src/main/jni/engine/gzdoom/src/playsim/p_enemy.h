@@ -1,3 +1,24 @@
+/*
+** p_enemy.h
+**
+** Enemy thinking, AI.
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1994-1996 Raven Software
+** Copyright 1998-1998 Chi Hoang, Lee Killough, Jim Flynn, Rand Phares, Ty Halderman
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+*/
+
 #ifndef __P_ENEMY_H__
 #define __P_ENEMY_H__
 
@@ -58,7 +79,6 @@ void P_RandomChaseDir(AActor *actor);;
 int P_IsVisible(AActor *lookee, AActor *other, INTBOOL allaround, FLookExParams *params);
 
 AActor *P_DropItem (AActor *source, PClassActor *type, int special, int chance);
-void P_TossItem (AActor *item);
 int P_LookForMonsters(AActor *actor);
 int P_LookForTID(AActor *actor, INTBOOL allaround, FLookExParams *params);
 int P_LookForEnemies(AActor *actor, INTBOOL allaround, FLookExParams *params);
@@ -76,9 +96,5 @@ void A_Face(AActor *self, AActor *other, DAngle max_turn = nullAngle, DAngle max
 class FSoundID;
 
 int CheckBossDeath (AActor *);
-int P_Massacre (bool baddies = false, PClassActor *cls = nullptr);
-
-#define SKULLSPEED (20.)
-void A_SkullAttack(AActor *self, double speed);
 
 #endif //__P_ENEMY_H__

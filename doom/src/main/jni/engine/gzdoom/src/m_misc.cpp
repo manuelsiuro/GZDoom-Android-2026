@@ -1,30 +1,21 @@
-//-----------------------------------------------------------------------------
-//
-// Copyright 1993-1996 id Software
-// Copyright 1999-2016 Randy Heit
-// Copyright 2002-2016 Christoph Oelckers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/
-//
-//-----------------------------------------------------------------------------
-//
-// DESCRIPTION:
-//		Default Config File.
-//		Screenshots.
-//
-//-----------------------------------------------------------------------------
-
+/*
+** m_misc.cpp
+**
+** Default Config File. Screenshots.
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+*/
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -75,8 +66,11 @@ CVAR(String, screenshot_type, "png", CVAR_ARCHIVE|CVAR_GLOBALCONFIG);
 CVAR(String, screenshot_dir, "", CVAR_ARCHIVE|CVAR_GLOBALCONFIG);
 EXTERN_CVAR(Bool, longsavemessages);
 
-static size_t ParseCommandLine (const char *args, int *argc, char **argv);
+FARG(shotdir, "Configuration", "Sets an alternate directory for saving screenshots.", "path",
+	"Specifies an alternate directory to use for screenshots. If this is not specified, " GAMENAME
+	" stores them in the directory indicated by the screenshot_dir CVAR.");
 
+static size_t ParseCommandLine (const char *args, int *argc, char **argv);
 
 //---------------------------------------------------------------------------
 //
@@ -137,15 +131,15 @@ void M_FindResponseFile (void)
 
 				// Copy parameters before response file.
 				for (index = 0; index < i; ++index)
-					newargs->AppendArg(Args->GetArg(index));
+					newargs->AppendRawArg(Args->GetArg(index));
 
 				// Copy parameters from response file.
 				for (index = 0; index < argc; ++index)
-					newargs->AppendArg(argv[index]);
+					newargs->AppendRawArg(argv[index]);
 
 				// Copy parameters after response file.
 				for (index = i + 1; index < Args->NumArgs(); ++index)
-					newargs->AppendArg(Args->GetArg(index));
+					newargs->AppendRawArg(Args->GetArg(index));
 
 				// Use the new argument vector as the global Args object.
 				delete Args;
@@ -313,10 +307,15 @@ UNSAFE_CCMD (writeini)
 	}
 }
 
-CCMD(openconfig)
+void M_OpenConfigDir()
 {
 	M_SaveDefaults(nullptr);
 	I_OpenShellFolder(ExtractFilePath(GameConfig->GetPathName()).GetChars());
+}
+
+CCMD(openconfig)
+{
+	M_OpenConfigDir();
 }
 
 //
@@ -581,7 +580,7 @@ void M_ScreenShot (const char *filename)
 	if (filename == NULL || filename[0] == '\0')
 	{
 		size_t dirlen;
-		autoname = Args->CheckValue("-shotdir");
+		autoname = Args->CheckValue(FArg_shotdir);
 		if (autoname.IsEmpty())
 		{
 			autoname = screenshot_dir;
@@ -667,7 +666,7 @@ CCMD(openscreenshots)
 {
 	size_t dirlen;
 	FString autoname;
-	autoname = Args->CheckValue("-shotdir");
+	autoname = Args->CheckValue(FArg_shotdir);
 	if (autoname.IsEmpty())
 	{
 		autoname = screenshot_dir;
@@ -703,3 +702,24 @@ DEFINE_ACTION_FUNCTION_NATIVE(_CVar, SaveConfig, SaveConfig)
 	ACTION_RETURN_INT(M_SaveDefaults(nullptr));
 }
 
+void M_OpenWadDir()
+{
+	size_t dirlen;
+	FString autoname = M_GetAppDataPath(true);
+	dirlen = autoname.Len();
+	if (dirlen > 0)
+	{
+		if (autoname[dirlen-1] != '/' && autoname[dirlen-1] != '\\')
+		{
+			autoname += '/';
+		}
+	}
+	autoname = NicePath(autoname.GetChars());
+	CreatePath(autoname.GetChars());
+	I_OpenShellFolder(autoname.GetChars());
+}
+
+CCMD(openwads)
+{
+	M_OpenWadDir();
+}

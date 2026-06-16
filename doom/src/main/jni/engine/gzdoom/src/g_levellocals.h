@@ -1,34 +1,23 @@
 /*
 ** g_levellocals.h
+**
 ** The static data for a level
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2016 Randy Heit
+**
+** Copyright 1998-2016 Marisa Heit
 ** Copyright 2005-2017 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -58,6 +47,8 @@
 #include "doom_levelmesh.h"
 #include "p_visualthinker.h"
 #include <memory>
+
+EXTERN_CVAR(Bool, sv_autocompat)
 
 struct FGlobalDLightLists
 {
@@ -154,11 +145,11 @@ struct FLevelLocals
 	int FindNode (const FStrifeDialogueNode *node);
     int GetInfighting();
 	void SetCompatLineOnSide(bool state);
-	int GetCompatibility(int mask);
-	int GetCompatibility2(int mask);
+	ELevelCompatFlags GetCompatibility(ELevelCompatFlags mask);
+	ELevelCompatFlags2 GetCompatibility2(ELevelCompatFlags2 mask);
 	void ApplyCompatibility();
 	void ApplyCompatibility2();
-	AActor* SelectActorFromTID(int tid, size_t index, AActor* defactor);
+	AActor* SelectActorFromTID(int tid, size_t index, bool clientSide, AActor* defactor);
 
 	void Init();
 
@@ -195,7 +186,7 @@ public:
 
 	void ActivateInStasisPlat(int tag);
 	bool CreateCeiling(sector_t *sec, DCeiling::ECeiling type, line_t *line, int tag, double speed, double speed2, double height, int crush, int silent, int change, DCeiling::ECrushMode hexencrush);
-	void ActivateInStasisCeiling(int tag);
+	bool ActivateInStasisCeiling(int tag);
 	bool CreateFloor(sector_t *sec, DFloor::EFloor floortype, line_t *line, double speed, double height, int crush, int change, bool hexencrush, bool hereticlower);
 	void DoDeferedScripts();
 	void AdjustPusher(int tag, int magnitude, int angle, bool wind);
@@ -257,7 +248,7 @@ public:
 	void SpawnExtraPlayers();
 	void Serialize(FSerializer &arc, bool hubload);
 	DThinker *FirstThinker (int statnum);
-	DThinker* FirstClientsideThinker(int statnum);
+	DThinker* FirstClientSideThinker(int statnum);
 
 	// g_Game
 	void PlayerReborn (int player);
@@ -315,12 +306,12 @@ public:
 	{
 		return TThinkerIterator<T>(this, subtype, statnum, prev, false);
 	}
-	template<class T> TThinkerIterator<T> GetClientsideThinkerIterator(FName subtype = NAME_None, int statnum = MAX_STATNUM + 1)
+	template<class T> TThinkerIterator<T> GetClientSideThinkerIterator(FName subtype = NAME_None, int statnum = MAX_STATNUM + 1)
 	{
 		if (subtype == NAME_None) return TThinkerIterator<T>(this, statnum, true);
 		else return TThinkerIterator<T>(this, subtype, statnum, true);
 	}
-	template<class T> TThinkerIterator<T> GetClientsideThinkerIterator(FName subtype, int statnum, AActor* prev)
+	template<class T> TThinkerIterator<T> GetClientSideThinkerIterator(FName subtype, int statnum, AActor* prev)
 	{
 		return TThinkerIterator<T>(this, subtype, statnum, prev, true);
 	}
@@ -348,9 +339,9 @@ public:
 	{
 		return NActorIterator(ClientSideTIDHash, type, tid);
 	}
-	AActor *SingleActorFromTID(int tid, AActor *defactor)
+	AActor *SingleActorFromTID(int tid, bool clientSide, AActor *defactor)
 	{
-		return tid == 0 ? defactor : GetActorIterator(tid).Next();
+		return tid == 0 ? defactor : (clientSide ? GetClientSideActorIterator(tid).Next() : GetActorIterator(tid).Next());
 	}
 
 	bool SectorHasTags(sector_t *sector)
@@ -461,8 +452,6 @@ public:
 
 	DThinker *CreateThinker(PClass *cls, int statnum = STAT_DEFAULT)
 	{
-		if (bPredictionGuard)
-			DPrintf(DMSG_WARNING, TEXTCOLOR_RED "Spawned non-client-side Thinker %s while predicting\n", cls->TypeName.GetChars());
 		DThinker *thinker = static_cast<DThinker*>(cls->CreateNew());
 		assert(thinker->IsKindOf(RUNTIME_CLASS(DThinker)));
 		thinker->ObjectFlags |= OF_JustSpawned;
@@ -479,20 +468,20 @@ public:
 		return thinker;
 	}
 
-	DThinker* CreateClientsideThinker(PClass* cls, int statnum = STAT_DEFAULT)
+	DThinker* CreateClientSideThinker(PClass* cls, int statnum = STAT_DEFAULT)
 	{
 		DThinker* thinker = static_cast<DThinker*>(cls->CreateNew());
 		assert(thinker->IsKindOf(RUNTIME_CLASS(DThinker)));
-		thinker->ObjectFlags |= OF_JustSpawned | OF_ClientSide | OF_Transient;
-		ClientsideThinkers.Link(thinker, statnum);
+		thinker->ObjectFlags |= OF_JustSpawned | OF_ClientSide | OF_Transient | OF_NoRollback;
+		ClientSideThinkers.Link(thinker, statnum);
 		thinker->Level = this;
 		return thinker;
 	}
 
 	template<typename T, typename... Args>
-	T* CreateClientsideThinker(Args&&... args)
+	T* CreateClientSideThinker(Args&&... args)
 	{
-		auto thinker = static_cast<T*>(CreateClientsideThinker(RUNTIME_CLASS(T), T::DEFAULT_STAT));
+		auto thinker = static_cast<T*>(CreateClientSideThinker(RUNTIME_CLASS(T), T::DEFAULT_STAT));
 		thinker->Construct(std::forward<Args>(args)...);
 		return thinker;
 	}
@@ -573,11 +562,11 @@ public:
 	FDialogueMap ClassRoots;
 	FCajunMaster BotInfo;
 
-	int ii_compatflags = 0;
-	int ii_compatflags2 = 0;
-	int ib_compatflags = 0;
-	int i_compatflags = 0;
-	int i_compatflags2 = 0;
+	ELevelCompatFlags ii_compatflags = 0;
+	ELevelCompatFlags2 ii_compatflags2 = 0;
+	ELevelBugCompatFlags ib_compatflags = 0;
+	ELevelCompatFlags i_compatflags = 0;
+	ELevelCompatFlags2 i_compatflags2 = 0;
 
 	DSectorMarker *SectorMarker;
 
@@ -699,9 +688,10 @@ public:
 	float		skyspeed1;				// Scrolling speed of sky textures, in pixels per ms
 	float		skyspeed2;
 	float		skymistspeed;
+	float		skymistyscale;			// Y-scale for skymist layer. Scales from horizon as midpoint. Doesn't tile.
 
 	double		sky1pos, sky2pos;
-	float		hw_sky1pos, hw_sky2pos, hw_skymistpos;
+	float		hw_sky1pos, hw_sky2pos, hw_skymistpos, hw_skymistyscale;
 	bool		skystretch;
 	uint32_t	globalcolormap;
 
@@ -714,8 +704,34 @@ public:
 	int			total_monsters;
 	int			killed_monsters;
 
-	double      max_velocity;
-	double      avg_velocity;
+	struct VelocityMeasurer {
+		int total = 0;
+		double cur_velocity = 0.0;
+		double max_velocity = 0.0;
+		double avg_velocity = 0.0;
+
+		void SetVelocity(double spd)
+		{
+			cur_velocity = spd;
+			if (spd > max_velocity)
+				max_velocity = spd;
+			avg_velocity += (spd - avg_velocity) / ++total;
+		}
+
+		void Clear()
+		{
+			total = 0;
+			cur_velocity = max_velocity = avg_velocity = 0.0;
+		}
+	};
+
+	VelocityMeasurer velocities[MAXPLAYERS] = {};
+
+	void ClearVelocities()
+	{
+		for (auto& vel : velocities)
+			vel.Clear();
+	}
 
 	double		gravity;
 	double		aircontrol;
@@ -732,7 +748,7 @@ public:
 	TArray<particle_t>	Particles;
 	TArray<uint16_t>	ParticlesInSubsec;
 	FThinkerCollection Thinkers;
-	FThinkerCollection ClientsideThinkers;
+	FThinkerCollection ClientSideThinkers;
 	TArray<DThinker*> TravellingThinkers;
 
 	TArray<DVector2>	Scrolls;		// NULL if no DScrollers in this level
@@ -764,6 +780,8 @@ public:
 	float		thickfogdistance;
 	float		thickfogmultiplier;
 
+	int                LocalWorldTimer = 0;	// For client-sided actions that are still bound to world processing.
+	int                LocalTimer = 0;		// For client-sided actions independent of any world state.
 	FGlobalDLightLists lightlists;
 
 	FDynamicLight *lights;
@@ -788,7 +806,7 @@ public:
 		if (b.Level == nullptr)
 		{
 			b.Level = this;
-			if (b.IsClientside())
+			if (b.IsClientSide())
 				ClientSideActorBehaviors.Push(&b);
 			else
 				ActorBehaviors.Push(&b);
@@ -800,7 +818,7 @@ public:
 		if (b.Level == this)
 		{
 			b.Level = nullptr;
-			if (b.IsClientside())
+			if (b.IsClientSide())
 				ClientSideActorBehaviors.Delete(ClientSideActorBehaviors.Find(&b));
 			else
 				ActorBehaviors.Delete(ActorBehaviors.Find(&b));
@@ -847,6 +865,12 @@ public:
 		if (dmflags & DF_YES_FREELOOK)
 			return true;
 		return !(flags & LEVEL_FREELOOK_NO);
+	}
+
+	bool MissileShouldClip() const
+	{
+		return (i_compatflags & COMPATF_MISSILECLIP) ||
+			(sv_autocompat && (gameinfo.gametype & GAME_DoomChex) && maptype == MAPTYPE_DOOM);
 	}
 
 	node_t		*HeadNode() const

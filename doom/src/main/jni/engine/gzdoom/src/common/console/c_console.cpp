@@ -1,34 +1,23 @@
 /*
 ** c_console.cpp
+**
 ** Implements the console itself
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
+**
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
 ** Copyright 2017-2025 GZDoom Maintainers and Contributors
-** All rights reserved.
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -61,10 +50,24 @@
 #include "v_video.h"
 #include "version.h"
 #include "vm.h"
+#include <array>
 
-#define LEFTMARGIN 8
-#define RIGHTMARGIN 8
-#define BOTTOMARGIN 12
+namespace Console::Defaults
+{
+	static inline constexpr uint8_t left_margin = 8;
+	static inline constexpr uint8_t right_margin = 8;
+	static inline constexpr uint8_t bottom_margin = 4;
+
+	static inline constexpr uint8_t max_hist_size = 50;
+
+	static inline constexpr uint8_t scroll_up = 1;
+	static inline constexpr uint8_t scroll_down = 2;
+	static inline constexpr uint8_t scroll_no = 0;
+	
+	static inline constexpr uint8_t min_con_lines_for_cursor = 20;
+	static inline constexpr uint8_t min_con_lines_for_text = 12;
+	static inline constexpr uint64_t ms_between_cursor_ticks = 500;
+}
 
 extern bool AppActive;
 
@@ -91,7 +94,7 @@ static FTextureID conflat;
 static uint32_t conshade;
 static bool conline;
 
-extern FConsoleCommand *Commands[FConsoleCommand::HASH_SIZE];
+extern std::array<FConsoleCommand*, FConsoleCommand::hash_size> Commands;
 
 int			ConWidth;
 bool		vidactive = false;
@@ -115,10 +118,6 @@ struct GameAtExit
 };
 
 static GameAtExit *ExitCmdList;
-
-#define SCROLLUP 1
-#define SCROLLDN 2
-#define SCROLLNO 0
 
 // Buffer for AddToConsole()
 static char *work = NULL;
@@ -148,26 +147,28 @@ CUSTOM_CVAR(Int, developer, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 // Command to run when Ctrl-D is pressed at start of line
 CVAR(String, con_ctrl_d, "", CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
-
-struct History
+namespace Console
 {
-	struct History *Older;
-	struct History *Newer;
-	FString String;
-};
+	struct History
+	{
+		struct History* Older;
+		struct History* Newer;
+		FString String;
+	};
 
-#define MAXHISTSIZE 50
-static struct History *HistHead = NULL, *HistTail = NULL, *HistPos = NULL;
-static int HistSize;
 
-static FNotifyBufferBase *NotifyStrings;
+	static struct History* HistHead = NULL, * HistTail = NULL, * HistPos = NULL;
+	static int HistSize;
+
+	static FNotifyBufferBase* NotifyStrings;
+}
+
+using namespace Console;
 
 void C_SetNotifyBuffer(FNotifyBufferBase* nbb)
 {
 	NotifyStrings = nbb;
 }
-
-
 
 int PrintColors[PRINTLEVELS+2] = { CR_UNTRANSLATED, CR_GOLD, CR_GRAY, CR_GREEN, CR_GREEN, CR_UNTRANSLATED };
 
@@ -245,7 +246,7 @@ void C_InitConsole (int width, int height, bool ingame)
 	{
 		cwidth = cheight = 8;
 	}
-	ConWidth = (width - LEFTMARGIN - RIGHTMARGIN);
+	ConWidth = (width - Defaults::left_margin - Defaults::right_margin);
 	CmdLine.ConCols = ConWidth / cwidth;
 
 	if (conbuffer == NULL) conbuffer = new FConsoleBuffer;
@@ -312,10 +313,8 @@ void C_DeinitConsole ()
 
 	// Free alias commands. (i.e. The "commands" that can be allocated
 	// at runtime.)
-	for (size_t i = 0; i < countof(Commands); ++i)
+	for (auto* command : Commands)
 	{
-		FConsoleCommand *command = Commands[i];
-
 		while (command != NULL)
 		{
 			FConsoleCommand *nextcmd = command->m_Next;
@@ -364,7 +363,7 @@ static void setmsgcolor (int index, int color)
 }
 
 
-void AddToConsole (int printlevel, const char *text)
+void AddToConsole (PrintFlag printlevel, const char *text)
 {
 	conbuffer->AddText(printlevel, MakeUTF8(text));
 }
@@ -409,7 +408,7 @@ void WriteLineToLog(FILE *LogFile, const char *outline)
 
 extern bool gameisdead;
 
-int PrintString (int iprintlevel, const char *outline)
+int PrintString (PrintFlag iprintlevel, const char *outline)
 {
 #ifdef __ANDROID__
 	LOGI("PrintString: %s",outline);
@@ -420,7 +419,7 @@ int PrintString (int iprintlevel, const char *outline)
 		return 0;
 
 	if (!conbuffer) return 0;	// when called too early
-	int printlevel = iprintlevel & PRINT_TYPES;
+	PrintFlag printlevel = static_cast<PrintFlag>(iprintlevel & PRINT_TYPES);
 	if (*outline == '\0')
 	{
 		return 0;
@@ -434,8 +433,8 @@ int PrintString (int iprintlevel, const char *outline)
 		if (printlevel != PRINT_LOG)
 		{
 			I_PrintStr(outline);
-
-			conbuffer->AddText(printlevel, outline);
+			if (!(iprintlevel & PRINT_NOCONSOLE))
+				conbuffer->AddText(printlevel, outline);
 			if (vidactive && screen && !(iprintlevel & PRINT_NONOTIFY) && NotifyStrings)
 			{
 				if (printlevel >= msglevel)
@@ -459,14 +458,14 @@ int PrintString (int iprintlevel, const char *outline)
 	return 0;	// Don't waste time on calculating this if nothing at all was printed...
 }
 
-int VPrintf (int printlevel, const char *format, va_list parms)
+int VPrintf (PrintFlag printlevel, const char *format, va_list parms)
 {
 	FString outline;
 	outline.VFormat (format, parms);
 	return PrintString (printlevel, outline.GetChars());
 }
 
-int Printf (int printlevel, const char *format, ...)
+int Printf (PrintFlag printlevel, const char *format, ...)
 {
 	va_list argptr;
 	int count;
@@ -490,22 +489,27 @@ int Printf (const char *format, ...)
 	return count;
 }
 
-int DPrintf (int level, const char *format, ...)
+inline int _DPrintf(DPrintLevel level, PrintFlag printlevel, const char *format, va_list argptr)
+{
+	return (developer >= level)? VPrintf(printlevel, format, argptr): 0;
+}
+
+int DPrintf (DPrintLevel level, PrintFlag printlevel, const char *format, ...)
 {
 	va_list argptr;
-	int count;
+	va_start(argptr, format);
+	int count = _DPrintf(level, printlevel, format, argptr);
+	va_end(argptr);
+	return count;
+}
 
-	if (developer >= level)
-	{
-		va_start (argptr, format);
-		count = VPrintf (PRINT_HIGH, format, argptr);
-		va_end (argptr);
-		return count;
-	}
-	else
-	{
-		return 0;
-	}
+int DPrintf(DPrintLevel level, const char *format, ...)
+{
+	va_list argptr;
+	va_start(argptr, format);
+	int count = _DPrintf(level, PRINT_HIGH, format, argptr);
+	va_end(argptr);
+	return count;
 }
 
 void C_FlushDisplay ()
@@ -575,7 +579,7 @@ void C_DrawConsole ()
 
 	int textScale = active_con_scale(twod);
 
-	left = LEFTMARGIN;
+	left = Defaults::left_margin;
 	lines = (ConBottom/textScale-CurrentConsoleFont->GetHeight()*2)/CurrentConsoleFont->GetHeight();
 	if (-CurrentConsoleFont->GetHeight() + lines*CurrentConsoleFont->GetHeight() > ConBottom/textScale - CurrentConsoleFont->GetHeight()*7/2)
 	{
@@ -630,17 +634,17 @@ void C_DrawConsole ()
 			twod->AddColorOnlyQuad(0, visheight, screen->GetWidth(), 1, 0xff000000);
 		}
 
-		if (ConBottom >= 12)
+		if (ConBottom >= Defaults::min_con_lines_for_text)
 		{
 			if (textScale == 1)
-				DrawText(twod, CurrentConsoleFont, CR_ORANGE, twod->GetWidth() - 8 -
+				DrawText(twod, CurrentConsoleFont, CR_ORANGE, twod->GetWidth() - Defaults::left_margin -
 					CurrentConsoleFont->StringWidth (GetVersionString()),
-					round((float)ConBottom / textScale) - CurrentConsoleFont->GetHeight() - 4,
+					round((float)ConBottom / textScale) - CurrentConsoleFont->GetHeight() - Defaults::bottom_margin,
 					GetVersionString(), TAG_DONE);
 			else
-				DrawText(twod, CurrentConsoleFont, CR_ORANGE, (float)twod->GetWidth() / textScale - 8 -
+				DrawText(twod, CurrentConsoleFont, CR_ORANGE, (float)twod->GetWidth() / textScale - Defaults::left_margin -
 					CurrentConsoleFont->StringWidth(GetVersionString()),
-					round((float)ConBottom / textScale) - CurrentConsoleFont->GetHeight() - 4,
+					round((float)ConBottom / textScale) - CurrentConsoleFont->GetHeight() - Defaults::bottom_margin,
 					GetVersionString(),
 					DTA_VirtualWidth, twod->GetWidth() / textScale,
 					DTA_VirtualHeight, twod->GetHeight() / textScale,
@@ -671,25 +675,25 @@ void C_DrawConsole ()
 			{
 				if (textScale == 1)
 				{
-					DrawText(twod, CurrentConsoleFont, CR_TAN, LEFTMARGIN, offset + lines * CurrentConsoleFont->GetHeight(), p->Text.GetChars(), TAG_DONE);
+					DrawText(twod, CurrentConsoleFont, CR_TAN, Defaults::left_margin, offset + lines * CurrentConsoleFont->GetHeight(), p->Text.GetChars(), TAG_DONE);
 				}
 				else
 				{
-					DrawText(twod, CurrentConsoleFont, CR_TAN, LEFTMARGIN, offset + lines * CurrentConsoleFont->GetHeight(), p->Text.GetChars(),
+					DrawText(twod, CurrentConsoleFont, CR_TAN, Defaults::left_margin, offset + lines * CurrentConsoleFont->GetHeight(), p->Text.GetChars(),
 						DTA_VirtualWidth, twod->GetWidth() / textScale,
 						DTA_VirtualHeight, twod->GetHeight() / textScale,
 						DTA_KeepRatio, true, TAG_DONE);
 				}
 			}
 
-			if (ConBottom >= 20)
+			if (ConBottom >= Defaults::min_con_lines_for_cursor)
 			{
 				if (gamestate != GS_STARTUP)
 				{
 					auto now = I_msTime();
 					if (now > CursorTicker)
 					{
-						CursorTicker = now + 500;
+						CursorTicker = now + Defaults::ms_between_cursor_ticks;
 						cursoron = !cursoron;
 					}
 					CmdLine.Draw(left, bottomline, textScale, cursoron);
@@ -793,7 +797,7 @@ static bool C_HandleKey (event_t *ev, FCommandBuffer &buffer)
 			}
 		}
 		// Add keypress to command line
-		buffer.AddChar(data1);
+		buffer.AddChar((uint16_t)data1);
 		HistPos = NULL;
 		TabbedLast = false;
 		TabbedList = false;
@@ -969,7 +973,7 @@ static bool C_HandleKey (event_t *ev, FCommandBuffer &buffer)
 			FString bufferText = buffer.GetText();
 
 			bufferText.StripLeftRight();
-			Printf(127, TEXTCOLOR_WHITE "]%s\n", bufferText.GetChars());
+			Printf(static_cast<PrintFlag>(127), TEXTCOLOR_WHITE "]%s\n", bufferText.GetChars()); // FIXME: wtf is 127 here?
 
 			if (bufferText.Len() == 0)
 			{
@@ -1001,7 +1005,7 @@ static bool C_HandleKey (event_t *ev, FCommandBuffer &buffer)
 					HistTail = temp;
 				}
 
-				if (HistSize == MAXHISTSIZE)
+				if (HistSize == Console::Defaults::max_hist_size)
 				{
 					HistTail = HistTail->Newer;
 					delete HistTail->Older;
@@ -1137,7 +1141,7 @@ static bool C_HandleKey (event_t *ev, FCommandBuffer &buffer)
 	buffer.AppendToYankBuffer = keepappending;
 
 	// Ensure that the cursor is always visible while typing
-	CursorTicker = I_msTime() + 500;
+	CursorTicker = I_msTime() + Defaults::ms_between_cursor_ticks;
 	cursoron = 1;
 	return true;
 }

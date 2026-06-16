@@ -1,36 +1,32 @@
-//-----------------------------------------------------------------------------
-//
-// Copyright 1993-1996 id Software
-// Copyright 1999-2016 Randy Heit
-// Copyright 2002-2016 Christoph Oelckers
-// Copyright 2017-2025 GZDoom Maintainers and Contributors
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/
-//
-//
-// DESCRIPTION:
-//		DOOM main program (D_DoomMain) and game loop (D_DoomLoop),
-//		plus functions to determine game mode (shareware, registered),
-//		parse command line parameters, configure game parameters (turbo),
-//		and call the startup functions.
-//
-//-----------------------------------------------------------------------------
+/*
+** d_main.cpp
+**
+** DOOM main program and game loop
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** DOOM main program (D_DoomMain) and game loop (D_DoomLoop), plus
+** functions to determine game mode (shareware, registered), parse
+** command line parameters, configure game parameters (turbo), and
+** call the startup functions.
+*/
 
 // HEADER FILES ------------------------------------------------------------
 
 #include "c_cvars.h"
+#include "i_net.h"
 #include "i_soundinternal.h"
+
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -52,6 +48,7 @@
 #include "c_dispatch.h"
 #include "cmdlib.h"
 #include "common/scripting/dap/DebugServer.h"
+#include "widgets/errorwindow.h"
 #include "d_buttons.h"
 #include "d_dehacked.h"
 #include "d_event.h"
@@ -94,6 +91,7 @@
 #include "p_local.h"
 #include "p_setup.h"
 #include "po_man.h"
+#include "printf.h"
 #include "r_data/r_vanillatrans.h"
 #include "r_sky.h"
 #include "r_utility.h"
@@ -136,9 +134,203 @@ EXTERN_CVAR(Bool, vm_jit)
 EXTERN_CVAR(Bool, vm_jit_aot)
 CVAR(Int, vid_renderer, 1, 0)	// for some stupid mods which threw caution out of the window...
 
+FARG(nomonsters, "Play", "Prevents monsters from spawning in levels.", "",
+	"Sets the dmflags CVAR so that monsters are not spawned on levels.");
+FARG(respawn, "Play", "Causes monsters to respawn on lower difficulties.", "",
+	"Sets the dmflags CVAR so that monsters respawn even if you are not playing at Nightmare"
+	" difficulty.");
+FARG(fast, "Play", "Makes monsters fast on lower difficulties.", "",
+	"Sets the dmflags CVAR to make the monsters as fast as in Nightmare mode even if you are not"
+	" playing Nightmare.");
+FARG(turbo, "Play", "Adjusts the player's movement speed.", "x",
+	"Causes player movement to be x% as fast as normal. Valid values are 10–255, with 100 being"
+	" normal. Values larger than 100 are considered cheating. This is equivalent to +set turbo"
+	" x.");
+FARG(timer, "Play", "Time limit in minutes before automatically advancing levels.", "x",
+	"Causes " GAMENAME " to automatically advance to the next level after x minutes. This is"
+	" equivalent to +set timelimit x.");
+FARG(avg, "Play", "Automatically advances to the next level after 20 minutes.", "",
+	"Stands for “Austin Virtual Gaming”. Automatically advances to the next level after 20"
+	" minutes. This is equivalent to +set timelimit 20 or -timer 20.");
+FARG(coop, "Play", "Co-op settings preset", "",
+	"A convenient settings preset (not accurate to vanilla Doom's Co-op). Enabling this ensures"
+	" deathmatch is off, doesn't spawn multiplayer-tagged weapons, disables player collisions and"
+	" friendly fire, allows for key sharing, disables item theft, and rememnbers your last weapon"
+	" upon death.");
+
+FARG(oldsprites, "Configuration", "Prevents the game from renaming sprites.", "",
+	"Disables sprite renaming. Unless you are playing a mod for Heretic, Hexen or Strife that"
+	" replaced a few select sprites, you do not need this.");
+FARG(iwad, "Configuration", "Specifies primary game file", "iwadfile[.wad]",
+	"The IWAD file specified after this parameter will be used as the game IWAD file.\n" GAMENAME
+	" will look for the IWAD in the current directory, in the same directory as " GAMENAMELOWERCASE
+	".exe, in the directory set in the DOOMWADDIR environment variable, and in the directory set"
+	" in the HOME environment variable. (Verification needed)");
+FARG(savedir, "Configuration", "Sets an alternate directory for saving game files.", "path",
+	"Specifies an alternate directory to use for saved files. If this is not specified, " GAMENAME
+	" stores them in the directory indicated by the save_dir CVAR.");
+
+FARG(norun, "Debug", "Quits the game early to check for script errors.", "",
+	"Quits the game just before video initialization. To be used to check for errors in scripts"
+	" without actually running the game.");
+FARG(dumpjit, "Debug", "Outputs the ZScript JIT-compilation result to a text file.", "",
+	"Outputs a result of the ZScript JIT-compilation to Assembler to the external file"
+	" \"dumpjit.txt\".");
+FARG_CUSTOM(logfile, "+logfile", "Debug", false, "Copies console output to file", "log.txt",
+	"Copies output of console to file specified. File saving is relative to working directory");
+
+FARG(altdeath, "Multiplayer", "Starts a deathmatch game with respawning items.", "",
+	"Informs " GAMENAME " that you will be playing a deathmatch game and sets the dmflags CVAR so"
+	" that items other than invulnerability and invisibilty respawn after being picked up. Only"
+	" player 1 needs to specify this.");
+FARG(deathmatch, "Multiplayer", "Starts a deathmatch game.", "",
+	"Informs " GAMENAME " that you will be playing a deathmatch game and sets the dmflags CVAR so"
+	" that weapons stay behind when a player picks them up. Only player 1 needs to specify this.");
+
+FARG(file, "Loading", "Loads one or more custom PWAD files.", "file1[.wad] file2[.wad] ...",
+	"Used to load one or more PWAD files which generally contain user-created levels. Files listed"
+	" further right take precedence to files listed before them, so as an example, if both"
+	" file1.wad and file2.wad contain have a MAP01, the MAP01 in file2.wad will be used instead of"
+	" the one in file1.wad. If the .wad extension is omitted, " GAMENAME " will automatically add"
+	" it.\nUsing this parameter is no longer needed, " GAMENAMELOWERCASE " file1.wad file2.wad"
+	" file3.wad will work just as well as " GAMENAMELOWERCASE " -file file1.wad file2.wad"
+	" file3.wad.");
+FARG_ADVANCED(optfile, "Loading", "file1[.wad] file2[.wad] ...",
+	"Same as -file, but it will ignore missing files and not check them over the net for multiplayer games");
+FARG(noautoload, "Loading", "Prevents loading files automatically from config.", "",
+	"Prevents files from being autoloaded based on the \"AutoLoad\" sections in the user's"
+	" configuration file. This flag also disables autoloading of zvox.wad and the skins directory."
+	" This can be useful if you use files which are autoloaded when playing normally, but want to"
+	" load without them for debugging purposes or to play a mod which might be incompatible with"
+	" them.");
+FARG(warp, "Loading", "Starts the game on a specific map.", "[e] m",
+	"For Doom II, Final Doom, Hexen and Strife, starts the game on map m. For Chex Quest, Doom and"
+	" Heretic, starts the game on episode e, map m. The +map command can also be used to perform"
+	" this action, but it expects the actual name of the map (e.g. MAP01, E1M1).");
+FARG(noautoexec, "Loading", "Prevents the execution of autoexec.cfg files.", "",
+	"Disables the execution of the autoexec.cfg files.");
+FARG(allowduplicates, "Loading", "Permits the loading of multiple files with the same name.", "",
+	"(Verification needed)\nWhen loading files with -file, files with the same name are discarded"
+	" from the load list to prevent potential errors as a result. This command allows such files"
+	" to be loaded regardless.");
+FARG(warpwipe, "Loading", "Forces a screen wipe effect after loading a map at startup.", "",
+	"Forces a screen wipe to happen after loading a map immediately at startup. Useless unless"
+	" used in conjunction with -warp or +map.");
+FARG(deh, "Loading", "Applies a DeHackEd patch to the game", "dehfile[.deh]",
+	"Causes " GAMENAME " to apply a DeHackEd or .bex patch to the game. This must be a text patch;"
+	" binary patches are not supported. (As far as I know, most patches are text patches, so this"
+	" should not be too much of a problem.) Also, only patch format 6 is known to be supported."
+	" Other formats may or may not work properly. If the .deh extension is omitted, " GAMENAME
+	" will automatically add it.");
+FARG(bex, "Loading", "Applies a .bex patch file to the game", "bexfile[.bex]",
+	"This is the same as -deh, except the default file extension is .bex.");
+FARG(skill, "Loading", "Sets the initial difficulty level for the game.", "x",
+	"Sets the initial skill level. This is overridden if you start a new game from the New Game"
+	" menu.\nNote that this is different from the skill CVAR, which ranges from 0-4.");
+FARG(record, "Loading", "Records a gameplay demo from the start of a map.", "demofile[.lmp]",
+	"Records a demo. The -warp parameter or +map command should also be used if you do not want to"
+	" record the demo on MAP01 or E1M1. You may only record from the start of a map. Loading a"
+	" savegame and recording from there is unsupported.\nTo stop the demo recording, use the"
+	" \"stop\" console command. If the .lmp extension is omitted, it will automatically be added."
+	" Unlike vanilla Doom, only one person in a multiplayer game needs to specify the -record"
+	" parameter if they want to record a demo. However, if someone quits before the person"
+	" recording the demo does, the person recording will automatically quit, too, because demos do"
+	" not have a way to record when a player leaves the game.");
+FARG(loadgame, "Loading", "Automatically loads specified savegame upon starting.", "saveXX.[zds]",
+	"Automatically loads the specified savegame. To find out a save's file name, press F1 while it"
+	" is highlighted in the save or load menu. If you do not include the .zds extension, " GAMENAME
+	" will automatically add it for you.");
+FARG(playdemo, "Loading", "Automatically plays demo file upon startup.", "demofile[.lmp]",
+	GAMENAME " will automatically play the specified demo when it starts. If the .lmp extension is"
+	" omitted, it will automatically be added.");
+FARG(timedemo, "Loading", "Plays back a demo quickly.", "demofile[.lmp]",
+	"Plays back a demo faster than -playdemo and displays a framerate when the demo is over. If"
+	" the .lmp extension is omitted, it will automatically be added.");
+FARG(xlat, "Loading", "Specifies a different default map translator to use.", "file",
+	"Specify a different default map translator to use if one isn't specified in MAPINFO. The"
+	" default translators are xlat/doom.txt for Doom, Chex Quest, Urban Brawl and Harmony;"
+	" xlat/heretic.txt for Heretic and Hexen (though Hexen maps normally need no translator since"
+	" only Doom-format maps are translated) and xlat/strife.txt for Strife. For playing an"
+	" Eternity Engine mod, the xlat/eternity.txt file can be used, though keep in mind that many"
+	" Eternity features are not implemented in " GAMENAME " and will not work even after"
+	" translation. You can specify your own custom translator.");
+FARG(nolights, "Loading", "Disables loading of lights.pk3", "",
+	"Forcefully disables loading of lights.pk3, which contains definitions for adding dynamic"
+	" lights to default Actors");
+FARG(nobrightmaps, "Loading", "Disables loading of brightmaps.pk3", "",
+	"Forcefully disables loading of brightmaps.pk3, which contains brightmaps and their"
+	" definitions for default graphics");
+FARG(nowidescreen, "Loading", "Disables loading of game_widescreen_gfx.pk3", "",
+	"Forcefully disables loading of widescreen_gfx.pk3, which contains widescreen extensions"
+	" for default graphics that were designed for 4:3");
+FARG_CUSTOM(map, "+map", "Loading", false, "Starts the game in a certain map", "MAP01",
+	"Similarly to -warp, this starts the game in a certain map. However, it takes the map's lump"
+	" string, instead of a level number. Level number is automatically set based on a combination"
+	" of the game and the map name, or it's manually set in MAPINFO.");
+FARG(noextras, "Loading", "Disables loading of 'extra graphics' WADs", "",
+	"Forcefully disables loading of lights.pk3, brightmaps.pk3, and widescreen_gfx.pk3. These"
+	" contain definitions for adding dynamic lights to default Actors, brightmaps and their"
+	" definitions for default graphics, and widescreen extensions for default graphics that were"
+	" designed for 4:3");
+FARG(nointro, "Loading", "Skips intro video", "",
+	"If an intro video is defined, then it will play before showing the title screen. Setting this"
+	" skips that behavior and always goes to the title screen immediately.");
+FARG(episode, "Loading", "Starts the game on the first map of an episode", "1",
+	"Like -warp, bu starts the game on the first map of the specified episode");
+
+FARG(showlauncher, "Loading", "Forces the startup launcher to show, even if disabled through other means.", "",
+	"Forces the startup launcher to show, even if disabled through other means.");
+
+FARG(version, "Other", "Print version", "",
+	"Print version and exit.");
+FARG_ADVANCED(v, "Other", "",
+	"Print version and exit.");
+
+FARG(help, "Other", "Print help message", "",
+	"Print help message and exit.");
+FARG_ADVANCED(h, "Other", "",
+	"Print help message and exit.");
+
+FARG_CUSTOM(help_all, "-help-all", "Other", false, "Print detailed help message", "",
+	"Print full help message and exit.");
+
+#ifdef _WIN32
+FARG_CUSTOM(doshelp, "/?", "Other", false, "Print help message", "",
+	"Print help message and exit.");
+#else
+FARG_CUSTOM(doshelp, "/?", "Other", true, "Print help message", "",
+	"Print help message and exit.");
+#endif
+
+FARG(exec, "Zandronum Specific", "Executes a special config script file.", "Directory",
+	 "Executes a script file that houses configurations such as settings that can be used within"
+	" the virtual world and generalized game server specific settings, such as how votes are"
+	" managed. For example of usage: -exec \"..\\..\\My Configurations\\SpecialServer.cfg\"");
+
+FARG_ADVANCED(devparm, "Deprecated", "",
+	"Prints a message telling you that you \"useless mode is activated\". With the original Doom,"
+	" using -devparm was the only way to take screenshots. With " GAMENAME ", screenshot is just"
+	" another command, so -devparm serves no real purpose.");
+
+FARG(rngseed, "", "", "",
+	"");
+FARG(compatmode, "", "", "",
+	"");
+FARG(errorlog, "", "", "",
+	"");
+FARG(bots, "", "", "",
+	"");
+FARG(debug, "", "", "",
+	"");
+
+EXTERN_FARG(join);
+EXTERN_FARG(host);
+
+extern const char * const BACKEND;
+
 void DrawHUD();
 void D_DoAnonStats();
-void I_DetectOS();
+FString I_DetectOS();
 void UpdateGenericUI(bool cvar);
 void Local_Job_Init();
 
@@ -274,12 +466,15 @@ CUSTOM_CVAR (Int, fraglimit, 0, CVAR_SERVERINFO)
 }
 
 CVAR (Float, timelimit, 0.f, CVAR_SERVERINFO);
-CVAR (Int, wipetype, 1, CVAR_ARCHIVE);
+CUSTOM_CVAR (Int, wipetype, 1, CVAR_ARCHIVE)
+{
+	if (self < wipe_None || self >= wipe_NUMWIPES) self = wipe_Melt;
+}
 CVAR (Int, snd_drawoutput, 0, 0);
 CUSTOM_CVAR (String, vid_cursor, "None", CVAR_ARCHIVE | CVAR_NOINITCALL)
 {
 	bool res = false;
-	
+
 
 	if (!stricmp(self, "None" ) && gameinfo.CursorPic.IsNotEmpty())
 	{
@@ -297,8 +492,8 @@ CUSTOM_CVAR (String, vid_cursor, "None", CVAR_ARCHIVE | CVAR_NOINITCALL)
 
 // Controlled by startup dialog
 CVAR(Bool, disableautoload, false, CVAR_ARCHIVE | CVAR_NOINITCALL | CVAR_GLOBALCONFIG)
-CVAR(Bool, autoloadbrightmaps, false, CVAR_ARCHIVE | CVAR_NOINITCALL | CVAR_GLOBALCONFIG)
-CVAR(Bool, autoloadlights, false, CVAR_ARCHIVE | CVAR_NOINITCALL | CVAR_GLOBALCONFIG)
+CVAR(Bool, autoloadbrightmaps, true, CVAR_ARCHIVE | CVAR_NOINITCALL | CVAR_GLOBALCONFIG)
+CVAR(Bool, autoloadlights, true, CVAR_ARCHIVE | CVAR_NOINITCALL | CVAR_GLOBALCONFIG)
 CVAR(Bool, autoloadwidescreen, true, CVAR_ARCHIVE | CVAR_NOINITCALL | CVAR_GLOBALCONFIG)
 CVAR(Bool, r_debug_disable_vis_filter, false, 0)
 CVAR(Int, vid_showpalette, 0, 0)
@@ -321,6 +516,7 @@ int NoWipe;				// [RH] Allow wipe? (Needs to be set each time)
 bool singletics = false;	// debug flag to cancel adaptiveness
 FString startmap;
 bool setmap;
+int setskill = -1;
 bool autostart;
 bool advancedemo;
 FILE *debugfile;
@@ -510,28 +706,25 @@ CUSTOM_CVAR (Int, dmflags2, 0, CVAR_SERVERINFO | CVAR_NOINITCALL)
 	if ((self & DF2_NO_AUTOMAP) && automapactive)
 		AM_Stop ();
 
+	// Revert our view to our own eyes if spying someone else.
+	if ((self & DF2_DISALLOW_SPYING) && players[consoleplayer].camera != players[consoleplayer].mo)
+	{
+		// The player isn't looking through its own eyes, so make it.
+		players[consoleplayer].camera = players[consoleplayer].mo;
+
+		S_UpdateSounds(players[consoleplayer].camera, 0);
+		StatusBar->AttachToPlayer(&players[consoleplayer]);
+
+		if (demoplayback || multiplayer)
+			StatusBar->ShowPlayerName();
+	}
+
 	for (unsigned int i = 0; i < MAXPLAYERS; i++)
 	{
 		player_t *p = &players[i];
 
 		if (!playeringame[i])
 			continue;
-
-		// Revert our view to our own eyes if spying someone else.
-		if (self & DF2_DISALLOW_SPYING)
-		{
-			// The player isn't looking through its own eyes, so make it.
-			if (p->camera != p->mo)
-			{
-				p->camera = p->mo;
-
-				S_UpdateSounds (p->camera);
-				StatusBar->AttachToPlayer (p);
-
-				if (demoplayback || multiplayer)
-					StatusBar->ShowPlayerName ();
-			}
-		}
 
 		// Come out of chasecam mode if we're not allowed to use chasecam.
 		if (!(dmflags2 & DF2_CHASECAM) && CheckCheatmode(false))
@@ -638,7 +831,7 @@ CUSTOM_CVAR(Int, compatmode, 0, CVAR_ARCHIVE|CVAR_NOINITCALL)
 			COMPATF_TRACE | COMPATF_MISSILECLIP | COMPATF_SOUNDTARGET | COMPATF_NO_PASSMOBJ | COMPATF_LIMITPAIN |
 			COMPATF_DEHHEALTH | COMPATF_INVISIBILITY | COMPATF_CROSSDROPOFF | COMPATF_VILEGHOSTS | COMPATF_HITSCAN |
 			COMPATF_WALLRUN | COMPATF_NOTOSSDROPS | COMPATF_LIGHT | COMPATF_MASKEDMIDTEX;
-		w = COMPATF2_BADANGLES | COMPATF2_FLOORMOVE | COMPATF2_POINTONLINE | COMPATF2_EXPLODE2 | COMPATF2_NOMBF21 | COMPATF2_VOODOO_ZOMBIES;
+		w = COMPATF2_BADANGLES | COMPATF2_FLOORMOVE | COMPATF2_POINTONLINE | COMPATF2_EXPLODE2 | COMPATF2_NOMBF21 | COMPATF2_VOODOO_ZOMBIES | COMPATF2_EMULATEMIKOPORTALS;
 		break;
 
 	case 3: // Boom compat mode
@@ -660,7 +853,7 @@ CUSTOM_CVAR(Int, compatmode, 0, CVAR_ARCHIVE|CVAR_NOINITCALL)
 	case 6:	// Boom with some added settings to reenable some 'broken' behavior
 		v = COMPATF_TRACE | COMPATF_SOUNDTARGET | COMPATF_BOOMSCROLL | COMPATF_MISSILECLIP | COMPATF_NO_PASSMOBJ |
 			COMPATF_INVISIBILITY | COMPATF_HITSCAN | COMPATF_WALLRUN | COMPATF_NOTOSSDROPS | COMPATF_MASKEDMIDTEX;
-		w = COMPATF2_POINTONLINE | COMPATF2_EXPLODE2 | COMPATF2_NOMBF21;
+		w = COMPATF2_POINTONLINE | COMPATF2_EXPLODE2 | COMPATF2_NOMBF21 | COMPATF2_EMULATEMIKOPORTALS;
 		break;
 
 	case 7: // Stricter MBF compatibility
@@ -680,7 +873,8 @@ CUSTOM_CVAR(Int, compatmode, 0, CVAR_ARCHIVE|CVAR_NOINITCALL)
 		v = COMPATF_NOBLOCKFRIENDS | COMPATF_MBFMONSTERMOVE | COMPATF_INVISIBILITY |
 			COMPATF_NOTOSSDROPS | COMPATF_MUSHROOM | COMPATF_NO_PASSMOBJ | COMPATF_BOOMSCROLL | COMPATF_WALLRUN |
 			COMPATF_TRACE | COMPATF_HITSCAN | COMPATF_MISSILECLIP | COMPATF_CROSSDROPOFF | COMPATF_MASKEDMIDTEX | COMPATF_SOUNDTARGET;
-		w = COMPATF2_POINTONLINE | COMPATF2_EXPLODE1 | COMPATF2_EXPLODE2 | COMPATF2_AVOID_HAZARDS | COMPATF2_STAYONLIFT;
+		w = COMPATF2_POINTONLINE | COMPATF2_EXPLODE1 | COMPATF2_EXPLODE2 | COMPATF2_AVOID_HAZARDS |
+		    COMPATF2_STAYONLIFT | COMPATF2_EMULATEMIKOPORTALS;
 		break;
 	}
 	compatflags = v;
@@ -736,6 +930,7 @@ CVAR (Flag, compat_nombf21,				compatflags2, COMPATF2_NOMBF21);
 CVAR (Flag, compat_voodoozombies,		compatflags2, COMPATF2_VOODOO_ZOMBIES);
 CVAR (Flag, compat_fdteleport,			compatflags2, COMPATF2_FDTELEPORT);
 CVAR (Flag, compat_novdolllockmsg,		compatflags2, COMPATF2_NOVDOLLLOCKMSG);
+CVAR (Flag, compat_emulatemikoportals,	compatflags2, COMPATF2_EMULATEMIKOPORTALS);
 
 CVAR(Bool, vid_activeinbackground, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
@@ -771,7 +966,7 @@ static uint32_t GetCaps()
 
 //==========================================================================
 //
-// 
+//
 //
 //==========================================================================
 
@@ -921,7 +1116,7 @@ void D_Display ()
 	if (nodrawers || screen == NULL)
 		return; 				// for comparative timing / profiling
 	
-	if (!AppActive && !setmodeneeded && (screen->IsFullscreen() || !vid_activeinbackground))
+	if (!AppActive && !setmodeneeded && !vid_activeinbackground)
 	{
 		return;
 	}
@@ -931,11 +1126,10 @@ void D_Display ()
 #endif
 
 	cycle_t cycles;
-	
+
 	cycles.Reset();
 	cycles.Clock();
 
-	r_UseVanillaTransparency = UseVanillaTransparency(); // [SP] Cache UseVanillaTransparency() call
 	r_renderercaps = GetCaps(); // [SP] Get the current capabilities of the renderer
 
 	if (players[consoleplayer].camera == NULL)
@@ -1018,10 +1212,10 @@ void D_Display ()
 	{
 		wipestart = nullptr;
 	}
-	
+
 	screen->FrameTime = I_msTimeFS();
 	TexAnim.UpdateAnimations(screen->FrameTime);
-	R_UpdateSky(screen->FrameTime);
+	R_UpdateSky(I_GetTimeFrac());
 	screen->BeginFrame();
 	twod->ClearClipRect();
 	if ((gamestate == GS_LEVEL || gamestate == GS_TITLELEVEL) && gametic != 0)
@@ -1029,7 +1223,7 @@ void D_Display ()
 		// [ZZ] execute event hook that we just started the frame
 		//E_RenderFrame();
 		//
-		
+
 		D_Render([&]()
 		{
 			viewsec = RenderView(&players[consoleplayer]);
@@ -1043,7 +1237,7 @@ void D_Display ()
 			{
 				primaryLevel->automap->Drawer ((hud_althud && viewheight == SCREENHEIGHT) ? viewheight : StatusBar->GetTopOfStatusbar());
 			}
-		
+
 			// for timing the statusbar code.
 			//cycle_t stb;
 			//stb.Reset();
@@ -1091,11 +1285,11 @@ void D_Display ()
 				M_Drawer ();
 				End2DAndUpdate ();
 				return;
-				
+
 			case GS_DEMOSCREEN:
 				D_PageDrawer ();
 				break;
-				
+
 		case GS_CUTSCENE:
 		case GS_INTRO:
 			ScreenJobDraw();
@@ -1288,7 +1482,7 @@ void D_DoomLoop ()
 		{
 			if (error.GetMessage ())
 			{
-				Printf (PRINT_NONOTIFY | PRINT_BOLD, "\n%s\n", error.GetMessage());
+				Printf (static_cast<PrintFlag>(PRINT_NONOTIFY | PRINT_BOLD), "\n%s\n", error.GetMessage());
 			}
 			D_ErrorCleanup ();
 		}
@@ -1296,14 +1490,14 @@ void D_DoomLoop ()
 		{
 			if (error.what())
 			{
-				Printf(PRINT_NONOTIFY | PRINT_BOLD, "\n%s\n", error.what());
+				Printf(static_cast<PrintFlag>(PRINT_NONOTIFY | PRINT_BOLD), "\n%s\n", error.what());
 			}
 			D_ErrorCleanup();
 		}
 		catch (CVMAbortException &error)
 		{
 			error.MaybePrintMessage();
-			Printf(PRINT_NONOTIFY | PRINT_BOLD, "%s", error.stacktrace.GetChars());
+			Printf(static_cast<PrintFlag>(PRINT_NONOTIFY | PRINT_BOLD), "%s", error.stacktrace.GetChars());
 			D_ErrorCleanup();
 		}
 	}
@@ -1341,7 +1535,7 @@ void D_PageDrawer (void)
 	if (Subtitle != nullptr)
 	{
 		FFont* font = generic_ui ? NewSmallFont : SmallFont;
-		DrawFullscreenSubtitle(font, GStrings.CheckString(Subtitle));
+		DrawFullscreenSubtitle(font, Subtitle);
 	}
 	if (Advisory.isValid())
 	{
@@ -1787,7 +1981,7 @@ void ParseCVarInfo()
 	{
 		GameConfig->DoModSetup (gameinfo.ConfigName.GetChars());
 	}
-}	
+}
 
 //==========================================================================
 //
@@ -1797,7 +1991,7 @@ void ParseCVarInfo()
 //
 //==========================================================================
 
-bool ConsiderPatches (const char *arg)
+bool ConsiderPatches (const FArg arg)
 {
 	int i, argc;
 	FString *args;
@@ -1830,13 +2024,13 @@ FExecList *D_MultiExec (FArgs *list, FExecList *exec)
 	return exec;
 }
 
-static void GetCmdLineFiles(std::vector<std::string>& wadfiles, bool optional)
+static void GetCmdLineFiles(std::vector<FileSys::ResourceName>& wadfiles, bool optional)
 {
 	FString *args;
 	int i;
 	int argc;
 
-	argc = optional ? Args->CheckParmList("-optfile", &args) : Args->CheckParmList("-file", &args);
+	argc = optional ? Args->CheckParmList(FArg_optfile, &args) : Args->CheckParmList(FArg_file, &args);
 
 	assert(wadfiles.size() < INT_MAX);
 
@@ -1844,11 +2038,20 @@ static void GetCmdLineFiles(std::vector<std::string>& wadfiles, bool optional)
 	// ones we added earlier.
 	for (i = optional ? 0 : int(wadfiles.size()); i < argc; ++i)
 	{
+		// Since optfiles shouldn't trigger the check but must still not be marked as optional
+		// for online purposes, any newly added files will need to be forcefully set to non-optional
+		// for the time being.
+		const size_t s = wadfiles.size();
 		D_AddWildFile(wadfiles, args[i].GetChars(), ".wad", GameConfig, optional);
+		if (wadfiles.size() > s)
+		{
+			for (size_t j = 0u; j < wadfiles.size() - s; ++j)
+				wadfiles[s + j].bOptional = false;
+		}
 	}
 }
 
-static FString ParseGameInfo(std::vector<std::string> &pwads, const char *fn, const char *data, int size)
+static FString ParseGameInfo(std::vector<FileSys::ResourceName> &pwads, const char *fn, const char *data, int size)
 {
 	FScanner sc;
 	FString iwad;
@@ -1865,7 +2068,7 @@ static FString ParseGameInfo(std::vector<std::string> &pwads, const char *fn, co
 		sc.TokenMustBe(TK_Identifier);
 		FString nextKey = sc.String;
 		sc.MustGetToken('=');
-		if (!nextKey.CompareNoCase("IWAD"))
+		if (!nextKey.CompareNoCase("IWAD") && !Args->CheckParm(FArg_showlauncher))
 		{
 			sc.MustGetString();
 			iwad = sc.String;
@@ -1890,11 +2093,11 @@ static FString ParseGameInfo(std::vector<std::string> &pwads, const char *fn, co
 				}
 				if (!DirEntryExists(checkpath.GetChars(), &isDir))
 				{
-					pos += D_AddFile(pwads, sc.String, true, pos, GameConfig);
+					pos += D_AddFile(pwads, sc.String, true, pos, GameConfig, false);
 				}
 				else
 				{
-					pos += D_AddFile(pwads, checkpath.GetChars(), true, pos, GameConfig);
+					pos += D_AddFile(pwads, checkpath.GetChars(), true, pos, GameConfig, false);
 				}
 			}
 			while (sc.CheckToken(','));
@@ -1979,10 +2182,10 @@ void GetReserved(LumpFilterInfo& lfi)
 	lfi.reservedFolders = { "flats/", "textures/", "hires/", "sprites/", "voxels/", "colormaps/", "acs/", "maps/", "voices/", "patches/", "graphics/", "sounds/", "music/",
 	"materials/", "models/", "fonts/", "brightmaps/" };
 	lfi.requiredPrefixes = { "mapinfo", "zmapinfo", "umapinfo", "gameinfo", "sndinfo", "sndseq", "sbarinfo", "menudef", "gldefs", "animdefs", "decorate", "zscript", "iwadinfo", "complvl", "terrain", "maps/" };
-	lfi.blockednames = { "*.bat", "*.exe", "__macosx/*", "*/__macosx/*" };
+	lfi.blockednames = { "*.bat", "*.exe", "__macosx/*", "*/__macosx/*", "*~" };
 }
 
-static FString CheckGameInfo(std::vector<std::string> & pwads)
+static FString CheckGameInfo(std::vector<FileSys::ResourceName>& pwads)
 {
 	FileSystem check;
 
@@ -2031,12 +2234,12 @@ static void D_DoomInit()
 	M_FindResponseFile ();
 
 	// Combine different file parameters with their pre-switch bits.
-	Args->CollectFiles("-deh", ".deh");
-	Args->CollectFiles("-bex", ".bex");
-	Args->CollectFiles("-exec", ".cfg");
-	Args->CollectFiles("-playdemo", ".lmp");
-	Args->CollectFiles("-file", nullptr);	// anything left goes after -file
-	Args->CollectFiles("-optfile", nullptr);
+	Args->CollectFiles(FArg_deh, ".deh");
+	Args->CollectFiles(FArg_bex, ".bex");
+	Args->CollectFiles(FArg_exec, ".cfg");
+	Args->CollectFiles(FArg_playdemo, ".lmp");
+	Args->CollectFiles(FArg_file, nullptr);	// anything left goes after -file
+	Args->CollectFiles(FArg_optfile, nullptr);
 
 	gamestate = GS_STARTUP;
 
@@ -2050,26 +2253,26 @@ static void D_DoomInit()
 //
 //==========================================================================
 
-static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& allwads)
+static void AddAutoloadFiles(const char *autoname, std::vector<FileSys::ResourceName>& allwads)
 {
-	LumpFilterIWAD.Format("%s.", autoname);	// The '.' is appened to simplify parsing the string 
+	LumpFilterIWAD.Format("%s.", autoname);	// The '.' is appened to simplify parsing the string
 
 	// [SP] Dialog reaction - load lights.pk3 and brightmaps.pk3 based on user choices
-	if (!(gameinfo.flags & GI_SHAREWARE) && !(Args->CheckParm("-noextras")))
+	if (!(gameinfo.flags & GI_SHAREWARE) && !(Args->CheckParm(FArg_noextras)))
 	{
-		if ((GameStartupInfo.LoadLights == 1 || (GameStartupInfo.LoadLights != 0 && autoloadlights)) && !(Args->CheckParm("-nolights")))
+		if ((GameStartupInfo.LoadLights == 1 || (GameStartupInfo.LoadLights != 0 && autoloadlights)) && !(Args->CheckParm(FArg_nolights)))
 		{
 			const char *lightswad = BaseFileSearch ("lights.pk3", NULL, true, GameConfig);
 			if (lightswad)
 				D_AddFile (allwads, lightswad, true, -1, GameConfig, true);
 		}
-		if ((GameStartupInfo.LoadBrightmaps == 1 || (GameStartupInfo.LoadBrightmaps != 0 && autoloadbrightmaps)) && !(Args->CheckParm("-nobrightmaps")))
+		if ((GameStartupInfo.LoadBrightmaps == 1 || (GameStartupInfo.LoadBrightmaps != 0 && autoloadbrightmaps)) && !(Args->CheckParm(FArg_nobrightmaps)))
 		{
 			const char *bmwad = BaseFileSearch ("brightmaps.pk3", NULL, true, GameConfig);
 			if (bmwad)
 				D_AddFile (allwads, bmwad, true, -1, GameConfig, true);
 		}
-		if ((GameStartupInfo.LoadWidescreen == 1 || (GameStartupInfo.LoadWidescreen != 0 && autoloadwidescreen)) && !(Args->CheckParm("-nowidescreen")))
+		if ((GameStartupInfo.LoadWidescreen == 1 || (GameStartupInfo.LoadWidescreen != 0 && autoloadwidescreen)) && !(Args->CheckParm(FArg_nowidescreen)))
 		{
 			const char *wswad = BaseFileSearch ("game_widescreen_gfx.pk3", NULL, true, GameConfig);
 			if (wswad)
@@ -2078,7 +2281,7 @@ static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& all
 	}
 
 	// Disable autoloading in netgames as we don't want people who are hosting/joining loading up random files.
-	if (!(gameinfo.flags & GI_SHAREWARE) && !Args->CheckParm("-noautoload") && !disableautoload && !Args->CheckParm("-host") && !Args->CheckParm("-join"))
+	if (!(gameinfo.flags & GI_SHAREWARE) && !Args->CheckParm(FArg_noautoload) && !disableautoload && !Args->CheckParm(FArg_host) && !Args->CheckParm(FArg_join))
 	{
 		FString file;
 
@@ -2090,7 +2293,7 @@ static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& all
 		const char *wad = BaseFileSearch ("zvox.wad", NULL, false, GameConfig);
 		if (wad)
 			D_AddFile (allwads, wad, true, -1, GameConfig, true);
-	
+
 		// [RH] Add any .wad files in the skins directory
 #ifdef __unix__
 		file = SHARE_DIR;
@@ -2101,9 +2304,10 @@ static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& all
 		D_AddDirectory (allwads, file.GetChars(), "*.wad", GameConfig, true);
 
 #ifdef __unix__
-		file = NicePath("$HOME/" GAME_DIR "/skins");
-		D_AddDirectory (allwads, file.GetChars(), "*.wad", GameConfig);
-#endif	
+		FString skinDir = FStringf("%s/skins", M_GetAppDataPath(true).GetChars());
+		file = NicePath(skinDir.GetChars());
+		D_AddDirectory (allwads, file.GetChars(), "*.wad", GameConfig, true);
+#endif
 
 		// Add common (global) wads
 		D_AddConfigFiles(allwads, "Global.Autoload", "*.wad", GameConfig, true);
@@ -2134,23 +2338,23 @@ static void CheckCmdLine()
 	const char *v;
 
 	if (!batchrun) Printf ("Checking cmd-line parameters...\n");
-	if (Args->CheckParm ("-nomonsters"))	flags |= DF_NO_MONSTERS;
-	if (Args->CheckParm ("-respawn"))		flags |= DF_MONSTERS_RESPAWN;
-	if (Args->CheckParm ("-fast"))			flags |= DF_FAST_MONSTERS;
+	if (Args->CheckParm (FArg_nomonsters))	flags |= DF_NO_MONSTERS;
+	if (Args->CheckParm (FArg_respawn))		flags |= DF_MONSTERS_RESPAWN;
+	if (Args->CheckParm (FArg_fast))			flags |= DF_FAST_MONSTERS;
 
-	devparm = !!Args->CheckParm ("-devparm");
+	devparm = !!Args->CheckParm (FArg_devparm);
 
-	if (Args->CheckParm ("-altdeath"))
+	if (Args->CheckParm (FArg_altdeath))
 	{
 		deathmatch = 1;
 		flags |= DF_ITEMS_RESPAWN;
 	}
-	else if (Args->CheckParm ("-deathmatch"))
+	else if (Args->CheckParm (FArg_deathmatch))
 	{
 		deathmatch = 1;
 		flags |= DF_WEAPONS_STAY | DF_ITEMS_RESPAWN;
 	}
-	else if (Args->CheckParm("-coop"))
+	else if (Args->CheckParm(FArg_coop))
 	{
 		deathmatch = teamplay = 0;
 		flags |= DF_NO_COOP_WEAPON_SPAWN;
@@ -2174,15 +2378,16 @@ static void CheckCmdLine()
 		startmap = "&wt@01";
 	}
 	autostart = StoredWarp.IsNotEmpty();
-				
-	const char *val = Args->CheckValue ("-skill");
+
+	setskill = -1;
+	const char *val = Args->CheckValue (FArg_skill);
 	if (val)
 	{
-		gameskill = val[0] - '1';
+		setskill = val[0] - '1';
 		autostart = true;
 	}
 
-	p = Args->CheckParm ("-warp");
+	p = Args->CheckParm (FArg_warp);
 	if (p && p < Args->NumArgs() - 1)
 	{
 		int ep, map;
@@ -2192,7 +2397,7 @@ static void CheckCmdLine()
 			ep = 1;
 			map = atoi (Args->GetArg(p+1));
 		}
-		else 
+		else
 		{
 			ep = atoi (Args->GetArg(p+1));
 			map = p < Args->NumArgs() - 2 ? atoi (Args->GetArg(p+2)) : 10;
@@ -2210,7 +2415,7 @@ static void CheckCmdLine()
 	// [RH] Hack to handle +map. The standard console command line handler
 	// won't be able to handle it, so we take it out of the command line and set
 	// it up like -warp.
-	FString mapvalue = Args->TakeValue("+map");
+	FString mapvalue = Args->TakeValue(FArg_map);
 	if (mapvalue.IsNotEmpty())
 	{
 		if (!P_CheckMapData(mapvalue.GetChars()))
@@ -2226,11 +2431,11 @@ static void CheckCmdLine()
 
 	if (devparm)
 	{
-		Printf ("%s", GStrings.GetString("D_DEVSTR"));
+		Printf ("%s\n", GStrings.GetString("D_DEVSTR"));
 	}
 
 	// turbo option  // [RH] (now a cvar)
-	v = Args->CheckValue("-turbo");
+	v = Args->CheckValue(FArg_turbo);
 	if (v != NULL)
 	{
 		double amt = atof(v);
@@ -2238,7 +2443,7 @@ static void CheckCmdLine()
 		turbo = (float)amt;
 	}
 
-	v = Args->CheckValue ("-timer");
+	v = Args->CheckValue (FArg_timer);
 	if (v)
 	{
 		double time = strtod (v, NULL);
@@ -2246,7 +2451,7 @@ static void CheckCmdLine()
 		timelimit = (float)time;
 	}
 
-	v = Args->CheckValue ("-avg");
+	v = Args->CheckValue (FArg_avg);
 	if (v)
 	{
 		Printf ("Austin Virtual Gaming: Levels will end after 20 minutes\n");
@@ -2265,7 +2470,7 @@ static void CheckCmdLine()
 		StartScreen->AppendStatusLine("Respawning...");
 	if (autostart)
 	{
-		FStringf temp("Warp to map %s, Skill %d ", startmap.GetChars(), gameskill + 1);
+		FStringf temp("Warp to map %s, Skill %d ", startmap.GetChars(), setskill + 1);
 		StartScreen->AppendStatusLine(temp.GetChars());
 	}
 }
@@ -2276,7 +2481,7 @@ static void CheckEpisodeCmd()
 {
 	bool setEpisode = false;
 	int episode = 0;
-	auto v = Args->CheckValue("-episode");
+	auto v = Args->CheckValue(FArg_episode);
 	if (v != nullptr)
 	{
 		episode = atoi(v) - 1;
@@ -2299,6 +2504,20 @@ static void CheckEpisodeCmd()
 	setmap = true;
 	if (setEpisode)
 		autostart = true;
+}
+
+static void CheckDefaultSkill()
+{
+	// Change skill cvar default to this game's defaultskill
+	UCVarValue val;
+	val.Int = DefaultSkill;
+	gameskill->SetGenericRepDefault(val, CVAR_Int);
+
+	if (setskill >= 0)
+	{
+		// -skill was defined, use that instead.
+		gameskill = setskill;
+	}
 }
 
 static void NewFailure ()
@@ -2409,7 +2628,7 @@ static void RenameSprites(FileSystem &fileSystem, const TArray<FString>& deletel
 		}
 	}
 
-	renameAll = !!Args->CheckParm("-oldsprites") || nospriterename;
+	renameAll = !!Args->CheckParm(FArg_oldsprites) || nospriterename;
 
 	for (uint32_t i = 0; i < NumFiles; i++)
 	{
@@ -2848,6 +3067,11 @@ static bool System_DisableTextureFilter()
 	return !V_IsHardwareRenderer();
 }
 
+static bool System_DisableAnisotropicFiltering()
+{
+	return V_DisableIntelMipmap();
+}
+
 static void System_OnScreenSizeChanged()
 {
 	if (StatusBar != NULL)
@@ -3007,7 +3231,7 @@ static void CheckForHacks(BuildInfo& buildinfo)
 		buildinfo.Name[3] <= '3' &&
 		buildinfo.Height == 128 &&
 		buildinfo.Parts.Size() == 1)
-	{ 
+	{
 		// This must alter the size of both the texture image and the game texture.
 		buildinfo.Height = buildinfo.Parts[0].TexImage->GetImage()->GetHeight();
 		buildinfo.texture->SetSize(buildinfo.Width, buildinfo.Height);
@@ -3064,12 +3288,14 @@ static void FixWideStatusBar()
 //
 //==========================================================================
 
-static void Doom_CastSpriteIDToString(FString* a, unsigned int b) 
-{ 
-	*a = (b >= sprites.Size()) ? "TNT1" : sprites[b].name; 
+static void Doom_CastSpriteIDToString(FString* a, unsigned int b)
+{
+	*a = (b >= sprites.Size()) ? "TNT1" : sprites[b].name;
 }
 
 extern DThinker* NextToThink;
+
+void P_MarkRollbackObjects();
 
 static void GC_MarkGameRoots()
 {
@@ -3087,6 +3313,7 @@ static void GC_MarkGameRoots()
 
 	// NextToThink must not be freed while thinkers are ticking.
 	GC::Mark(NextToThink);
+	P_MarkRollbackObjects();
 }
 
 static void System_ToggleFullConsole()
@@ -3111,6 +3338,9 @@ static void System_HudScaleChanged()
 		StatusBar->SetScale();
 		setsizeneeded = true;
 	}
+
+	if (primaryLevel && primaryLevel->automap)
+		primaryLevel->automap->NewUIScale();
 }
 
 bool  CheckSkipGameOptionBlock(const char* str);
@@ -3171,11 +3401,12 @@ static int FileSystemPrintf(FSMessageLevel level, const char* fmt, ...)
 //
 //==========================================================================
 
-static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allwads, std::vector<std::string>& pwads)
+static int D_InitGame(const FIWADInfo* iwad_info, std::vector<FileSys::ResourceName>& allwads, std::vector<FileSys::ResourceName>& pwads)
 {
 	NetworkEntityManager::InitializeNetworkEntities();
-	bool dap_debugging = *vm_debug;
-	if (Args->CheckValue("-debug") || dap_debugging)
+
+	bool dap_debugging = vm_debug;
+	if (Args->CheckValue(FArg_debug) || dap_debugging)
 	{
 		dap_debugging = true;
 		// disable vm_jit and vm_jit_aot when debugging
@@ -3195,7 +3426,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	gameinfo.nokeyboardcheats = iwad_info->nokeyboardcheats;
 	gameinfo.ConfigName = iwad_info->Configname;
 
-	const char *v = Args->CheckValue("-rngseed");
+	const char *v = Args->CheckValue(FArg_rngseed);
 	if (v)
 	{
 		rngseed = staticrngseed = atoi(v);
@@ -3208,7 +3439,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		use_staticrng = false;
 	}
 	srand(rngseed);
-		
+
 	FRandom::StaticClearRandom ();
 
 	FBaseCVar::DisableCallbacks();
@@ -3219,13 +3450,13 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	// Process automatically executed files
 	FExecList *exec;
 	FArgs *execFiles = new FArgs;
-	if (!(Args->CheckParm("-noautoexec")))
+	if (!(Args->CheckParm(FArg_noautoexec)))
 		GameConfig->AddAutoexec(execFiles, gameinfo.ConfigName.GetChars());
 	exec = D_MultiExec(execFiles, NULL);
 	delete execFiles;
 
 	// Process .cfg files at the start of the command line.
-	execFiles = Args->GatherFiles ("-exec");
+	execFiles = Args->GatherFiles (FArg_exec);
 	exec = D_MultiExec(execFiles, exec);
 	delete execFiles;
 
@@ -3278,7 +3509,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		std::make_move_iterator(pwads.end())
 	);
 
-	bool allowduplicates = Args->CheckParm("-allowduplicates");
+	bool allowduplicates = Args->CheckParm(FArg_allowduplicates);
 	if (!fileSystem.InitMultipleFiles(allwads, &lfi, FileSystemPrintf, allowduplicates))
 	{
 		I_FatalError("FileSystem: no files found");
@@ -3296,8 +3527,8 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	int max_progress = TexMan.GuesstimateNumTextures();
 	int per_shader_progress = 0;//screen->GetShaderCount()? (max_progress / 10 / screen->GetShaderCount()) : 0;
 
-	bool norun = Args->CheckParm("-norun");
-	bool nostartscreen = batchrun || restart || Args->CheckParm("-join") || Args->CheckParm("-host") || norun;
+	bool norun = Args->CheckParm(FArg_norun);
+	bool nostartscreen = batchrun || restart || Args->CheckParm(FArg_join) || Args->CheckParm(FArg_host) || norun;
 
 	if (GameStartupInfo.Type == FStartupInfo::DefaultStartup)
 	{
@@ -3308,7 +3539,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		else if (gameinfo.gametype == GAME_Strife)
 			GameStartupInfo.Type = FStartupInfo::StrifeStartup;
 	}
-	
+
 	GameConfig->DoKeySetup(gameinfo.ConfigName.GetChars());
 
 	// Now that wads are loaded, define mod-specific cvars.
@@ -3322,10 +3553,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		exec = NULL;
 	}
 
-	if (!(restart || norun))
-		V_Init2();
-
-	// [RH] Initialize localizable strings. 
+	// [RH] Initialize localizable strings.
 	GStrings.LoadStrings(fileSystem, language);
 
 	V_InitFontColors ();
@@ -3345,27 +3573,12 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	}
 
 	TexMan.Init();
-	
-	if (!(batchrun || norun)) Printf ("V_Init: allocate screen.\n");
-	if (!(restart || norun))
-	{
-		screen->CompileNextShader();
-	}
-	else if(!norun)
-	{
-		// Update screen palette when restarting
-		screen->UpdatePalette();
-	}
 
 	// Base systems have been inited; enable cvar callbacks
 	FBaseCVar::EnableCallbacks ();
 
-	StartScreen = nostartscreen? nullptr : GetGameStartScreen(per_shader_progress > 0 ? max_progress * 10 / 9 : max_progress + 3);
-	setmodeneeded = true;
-	if (StartScreen != nullptr) StartScreen->Render();
-	
 	// +compatmode cannot be used on the command line, so use this as a substitute
-	auto compatmodeval = Args->CheckValue("-compatmode");
+	auto compatmodeval = Args->CheckValue(FArg_compatmode);
 	if (compatmodeval)
 	{
 		compatmode = (int)strtoll(compatmodeval, nullptr, 10);
@@ -3393,6 +3606,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	// [RH] Parse through all loaded mapinfo lumps
 	if (!batchrun) Printf ("G_ParseMapInfo: Load map definitions.\n");
 	G_ParseMapInfo (iwad_info->MapInfo);
+	CheckDefaultSkill();
 	CheckEpisodeCmd();
 	MessageBoxClass = gameinfo.MessageBoxClass;
 	endoomName = gameinfo.Endoom;
@@ -3405,18 +3619,19 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	if (!batchrun) Printf ("Texman.Init: Init texture manager.\n");
 	UpdateUpscaleMask();
 	SpriteFrames.Clear();
-	TexMan.AddTextures([]() 
-	{ 
-		StartWindow->Progress(); 
-		if (StartScreen) StartScreen->Progress(1); 
+	TexMan.AddTextures([]()
+	{
+		StartWindow->Progress();
+		if (StartScreen) StartScreen->Progress(1);
 	}, CheckForHacks, InitBuildTiles);
 	PatchTextures();
 	TexAnim.Init();
+	G_AddBoomHelpScreens();
 	C_InitConback(TexMan.CheckForTexture(gameinfo.BorderFlat.GetChars(), ETextureType::Flat), true, 0.25);
 
 	FixWideStatusBar();
 
-	StartWindow->Progress(); 
+	StartWindow->Progress();
 	if (StartScreen) StartScreen->Progress(1);
 	V_InitFonts();
 	InitDoomFonts();
@@ -3430,7 +3645,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	R_ParseTrnslate();
 	PClassActor::StaticInit ();
 	FBaseCVar::InitZSCallbacks ();
-	
+
 	Job_Init();
 
 	// [GRB] Initialize player class list
@@ -3445,7 +3660,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		I_FatalError ("No player classes defined");
 	}
 
-	StartWindow->Progress(); 
+	StartWindow->Progress();
 	if (StartScreen) StartScreen->Progress (1);
 
 	ParseGLDefs();
@@ -3453,7 +3668,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	if (!batchrun) Printf ("R_Init: Init %s refresh subsystem.\n", gameinfo.ConfigName.GetChars());
 	if (StartScreen) StartScreen->LoadingStatus ("Loading graphics", 0x3f);
 	if (StartScreen) StartScreen->Progress(1);
-	StartWindow->Progress(); 
+	StartWindow->Progress();
 	R_Init ();
 
 	if (!batchrun) Printf ("DecalLibrary: Load decals.\n");
@@ -3467,8 +3682,8 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	// [RH] Add any .deh and .bex files on the command line.
 	// If there are none, try adding any in the config file.
 	// Note that the command line overrides defaults from the config.
-	bool foundDeh = ConsiderPatches("-deh");
-	bool foundBex = ConsiderPatches("-bex");
+	bool foundDeh = ConsiderPatches(FArg_deh);
+	bool foundBex = ConsiderPatches(FArg_bex);
 	if (!foundDeh && !foundBex &&
 		gameinfo.gametype == GAME_Doom && GameConfig->SetSection ("Doom.DefaultDehacked"))
 	{
@@ -3508,9 +3723,9 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 
 	//Added by MC:
 	primaryLevel->BotInfo.getspawned.Clear();
-	
+
 	FString *args;
-	int argcount = Args->CheckParmList("-bots", &args);
+	int argcount = Args->CheckParmList(FArg_bots, &args);
 	for (int p = 0; p < argcount; ++p)
 	{
 		primaryLevel->BotInfo.getspawned.Push(args[p]);
@@ -3555,12 +3770,48 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		}
 	}
 
-	// [SP] Force vanilla transparency auto-detection to re-detect our game lumps now
-	UpdateVanillaTransparency();
-
 	// [RH] Lock any cvars that should be locked now that we're
 	// about to begin the game.
 	FBaseCVar::EnableNoSet ();
+
+	// [Sal] FIXME: The window used to be created much earlier.
+	// 
+	// This makes more sense for the loading screen, but makes no sense
+	// for the netgame lobby. The lobby creates its own window, and takes
+	// up the main thread. This causes issues that range from annoying
+	// (like a black, uninteractable box in the background when playing
+	// a netgame), to destructive (like the GL context being clobbered
+	// on Linux and causing the game to crash).
+	//
+	// The solution for now is to simply create the window extremely late.
+	// This undoes most of the loading screen code, but improves stability
+	// in every other aspect.
+	// 
+	// Since all of the loading screen code constantly checks for null,
+	// I've left it as is so it can be reused as a reference when it
+	// gets overhauled. There's some potential ways we could re-introduce
+	// the loading screen, but they all will be easier if we move away
+	// from ZWidgets first. (Either introducing a separate loading bar
+	// window, or see if we aren't using initializing OpenGL for the
+	// replacement widget framework, or clean up the code to handle
+	// swapping between multiple GL contexts)
+	if (!(restart || norun))
+		V_Init2();
+
+	if (!(batchrun || norun)) Printf ("V_Init: allocate screen.\n");
+	if (!(restart || norun))
+	{
+		screen->CompileNextShader();
+	}
+	else if(!norun)
+	{
+		// Update screen palette when restarting
+		screen->UpdatePalette();
+	}
+
+	StartScreen = nostartscreen? nullptr : GetGameStartScreen(per_shader_progress > 0 ? max_progress * 10 / 9 : max_progress + 3);
+	setmodeneeded = true;
+	if (StartScreen != nullptr) StartScreen->Render();
 
 	if (norun || batchrun)
 	{
@@ -3580,7 +3831,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	if (!restart)
 	{
 		// start the apropriate game based on parms
-		auto v = Args->CheckValue ("-record");
+		auto v = Args->CheckValue (FArg_record);
 
 		if (v)
 		{
@@ -3614,7 +3865,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		UpdateVRModes();
 		Local_Job_Init();
 
-		v = Args->CheckValue ("-loadgame");
+		v = Args->CheckValue (FArg_loadgame);
 		if (v)
 		{
 			FString file = G_BuildSaveName(v);
@@ -3625,7 +3876,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 			G_LoadGame(file.GetChars());
 		}
 
-		v = Args->CheckValue("-playdemo");
+		v = Args->CheckValue(FArg_playdemo);
 		if (v != NULL)
 		{
 			singledemo = true;				// quit after one demo
@@ -3633,7 +3884,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 		}
 		else
 		{
-			v = Args->CheckValue("-timedemo");
+			v = Args->CheckValue(FArg_timedemo);
 			if (v)
 			{
 				G_TimeDemo(v);
@@ -3645,7 +3896,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 					if (autostart || netgame)
 					{
 						// Do not do any screenwipes when autostarting a game.
-						if (!Args->CheckParm("-warpwipe"))
+						if (!Args->CheckParm(FArg_warpwipe))
 						{
 							NoWipe = TICRATE;
 						}
@@ -3662,7 +3913,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 					}
 					else
 					{
-						if (multiplayer || cl_nointros || Args->CheckParm("-nointro"))
+						if (multiplayer || cl_nointros || Args->CheckParm(FArg_nointro))
 						{
 							D_StartTitle();
 						}
@@ -3736,7 +3987,7 @@ static int D_DoomMain_Internal (void)
 		nullptr,
 		CheckSkipGameOptionBlock,
 		System_ConsoleToggled,
-		nullptr, 
+		nullptr,
 		nullptr,
 		System_ToggleFullConsole,
 		System_StartCutscene,
@@ -3748,15 +3999,16 @@ static int D_DoomMain_Internal (void)
 		System_LanguageChanged,
 		OkForLocalization,
 		[]() ->FConfigFile* { return GameConfig; },
-		nullptr, 
-		RemapUserTranslation
+		nullptr,
+		RemapUserTranslation,
+		System_DisableAnisotropicFiltering
 	};
 
 	std::set_new_handler(NewFailure);
-	const char *batchout = Args->CheckValue("-errorlog");
+	const char *batchout = Args->CheckValue(FArg_errorlog);
 
 	D_DoomInit();
-	
+
 	// [RH] Make sure zdoom.pk3 is always loaded,
 	// as it contains magic stuff we need.
 	wad = BaseFileSearch(BASEWAD, NULL, true, GameConfig);
@@ -3768,10 +4020,33 @@ static int D_DoomMain_Internal (void)
 	InitWidgetResources(wad);
 
 	C_InitConsole(80*8, 25*8, false);
-	I_DetectOS();
+
+	Printf(
+		"%s version %s\nBuild: %s version compiled on %s, dated %s\nOS: %s\n",
+		GAMENAME,
+		GetVersionString(),
+		BACKEND,
+		__DATE__,
+		GetGitTime(),
+		I_DetectOS().GetChars()
+	);
+
+	bool wantsVersion = Args->CheckParm(FArg_version)
+		|| Args->CheckParm(FArg_v);
+	bool wantsHelp = Args->CheckParm(FArg_help)
+		|| Args->CheckParm(FArg_h)
+		|| Args->CheckParm(FArg_help_all)
+		|| Args->CheckParm(FArg_doshelp);
+
+	if (wantsVersion || wantsHelp)
+	{
+		if (wantsHelp)
+			FArgs::PrintHelpMessage(Args->CheckParm(FArg_help_all));
+		return 0;
+	}
 
 	// +logfile gets checked too late to catch the full startup log in the logfile so do some extra check for it here.
-	FString logfile = Args->TakeValue("+logfile");
+	FString logfile = Args->TakeValue(FArg_logfile);
 	if (logfile.IsNotEmpty())
 	{
 		execLogfile(logfile.GetChars());
@@ -3789,8 +4064,6 @@ static int D_DoomMain_Internal (void)
 		Printf("\n");
 	}
 
-	Printf("%s version %s\n", GAMENAME, GetVersionString());
-
 	extern void D_ConfirmSendStats();
 	D_ConfirmSendStats();
 
@@ -3804,7 +4077,7 @@ static int D_DoomMain_Internal (void)
 	GameConfig->DoAutoloadSetup(iwad_man);
 
 	bool should_debug = vm_debug;
-	const char * debug_port_arg = Args->CheckValue("-debug");
+	const char * debug_port_arg = Args->CheckValue(FArg_debug);
 	if (debug_port_arg) {
 		should_debug = true;
 	}
@@ -3827,10 +4100,10 @@ static int D_DoomMain_Internal (void)
 			iwad_man = new FIWadManager(basewad.GetChars(), optionalwad.GetChars());
 		}
 
-		// Load zdoom.pk3 alone so that we can get access to the internal gameinfos before 
+		// Load zdoom.pk3 alone so that we can get access to the internal gameinfos before
 		// the IWAD is known.
 
-		std::vector<std::string> pwads;
+		std::vector<FileSys::ResourceName> pwads;
 		GetCmdLineFiles(pwads, false);
 		FString iwad = CheckGameInfo(pwads);
 
@@ -3838,11 +4111,12 @@ static int D_DoomMain_Internal (void)
 		// restart is initiated without a defined IWAD assume for now that it's not going to change.
 		if (iwad.IsEmpty()) iwad = lastIWAD;
 
-		std::vector<std::string> allwads;
-		
+		std::vector<FileSys::ResourceName> allwads;
+
 		const FIWADInfo *iwad_info = iwad_man->FindIWAD(allwads, iwad.GetChars(), basewad.GetChars(), optionalwad.GetChars());
 
 		GetCmdLineFiles(pwads, false); // [RL0] Update with files passed on the launcher extra args
+		// For now these need to remain verifiable over the network.
 		GetCmdLineFiles(pwads, true);
 
 		if (!iwad_info) return 0;	// user exited the selection popup via cancel button.
@@ -3851,6 +4125,42 @@ static int D_DoomMain_Internal (void)
 			I_FatalError ("You cannot -file or -optfile with the shareware version. Register!");
 		}
 		lastIWAD = iwad;
+
+		if (GameStartupInfo.DiscordAppId.GetChars())
+		{
+			const char* check = GameStartupInfo.DiscordAppId.GetChars();
+			uint32_t index = 0;
+			bool failedcheck = false;
+			while (!failedcheck && check[index])
+			{
+				if (check[index] < '0' || check[index] > '9')
+				{
+					Printf(TEXTCOLOR_RED "DiscordAppId must be a numerical value!\n");
+					failedcheck = true;
+				}
+				index++;
+			}
+			if (failedcheck)
+				GameStartupInfo.DiscordAppId = "";
+		}
+
+		if (GameStartupInfo.SteamAppId.GetChars())
+		{
+			const char* check = GameStartupInfo.SteamAppId.GetChars();
+			uint32_t index = 0;
+			bool failedcheck = false;
+			while (!failedcheck && check[index])
+			{
+				if (check[index] < '0' || check[index] > '9')
+				{
+					Printf(TEXTCOLOR_RED "SteamAppId must be a numerical value!\n");
+					failedcheck = true;
+				}
+				index++;
+			}
+			if (failedcheck)
+				GameStartupInfo.SteamAppId = "";
+		}
 
 		int ret = D_InitGame(iwad_info, allwads, pwads);
 		pwads.clear();
@@ -3882,7 +4192,7 @@ static int D_DoomMain_Internal (void)
 		}
 
 		D_DoomLoop ();		// this only returns if a 'restart' CCMD is given.
-		// 
+		//
 		// Clean up after a restart
 		//
 
@@ -4006,9 +4316,9 @@ void D_Cleanup()
 	// clean up game state
 	D_ErrorCleanup ();
 	P_Shutdown();
-	
+
 	M_SaveDefaults(NULL);			// save config before the restart
-	
+
 	// delete all data that cannot be left until reinitialization
 	CleanSWDrawer();
 	V_ClearFonts();					// must clear global font pointers
@@ -4024,24 +4334,24 @@ void D_Cleanup()
 	LightDefaults.DeleteAndClear();			// this can leak heap memory if it isn't cleared.
 	TexAnim.DeleteAll();
 	TexMan.DeleteAll();
-	
+
 	// delete GameStartupInfo data
 	GameStartupInfo.Name = "";
 	GameStartupInfo.BkColor = GameStartupInfo.FgColor = GameStartupInfo.Type = 0;
 	GameStartupInfo.LoadWidescreen = GameStartupInfo.LoadLights = GameStartupInfo.LoadBrightmaps = -1;
 	GameStartupInfo.DiscordAppId = "";
 	GameStartupInfo.SteamAppId = "";
-		
+
 	GC::FullGC();					// clean up before taking down the object list.
-	
+
 	// Delete the reference to the VM functions here which were deleted and will be recreated after the restart.
 	AutoSegs::ActionFunctons.ForEach([](AFuncDesc *afunc)
 	{
 		*(afunc->VMPointer) = NULL;
 	});
-	
+
 	GC::DelSoftRootHead();
-	
+
 	for (auto& p : players)
 	{
 		p.PendingWeapon = nullptr;
@@ -4049,11 +4359,11 @@ void D_Cleanup()
 	PClassActor::AllActorClasses.Clear();
 	ScriptUtil::Clear();
 	PClass::StaticShutdown();
-	
+
 	GC::FullGC();					// perform one final garbage collection after shutdown
-	
+
 	assert(GC::Root == nullptr);
-	
+
 	restart++;
 	PClass::bShutdown = false;
 	PClass::bVMOperational = false;
@@ -4068,25 +4378,26 @@ void D_Cleanup()
 UNSAFE_CCMD(debug_restart)
 {
 	// remove command line args that would get in the way during restart
-	Args->RemoveArgs("-iwad");
-	Args->RemoveArgs("-deh");
-	Args->RemoveArgs("-bex");
-	Args->RemoveArgs("-playdemo");
-	Args->RemoveArgs("-file");
-	Args->RemoveArgs("-optfile");
-	Args->RemoveArgs("-altdeath");
-	Args->RemoveArgs("-deathmatch");
-	Args->RemoveArgs("-coop");
-	Args->RemoveArgs("-skill");
-	Args->RemoveArgs("-savedir");
-	Args->RemoveArgs("-xlat");
-	Args->RemoveArgs("-oldsprites");
+
+	Args->RemoveArgs(FArg_iwad);
+	Args->RemoveArgs(FArg_deh);
+	Args->RemoveArgs(FArg_bex);
+	Args->RemoveArgs(FArg_playdemo);
+	Args->RemoveArgs(FArg_file);
+	Args->RemoveArgs(FArg_optfile);
+	Args->RemoveArgs(FArg_altdeath);
+	Args->RemoveArgs(FArg_deathmatch);
+	Args->RemoveArgs(FArg_coop);
+	Args->RemoveArgs(FArg_skill);
+	Args->RemoveArgs(FArg_savedir);
+	Args->RemoveArgs(FArg_xlat);
+	Args->RemoveArgs(FArg_oldsprites);
 
 	if (argv.argc() > 1)
 	{
 		for (int i = 1; i<argv.argc(); i++)
 		{
-			Args->AppendArg(argv[i]);
+			Args->AppendRawArg(argv[i]);
 		}
 	}
 
@@ -4166,7 +4477,7 @@ CCMD(fs_dir)
 		auto fnid = fileSystem.GetResourceId(i);
 		auto length = fileSystem.FileLength(i);
 		bool hidden = fileSystem.FindFile(fn1) != i;
-		Printf(PRINT_HIGH | PRINT_NONOTIFY, "%s%-64s %-15s (%5d) %10ld %s %s\n", hidden ? TEXTCOLOR_RED : TEXTCOLOR_UNTRANSLATED, fn1, fns, fnid, length, container, hidden ? "(h)" : "");
+		Printf(PRINT_NONOTIFY, "%s%-64s %-15s (%5d) %10ld %s %s\n", hidden ? TEXTCOLOR_RED : TEXTCOLOR_UNTRANSLATED, fn1, fns, fnid, length, container, hidden ? "(h)" : "");
 	}
 }
 

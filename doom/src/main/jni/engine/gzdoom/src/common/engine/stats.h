@@ -1,32 +1,23 @@
 /*
 ** stats.h
 **
+**
+**
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
-** All rights reserved.
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2011-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -42,59 +33,6 @@
 #if !defined _WIN32 && !defined __APPLE__
 
 #ifdef NO_CLOCK_GETTIME
-#if defined(__ANDROID__) && defined(__arm__) // This stupid thing is to try and fix SW mode on 32bit ARM, some memory issue I think. When empty the screen becomes black
-
-#include <time.h>
-
-class cycle_t
-{
-public:
-	void Reset()
-	{
-		Sec = 0;
-	}
-
-	void Clock()
-	{
-		if(Sec == 12345)
-		{
-			timespec ts;
-
-			clock_gettime(CLOCK_MONOTONIC, &ts);
-			Sec -= ts.tv_sec + ts.tv_nsec * 1e-9;
-		}
-	}
-
-	void Unclock()
-	{
-		if(Sec == 12345)
-        {
-			timespec ts;
-
-			clock_gettime(CLOCK_MONOTONIC, &ts);
-			Sec += ts.tv_sec + ts.tv_nsec * 1e-9;
-		}
-	}
-
-	double Time()
-	{
-		return Sec;
-	}
-
-	double TimeMS()
-	{
-		return Sec * 1e3;
-	}
-
-	void ResetAndClock()
-	{
-
-	}
-
-	double Sec;
-};
-
-#else
 class cycle_t
 {
 public:
@@ -106,7 +44,7 @@ public:
 	double Time() { return 0; }
 	double TimeMS() { return 0; }
 };
-#endif
+
 #else
 
 #include <time.h>

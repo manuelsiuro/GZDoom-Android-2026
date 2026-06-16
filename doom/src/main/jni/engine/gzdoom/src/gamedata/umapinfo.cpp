@@ -1,30 +1,28 @@
-//-----------------------------------------------------------------------------
-//
-// Copyright 2017 Christoph Oelckers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/
-//
-//-----------------------------------------------------------------------------
+/*
+** umapinfo.cpp
+**
+**
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2017 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+**
+*/
 
 #include <stdlib.h>
 #include <string.h>
-#include "filesystem.h"
-#include "g_level.h"
-#include "r_defs.h"
-#include "p_setup.h"
-#include "gi.h"
+
 #include "cmdlib.h"
+#include "g_mapinfo.h"
+#include "gi.h"
+#include "r_defs.h"
 
 FName MakeEndPic(const char *string);
 
@@ -33,6 +31,14 @@ struct BossAction
 	int type;
 	int special;
 	int tag;
+};
+
+enum struct PlayerActionOption
+{
+	DISALLOW,
+	ALLOW,
+	REQUIRE,
+	UNSET,
 };
 
 struct UMapEntry
@@ -60,6 +66,10 @@ struct UMapEntry
 	char intermusic[9] = "";
 	int partime = 0;
 	int nointermission = 0;
+	int id24_levelnum = 0;	// default excludes the episode number unlike the actual levelnum
+	PlayerActionOption jumping = PlayerActionOption::UNSET;
+	PlayerActionOption crouching = PlayerActionOption::UNSET;
+	PlayerActionOption freeaim = PlayerActionOption::UNSET;
 };
 
 static TArray<UMapEntry> Maps;
@@ -74,7 +84,7 @@ static TArray<UMapEntry> Maps;
 static FString ParseMultiString(FScanner &scanner, int error)
 {
 	FString build;
-	
+
 	if (scanner.CheckToken(TK_Identifier))
 	{
 		if (!stricmp(scanner.String, "clear"))
@@ -86,7 +96,7 @@ static FString ParseMultiString(FScanner &scanner, int error)
 			scanner.ScriptError("Either 'clear' or string constant expected");
 		}
 	}
-	
+
 	bool first = true;
 
 	do
@@ -95,7 +105,7 @@ static FString ParseMultiString(FScanner &scanner, int error)
 		if (first) first = false;
 		else build += "\n";
 		build += scanner.String;
-	} 
+	}
 	while (scanner.CheckToken(','));
 	return build;
 }
@@ -120,17 +130,43 @@ static int ParseLumpName(FScanner &scanner, char *buffer)
 
 // -----------------------------------------------
 //
+// Parses a value that is one of 'disallow', 'allow', or 'require'
+//
+// -----------------------------------------------
+
+static PlayerActionOption ParsePlayerActionOption(FScanner &scanner)
+{
+	scanner.MustGetToken(TK_Identifier);
+	if (!stricmp(scanner.String, "disallow"))
+	{
+		return PlayerActionOption::DISALLOW;
+	}
+	else if (!stricmp(scanner.String, "allow"))
+	{
+		return PlayerActionOption::ALLOW;
+	}
+	else if (!stricmp(scanner.String, "require"))
+	{
+		return PlayerActionOption::REQUIRE;
+	}
+
+	scanner.ScriptError("One of 'disallow', 'allow', or 'require' expected.");
+	return PlayerActionOption::UNSET;
+}
+
+// -----------------------------------------------
+//
 // Parses a standard property that is already known
 // These do not get stored in the property list
 // but in dedicated struct member variables.
 //
 // -----------------------------------------------
 
-static int ParseStandardProperty(FScanner &scanner, UMapEntry *mape)
+static int ParseStandardProperty(FScanner &scanner, UMapEntry *mape, int *id24_levelnum)
 {
 	// find the next line with content.
 	// this line is no property.
-	
+
 	scanner.MustGetToken(TK_Identifier);
 	FString pname = scanner.String;
 	scanner.MustGetToken('=');
@@ -280,6 +316,7 @@ static int ParseStandardProperty(FScanner &scanner, UMapEntry *mape)
 			epi.mEpisodeMap = mape->MapName;
 			epi.mPicName = split[0];
 			epi.mNoSkill = false;
+			mape->id24_levelnum = *id24_levelnum = 1;
 
 			unsigned i;
 			for (i = 0; i < AllEpisodes.Size(); i++)
@@ -325,6 +362,18 @@ static int ParseStandardProperty(FScanner &scanner, UMapEntry *mape)
 			};
 		}
 	}
+	else if (!pname.CompareNoCase("jumping"))
+	{
+		mape->jumping = ParsePlayerActionOption(scanner);
+	}
+	else if (!pname.CompareNoCase("crouching"))
+	{
+		mape->crouching = ParsePlayerActionOption(scanner);
+	}
+	else if (!pname.CompareNoCase("freeaim"))
+	{
+		mape->freeaim= ParsePlayerActionOption(scanner);
+	}
 	else
 	{
 		// Skip over all unknown properties.
@@ -338,7 +387,7 @@ static int ParseStandardProperty(FScanner &scanner, UMapEntry *mape)
 					scanner.ScriptError("Identifier or value expected");
 				}
 			}
-			
+
 		} while (scanner.CheckToken(','));
 	}
 	return 1;
@@ -350,15 +399,16 @@ static int ParseStandardProperty(FScanner &scanner, UMapEntry *mape)
 //
 // -----------------------------------------------
 
-static int ParseMapEntry(FScanner &scanner, UMapEntry *val)
+static int ParseMapEntry(FScanner &scanner, UMapEntry *val, int *id24_levelnum)
 {
 	scanner.MustGetToken(TK_Identifier);
 
 	val->MapName = scanner.String;
+	val->id24_levelnum = ++(*id24_levelnum);
 	scanner.MustGetToken('{');
 	while(!scanner.CheckToken('}'))
 	{
-		ParseStandardProperty(scanner, val);
+		ParseStandardProperty(scanner, val, id24_levelnum);
 	}
 	return 1;
 }
@@ -374,12 +424,13 @@ int ParseUMapInfo(int lumpnum)
 	FScanner scanner(lumpnum);
 	unsigned int i;
 
+	int id24_levelnum = 1;
 	while (scanner.GetToken())
 	{
 		scanner.TokenMustBe(TK_Map);
 
 		UMapEntry parsed;
-		ParseMapEntry(scanner, &parsed);
+		ParseMapEntry(scanner, &parsed, &id24_levelnum);
 
 		// Endpic overrides level exits.
 		if (parsed.endpic[0])
@@ -414,7 +465,7 @@ int ParseUMapInfo(int lumpnum)
 		}
 		// Not found so create a new one.
 		Maps.Push(parsed);
-		
+
 	}
 	return 1;
 }
@@ -489,6 +540,7 @@ void CommitUMapinfo(level_info_t *defaultinfo)
 		if (map.exitpic[0]) levelinfo->ExitPic = map.exitpic;
 		if (map.enteranim[0]) levelinfo->EnterAnim = map.enteranim;
 		if (map.exitanim[0]) levelinfo->ExitAnim = map.exitanim;
+		levelinfo->id24_levelnum = map.id24_levelnum;
 		/* UMAPINFO's intermusic is for the text screen, not the summary.
 		if (map.intermusic[0])
 		{
@@ -521,6 +573,49 @@ void CommitUMapinfo(level_info_t *defaultinfo)
 		}
 		if (map.nointermission) levelinfo->flags |= LEVEL_NOINTERMISSION;
 		if (!(levelinfo->flags2 & LEVEL2_NEEDCLUSTERTEXT)) levelinfo->flags2 |= LEVEL2_NOCLUSTERTEXT;	// UMAPINFO should ignore cluster intermission texts.
+		switch (map.jumping)
+		{
+			case PlayerActionOption::ALLOW:
+			case PlayerActionOption::REQUIRE:
+				levelinfo->flags &= ~LEVEL_JUMP_NO;
+				break;
+			case PlayerActionOption::DISALLOW:
+				levelinfo->flags |= LEVEL_JUMP_NO;
+				break;
+			case PlayerActionOption::UNSET:
+				// noop
+				break;
+		}
+		switch (map.crouching)
+		{
+			case PlayerActionOption::ALLOW:
+			case PlayerActionOption::REQUIRE:
+				levelinfo->flags &= ~LEVEL_CROUCH_NO;
+				break;
+			case PlayerActionOption::DISALLOW:
+				levelinfo->flags |= LEVEL_CROUCH_NO;
+				break;
+			case PlayerActionOption::UNSET:
+				// noop
+				break;
+		}
+		switch (map.freeaim)
+		{
+			case PlayerActionOption::ALLOW:
+				levelinfo->flags &= ~(LEVEL_FREELOOK_NO | LEVEL_FREELOOK_YES);
+				break;
+			case PlayerActionOption::REQUIRE:
+				levelinfo->flags |= LEVEL_FREELOOK_YES;
+				levelinfo->flags &= ~LEVEL_FREELOOK_NO;
+				break;
+			case PlayerActionOption::DISALLOW:
+				levelinfo->flags |= LEVEL_FREELOOK_NO;
+				levelinfo->flags &= ~LEVEL_FREELOOK_YES;
+				break;
+			case PlayerActionOption::UNSET:
+				// noop
+				break;
+		}
 	}
 
 

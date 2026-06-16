@@ -1,34 +1,22 @@
 /*
 ** optionmenu.zs
+**
 ** Handler class for the option menus and associated items
 **
 **---------------------------------------------------------------------------
+**
 ** Copyright 2010-2017 Christoph Oelckers
 ** Copyright 2017-2025 GZDoom Maintainers and Contributors
-** All rights reserved.
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -94,6 +82,8 @@ class OptionMenuDescriptor : MenuDescriptor native
 
 class OptionMenu : Menu
 {
+	const OPTION_VALUE_TOOLTIP_DELAY = 1.0;
+
 	OptionMenuDescriptor mDesc;
 	bool CanScrollUp;
 	bool CanScrollDown;
@@ -106,6 +96,11 @@ class OptionMenu : Menu
 	bool HoverSound;
 	int OverScroll;
 	int OverScrollThreshold; // >= 0 : how much smaller a menu can be than the page to overscroll
+
+	int mOptionValueTooltipSelected;
+	double mOptionValueTooltipTimer;
+	double mOptionValueTooltipScrollTimer;
+	double mOptionValueTooltipScrollOffset;
 
 	//=============================================================================
 	//
@@ -122,6 +117,14 @@ class OptionMenu : Menu
 		AnimatedTransition = desc.mAnimatedTransition;
 		Animated = desc.mAnimated;
 		MaxItems = 1;
+		mTooltipFont = desc.mTooltipFont ? desc.mTooltipFont : NewConsoleFont;
+		mCurrentTooltip = "";
+		mTooltipScrollTimer = m_tooltip_delay;
+		mTooltipScrollOffset = 0.0;
+		mOptionValueTooltipSelected = -1;
+		mOptionValueTooltipTimer = OPTION_VALUE_TOOLTIP_DELAY;
+		mOptionValueTooltipScrollOffset = 0.0;
+		mOptionValueTooltipScrollTimer = m_tooltip_delay;
 
 		ScrollSound = ! Cvar.FindCVar("silence_menu_scroll").getInt();
 		HoverSound = ! Cvar.FindCVar("silence_menu_hover").getInt();
@@ -144,7 +147,14 @@ class OptionMenu : Menu
 			}
 		}
 
-		if (mDesc.mSelectedItem == -1) mDesc.mSelectedItem = FirstSelectable();
+		if (mDesc.mSelectedItem == -1)
+		{
+			mDesc.mSelectedItem = FirstSelectable();
+			if (mDesc.mSelectedItem >= 0 && mDesc.mItems[mDesc.mSelectedItem].mLabel == "$OS_TITLE")
+			{
+				mDesc.mSelectedItem = FirstSelectable(mDesc.mSelectedItem);
+			}
+		}
 		mDesc.CalcIndent();
 
 		// notify all items that the menu was just created.
@@ -152,8 +162,157 @@ class OptionMenu : Menu
 		{
 			mDesc.mItems[i].OnMenuCreated();
 		}
+
+		// Now that all items have been initialized, check if any have a tooltip to display.
+		foreach (item : mDesc.mItems)
+		{
+			if (item.GetTooltip().IsNotEmpty())
+			{
+				DrawTooltips = true;
+				break;
+			}
+		}
+
+		UpdateTooltip(GetSelectedTooltip());
 	}
 
+	//=============================================================================
+	//
+	//
+	//
+	//=============================================================================
+
+	version("4.15.1") string GetSelectedTooltip() const
+	{
+		return mDesc && mDesc.mSelectedItem >= 0 && mDesc.mSelectedItem < mDesc.mItems.Size() && mDesc.mItems[mDesc.mSelectedItem]
+				? mDesc.mItems[mDesc.mSelectedItem].GetTooltip()
+				: "";
+	}
+
+	override void UpdateTooltip(string tooltip)
+	{
+		mOptionValueTooltipSelected = -1;
+		mOptionValueTooltipTimer = OPTION_VALUE_TOOLTIP_DELAY;
+		mOptionValueTooltipScrollOffset = 0.0;
+		mOptionValueTooltipScrollTimer = m_tooltip_delay;
+		Super.UpdateTooltip(tooltip);
+	}
+
+	version("4.15.1") virtual void DrawHoverTooltip(OptionMenuItemOptionBase selected, int indent, int y, int bottom)
+	{
+		if (!selected)
+			return;
+
+		int val = selected.GetSelection();
+		if (val != mOptionValueTooltipSelected)
+		{
+			mOptionValueTooltipScrollOffset = 0.0;
+			mOptionValueTooltipScrollTimer = m_tooltip_delay;
+		}
+
+		mOptionValueTooltipSelected = val;
+		string text = OptionValues.GetTooltip(selected.mValues, val);
+		if (text.IsEmpty())
+			return;
+
+		double delta = GetDeltaTime();
+		mOptionValueTooltipTimer = Max(mOptionValueTooltipTimer - delta, 0.0);
+		if (mOptionValueTooltipTimer > 0.0)
+			return;
+
+		int xPad = 10 * CleanXFac_1;
+		int yPad = 5 * CleanYFac_1;
+		int textHeight = mTooltipFont.GetHeight() * CleanYFac_1;
+
+		int xCap, diff;
+		if (Screen.GetAspectRatio() > 16.0 / 9.0)
+		{
+			xCap = int(Screen.GetHeight() * (16.0 / 9.0));
+			diff = (Screen.GetWidth() - xCap) / 2;
+		}
+		else
+		{
+			xCap = Screen.GetWidth();
+		}
+		xCap -= 11 * CleanXFac_1;
+
+		int width = xCap - (indent - diff);
+		BrokenLines bl = mTooltipFont.BreakLines(StringTable.Localize(text), (width - xPad * 2) / CleanXFac_1);
+		int height = textHeight * bl.Count() + yPad * 2;
+		if (bl.Count() == 1)
+			width = bl.StringWidth(0) * CleanXFac_1 + xPad * 2;
+
+		// Try and best fit it all on the screen before falling back on scrolling.
+		int maxOffset;
+		int curY = y + OptionMenuSettings.mLinespacing * CleanYFac_1;
+		if (curY + height > bottom)
+		{
+			int oldY = curY;
+			curY = y - height;
+			if (curY < 0)
+			{
+				int space;
+				if (Abs(curY) > oldY + height - bottom)
+				{
+					curY = oldY;
+					space = (curY + height) - bottom - yPad;
+				}
+				else
+				{
+					space = Abs(curY) - yPad - CleanXFac_1;
+					curY = CleanXFac_1;
+				}
+
+				maxOffset = int(Ceil(double(space) / textHeight));
+				height -= textHeight * maxOffset;
+				if (mOptionValueTooltipScrollTimer <= 0.0)
+					mOptionValueTooltipScrollOffset = Clamp(mOptionValueTooltipScrollOffset + (1.0 / m_tooltip_speed) * delta, 0.0, maxOffset);
+
+				if (mOptionValueTooltipScrollTimer > 0.0)
+				{
+					mOptionValueTooltipScrollTimer -= delta;
+					if (mOptionValueTooltipScrollTimer <= 0.0)
+						mOptionValueTooltipScrollTimer = -m_tooltip_delay;
+				}
+				else if (mOptionValueTooltipScrollTimer < 0.0 && mOptionValueTooltipScrollOffset >= maxOffset)
+				{
+					mOptionValueTooltipScrollTimer += delta;
+					if (mOptionValueTooltipScrollTimer >= 0.0)
+					{
+						mOptionValueTooltipScrollOffset = 0.0;
+						mOptionValueTooltipScrollTimer = m_tooltip_delay;
+					}
+				}
+			}
+		}
+
+		Screen.Dim(0u, 0.8, indent, curY, width, height);
+		Screen.DrawLineFrame(0xCC404040, indent, curY, width, height, CleanXFac_1);
+
+		curY += yPad;
+		int top = curY;
+		int curX = indent + xPad;
+
+		let [cx, cy, cw, ch] = Screen.GetClipRect();
+		Screen.SetClipRect(curX, curY, width - xPad * 2, height - yPad * 2);
+
+		curY -= int(textHeight * mOptionValueTooltipScrollOffset);
+		for (int i; i < bl.Count(); ++i)
+		{
+			Screen.DrawText(mTooltipFont, Font.CR_UNTRANSLATED, curX, curY, bl.StringAt(i), DTA_CleanNoMove_1, true);
+			curY += textHeight;
+		}
+
+		Screen.SetClipRect(cx, cy, cw, ch);
+
+		if (mOptionValueTooltipScrollOffset < maxOffset)
+		{
+			int xPos = indent + width - mTooltipFont.StringWidth(".") * CleanXFac_1;
+			int yPos = top - textHeight / 2;
+			for (int i = 0; i < 3; ++i)
+				Screen.DrawText(mTooltipFont, Font.CR_UNTRANSLATED, xPos, yPos + textHeight / 3 * i, ".", DTA_CleanNoMove_1, true);
+		}
+	}
 
 	//=============================================================================
 	//
@@ -177,17 +336,17 @@ class OptionMenu : Menu
 	//
 	//=============================================================================
 
-	int FirstSelectable()
+	int FirstSelectable(int start = -1)
 	{
 		// Go down to the first selectable item
-		int i = -1;
+		int i = start;
 		do
 		{
 			i++;
 		}
 		while (i < mDesc.mItems.Size() && !(mDesc.mItems[i].Selectable() && mDesc.mItems[i].Visible()));
 		if (i>=0 && i < mDesc.mItems.Size()) return i;
-		else return -1;
+		else return start;
 	}
 
 	//=============================================================================
@@ -281,6 +440,7 @@ class OptionMenu : Menu
 				if (firstLabelCharacter == key)
 				{
 					mDesc.mSelectedItem = index;
+					UpdateTooltip(GetSelectedTooltip());
 					break;
 				}
 			}
@@ -322,6 +482,7 @@ class OptionMenu : Menu
 				mDesc.mSelectedItem = FirstSelectable();
 			}
 
+			UpdateTooltip(GetSelectedTooltip());
 			return mDesc.mSelectedItem - startedAt;
 		}
 
@@ -453,7 +614,9 @@ class OptionMenu : Menu
 					while (visibleLinesToScroll < visibleLinesJumped && newScrollPos < mDesc.mItems.Size() - 1)
 					{
 						newScrollPos++;
-						if ((newScrollPos + mDesc.mScrollTop) < mDesc.mItems.Size() && mDesc.mItems[newScrollPos + mDesc.mScrollTop].Visible())
+
+						int tempIndex = newScrollPos + mDesc.mScrollTop;
+						if (tempIndex >= 0 && tempIndex < mDesc.mItems.Size() && mDesc.mItems[tempIndex].Visible())
 						{
 							visibleLinesToScroll++;
 						}
@@ -463,6 +626,7 @@ class OptionMenu : Menu
 			}
 		}
 
+		UpdateTooltip(GetSelectedTooltip());
 		return mDesc.mSelectedItem - startedAt;
 	}
 
@@ -560,6 +724,7 @@ class OptionMenu : Menu
 			}
 		}
 
+		UpdateTooltip(GetSelectedTooltip());
 		return mDesc.mSelectedItem - startedAt;
 	}
 
@@ -670,7 +835,7 @@ class OptionMenu : Menu
 						if (i != mDesc.mSelectedItem)
 						{
 							mDesc.mSelectedItem = i;
-
+							UpdateTooltip(GetSelectedTooltip());
 							if (HoverSound) MenuSound ("menu/cursor");
 						}
 						mDesc.mItems[i].MouseEvent(type, x, y);
@@ -685,6 +850,7 @@ class OptionMenu : Menu
 		}
 
 		mDesc.mSelectedItem = -1;
+		UpdateTooltip("");
 		return Super.MouseEvent(type, x, y);
 	}
 
@@ -756,8 +922,13 @@ class OptionMenu : Menu
 
 		int indent = GetIndent();
 
+		ScreenArea box;
+		GetTooltipArea(box);
+		if (!DrawTooltips)
+			box.y = Screen.GetHeight();
+
 		int ytop = y + mDesc.mScrollTop * 8 * CleanYfac_1;
-		LastRow = screen.GetHeight() - OptionHeight() * CleanYfac_1;
+		LastRow = box.y - OptionHeight() * CleanYfac_1;
 		int rowheight = OptionMenuSettings.mLinespacing * CleanYfac_1 + 1;
 
 		int _MaxItems = (LastRow - y) / rowheight + 1;
@@ -765,6 +936,8 @@ class OptionMenu : Menu
 		MaxItems = _MaxItems;
 		if (resized) ClampCursor();
 
+		int hover = -1;
+		int hoverY;
 		int i;
 		int lastDrawnItemIndex = -1;
 		for (i = 0; i < mDesc.mItems.Size() && y <= LastRow; i++)
@@ -788,13 +961,18 @@ class OptionMenu : Menu
 			int cur_indent = mDesc.mItems[i].Draw(mDesc, y, indent, isSelected);
 			if (cur_indent >= 0 && isSelected && mDesc.mItems[i].Selectable() && mDesc.mItems[i].Visible())
 			{
+				if (GetCurrentMenu() == self)
+				{
+					hover = i;
+					hoverY = y;
+				}
 				if (((MenuTime() % 8) < 6) || GetCurrentMenu() != self)
 				{
 					DrawOptionText(cur_indent + 3 * CleanXfac_1, y, OptionMenuSettings.mFontColorSelection, "◄");
 				}
 			}
 
-			y += rowheight;
+			y += fontheight;
 		}
 
 		lastVisible = LastVisibleItem();
@@ -811,6 +989,10 @@ class OptionMenu : Menu
 		if (drawCanScrollDown)
 		{
 			DrawOptionText(screen.GetWidth() - 11 * CleanXfac_1 , y - 8*CleanYfac_1, OptionMenuSettings.mFontColorSelection, "▼");
+		}
+		if (hover >= 0)
+		{
+			DrawHoverTooltip(OptionMenuItemOptionBase(mDesc.mItems[hover]), indent + mDesc.mItems[hover].CursorSpace(), hoverY, box.y);
 		}
 
 		Super.Drawer();

@@ -20,10 +20,10 @@ class Game : SDLActivity() {
         "hidapi",
         "saffal",
         "openal",
-        "zmusic_g4d",
+        "zmusic_uz",
         "touchcontrols",
         "SDL2",
-        "gzdoom",
+        "uzdoom",
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

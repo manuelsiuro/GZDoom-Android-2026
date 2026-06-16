@@ -41,6 +41,8 @@ LOCAL_SRC_FILES =  	\
     gme/Nes_Namco_Apu.cpp \
     gme/Nes_Oscs.cpp \
     gme/Nes_Vrc6_Apu.cpp \
+    gme/Nes_Vrc7_Apu.cpp \
+    gme/Nes_Fds_Apu.cpp \
     gme/Nsf_Emu.cpp \
     gme/Nsfe_Emu.cpp \
     gme/Sap_Apu.cpp \
@@ -51,11 +53,13 @@ LOCAL_SRC_FILES =  	\
     gme/Spc_Cpu.cpp \
     gme/Spc_Dsp.cpp \
     gme/Spc_Emu.cpp \
-      gme/Spc_Filter.cpp \
+    gme/Spc_Filter.cpp \
     gme/Vgm_Emu.cpp \
     gme/Vgm_Emu_Impl.cpp \
     gme/Ym2413_Emu.cpp \
     gme/Ym2612_GENS.cpp \
+    gme/ext/emu2413.c \
+    gme/ext/panning.c \
 
 LOCAL_CFLAGS += -fvisibility=hidden -fdata-sections -ffunction-sections
 

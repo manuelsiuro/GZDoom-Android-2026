@@ -1,33 +1,22 @@
 /*
 ** p_acs.cpp
+**
 ** General BEHAVIOR management and ACS execution environment
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2012 Randy Heit
-** All rights reserved.
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 ** This code at one time made lots of little-endian assumptions.
@@ -64,6 +53,7 @@
 #include "p_spec.h"
 #include "p_terrain.h"
 #include "po_man.h"
+#include "printf.h"
 #include "r_sky.h"
 #include "r_utility.h"
 #include "s_music.h"
@@ -78,6 +68,7 @@
 #include "types.h"
 #include "v_video.h"
 #include "version.h"
+#include "dobjgc.h"
 
 	// P-codes for ACS scripts
 	enum
@@ -652,15 +643,6 @@ struct CallReturn
 	unsigned int EntryInstrCount;
 };
 
-// Only objects owned by the client are allowed to call client-side scripts. These same scripts must be ignored from
-// objects belonging to other clients since the nature of them calling after the client is backed up will be as though
-// they were never called at all. For things with no activator, assume it's from a frontend script and the modder knows
-// what they're doing.
-static bool CanCreateClientSideScripts(const AActor* activator)
-{
-	return activator == nullptr || activator->IsClientside() || (activator->player != nullptr && activator->player->mo == activator);
-}
-
 static AActor* GetScriptOwner(AActor& activator)
 {
 	return activator.player != nullptr ? activator.player->mo : &activator;
@@ -668,19 +650,16 @@ static AActor* GetScriptOwner(AActor& activator)
 
 static bool ShouldIgnoreClientSideScript(AActor* activator)
 {
-	if (activator == nullptr || activator->IsClientside())
+	if (activator == nullptr || activator->IsClientSide())
 		return false;
 
 	AActor* owner = GetScriptOwner(*activator);
 	return !owner->Level->isConsolePlayer(owner);
 }
 
-// Even if it's marked as such, don't allow things that don't belong to clients to be called locally. Treat
-// them like server calls (in the future they may be ignored entirely since a proper ownership system is
-// preferred).
-static bool IsClientSideScript(const AActor* activator, const ScriptPtr& script)
+static bool IsClientSideScript(const ScriptPtr& script)
 {
-	return (script.Flags & SCRIPTF_ClientSide) && CanCreateClientSideScripts(activator);
+	return (script.Flags & SCRIPTF_ClientSide);
 }
 
 class DLevelScript : public DObject
@@ -764,6 +743,11 @@ protected:
 		{
 			Builder = "";
 		}
+	}
+
+	FActorIterator GetActorIterator(int tid) const
+	{
+		return bClientSide ? Level->GetClientSideActorIterator(tid) : Level->GetActorIterator(tid);
 	}
 
 	DACSThinker* GetController() const;
@@ -4134,7 +4118,7 @@ void DLevelScript::SetActorProperty (int tid, int property, int value)
 	else
 	{
 		AActor *actor;
-		auto iterator = Level->GetActorIterator(tid);
+		auto iterator = GetActorIterator(tid);
 
 		while ((actor = iterator.Next()) != NULL)
 		{
@@ -4298,7 +4282,7 @@ void DLevelScript::DoSetActorProperty (AActor *actor, int property, int value)
 
 	case APROP_MasterTID:
 		AActor *other;
-		other = Level->SingleActorFromTID (value, NULL);
+		other = Level->SingleActorFromTID (value, bClientSide, NULL);
 		DoSetMaster (actor, other);
 		break;
 
@@ -4387,7 +4371,7 @@ void DLevelScript::DoSetActorProperty (AActor *actor, int property, int value)
 
 int DLevelScript::GetActorProperty (int tid, int property)
 {
-	AActor *actor = Level->SingleActorFromTID (tid, activator);
+	AActor *actor = Level->SingleActorFromTID (tid, bClientSide, activator);
 
 	if (actor == NULL)
 	{
@@ -4488,7 +4472,7 @@ int DLevelScript::GetActorProperty (int tid, int property)
 
 int DLevelScript::CheckActorProperty (int tid, int property, int value)
 {
-	AActor *actor = Level->SingleActorFromTID (tid, activator);
+	AActor *actor = Level->SingleActorFromTID (tid, bClientSide, activator);
 	const char *string = NULL;
 	if (actor == NULL)
 	{
@@ -4562,7 +4546,7 @@ int DLevelScript::CheckActorProperty (int tid, int property, int value)
 
 bool DLevelScript::DoCheckActorTexture(int tid, AActor *activator, int string, bool floor)
 {
-	AActor *actor = Level->SingleActorFromTID(tid, activator);
+	AActor *actor = Level->SingleActorFromTID(tid, bClientSide, activator);
 	if (actor == NULL)
 	{
 		return 0;
@@ -4650,7 +4634,7 @@ int DLevelScript::DoClassifyActor(int tid)
 	}
 	else
 	{
-		auto it = Level->GetActorIterator(tid);
+		auto it = GetActorIterator(tid);
 		actor = it.Next();
 	}
 	if (actor == NULL)
@@ -5142,7 +5126,7 @@ void DLevelScript::SetActorAngle(AActor *activator, int tid, int angle, bool int
 	}
 	else
 	{
-		auto iterator = Level->GetActorIterator(tid);
+		auto iterator = GetActorIterator(tid);
 		AActor *actor;
 
 		while ((actor = iterator.Next()))
@@ -5164,7 +5148,7 @@ void DLevelScript::SetActorPitch(AActor *activator, int tid, int angle, bool int
 	}
 	else
 	{
-		auto iterator = Level->GetActorIterator(tid);
+		auto iterator = GetActorIterator(tid);
 		AActor *actor;
 
 		while ((actor = iterator.Next()))
@@ -5186,7 +5170,7 @@ void DLevelScript::SetActorRoll(AActor *activator, int tid, int angle, bool inte
 	}
 	else
 	{
-		auto iterator = Level->GetActorIterator(tid);
+		auto iterator = GetActorIterator(tid);
 		AActor *actor;
 
 		while ((actor = iterator.Next()))
@@ -5213,7 +5197,7 @@ void DLevelScript::SetActorTeleFog(AActor *activator, int tid, FString telefogsr
 	}
 	else
 	{
-		auto iterator = Level->GetActorIterator(tid);
+		auto iterator = GetActorIterator(tid);
 		AActor *actor;
 
 		PClassActor * src = PClass::FindActor(telefogsrc);
@@ -5241,7 +5225,7 @@ int DLevelScript::SwapActorTeleFog(AActor *activator, int tid)
 	}
 	else
 	{
-		auto iterator = Level->GetActorIterator(tid);
+		auto iterator = GetActorIterator(tid);
 		AActor *actor;
 		
 		while ((actor = iterator.Next()))
@@ -5430,34 +5414,34 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 
 		case ACSF_GetActorVelX:
 			MIN_ARG_COUNT(1);
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			return actor != NULL? DoubleToACS(actor->Vel.X) : 0;
 
 		case ACSF_GetActorVelY:
 			MIN_ARG_COUNT(1);
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			return actor != NULL? DoubleToACS(actor->Vel.Y) : 0;
 
 		case ACSF_GetActorVelZ:
 			MIN_ARG_COUNT(1);
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			return actor != NULL? DoubleToACS(actor->Vel.Z) : 0;
 
 		case ACSF_GetNetID:
 			MIN_ARG_COUNT(2);
-			actor = Level->SelectActorFromTID(args[0], args[1], activator);
+			actor = Level->SelectActorFromTID(args[0], args[1], bClientSide, activator);
 			if (argCount > 2)
-				actor = COPY_AAPTREX(Level, actor, args[2]);
+				actor = COPY_AAPTREX(Level, actor, args[2], static_cast<EPTRClientSideState>(bClientSide));
 			return actor != nullptr ? actor->GetNetworkID() : NetworkEntityManager::WorldNetID;
 
 		case ACSF_SetPointer:
 			MIN_ARG_COUNT(2);
 			if (activator)
 			{
-				AActor *ptr = Level->SingleActorFromTID(args[1], activator);
+				AActor *ptr = Level->SingleActorFromTID(args[1], bClientSide, activator);
 				if (argCount > 2)
 				{
-					ptr = COPY_AAPTREX(Level, ptr, args[2]);
+					ptr = COPY_AAPTREX(Level, ptr, args[2], static_cast<EPTRClientSideState>(bClientSide));
 				}
 				if (ptr == activator) ptr = NULL;
 				ASSIGN_AAPTR(activator, args[0], ptr, (argCount > 3) ? args[3] : 0);
@@ -5469,18 +5453,18 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 			MIN_ARG_COUNT(1);
 			if (argCount > 1 && args[1] != AAPTR_DEFAULT) // condition (x != AAPTR_DEFAULT) is essentially condition (x).
 			{
-				activator = COPY_AAPTREX(Level, Level->SingleActorFromTID(args[0], activator), args[1]);
+				activator = COPY_AAPTREX(Level, Level->SingleActorFromTID(args[0], bClientSide, activator), args[1], static_cast<EPTRClientSideState>(bClientSide));
 			}
 			else
 			{
-				activator = Level->SingleActorFromTID(args[0], NULL);
+				activator = Level->SingleActorFromTID(args[0], bClientSide, NULL);
 			}
 			return activator != NULL;
 		
 		case ACSF_SetActivatorToTarget:
 			MIN_ARG_COUNT(1);
 			// [KS] I revised this a little bit
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			if (actor != NULL)
 			{
 				if (actor->player != NULL && actor->player->playerstate == PST_LIVE)
@@ -5505,7 +5489,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 			MIN_ARG_COUNT(1);
 			actor = dyn_cast<AActor>(NetworkEntityManager::GetNetworkEntity(args[0]));
 			if (argCount > 1)
-				actor = COPY_AAPTREX(Level, actor, args[1]);
+				actor = COPY_AAPTREX(Level, actor, args[1], static_cast<EPTRClientSideState>(bClientSide));
 			if (actor != nullptr)
 			{
 				activator = actor;
@@ -5515,7 +5499,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 
 		case ACSF_GetActorViewHeight:
 			MIN_ARG_COUNT(1);
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			if (actor != NULL)
 			{
 				if (actor->player != NULL)
@@ -5653,7 +5637,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 			}
 			else
 			{
-				auto iterator = Level->GetActorIterator(args[0]);
+				auto iterator = GetActorIterator(args[0]);
 
 				while ((actor = iterator.Next()))
 				{
@@ -5680,7 +5664,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 				}
 				else
 				{
-					auto iterator = Level->GetActorIterator(args[0]);
+					auto iterator = GetActorIterator(args[0]);
 	                
 					while ( (actor = iterator.Next()) )
 					{
@@ -5698,7 +5682,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 			FName varname(Level->Behaviors.LookupString(args[1]), true);
 			if (varname != NAME_None)
 			{
-				AActor *a = Level->SingleActorFromTID(args[0], activator); 
+				AActor *a = Level->SingleActorFromTID(args[0], bClientSide, activator); 
 				return a != NULL ? GetUserVariable(a, varname, 0) : 0;
 			}
 			return 0;
@@ -5721,7 +5705,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 				}
 				else
 				{
-					auto iterator = Level->GetActorIterator(args[0]);
+					auto iterator = GetActorIterator(args[0]);
 	                
 					while ( (actor = iterator.Next()) )
 					{
@@ -5739,7 +5723,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 			FName varname(Level->Behaviors.LookupString(args[1]), true);
 			if (varname != NAME_None)
 			{
-				AActor *a = Level->SingleActorFromTID(args[0], activator); 
+				AActor *a = Level->SingleActorFromTID(args[0], bClientSide, activator); 
 				return a != NULL ? GetUserVariable(a, varname, args[2]) : 0;
 			}
 			return 0;
@@ -5753,14 +5737,14 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 		case ACSF_CheckActorClass:
 			MIN_ARG_COUNT(2);
 		{
-			AActor *a = Level->SingleActorFromTID(args[0], activator);
+			AActor *a = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			return a == NULL ? false : a->GetClass()->TypeName == FName(Level->Behaviors.LookupString(args[1]));
 		}
 
 		case ACSF_GetActorClass:
 			MIN_ARG_COUNT(1);
 		{
-			AActor *a = Level->SingleActorFromTID(args[0], activator);
+			AActor *a = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			return GlobalACSStrings.AddString(a == NULL ? "None" : a->GetClass()->TypeName.GetChars());
 		}
 
@@ -5916,11 +5900,11 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args, int &
 			break;
 
 		case ACSF_UniqueTID:
-			return Level->FindUniqueTID(argCount > 0 ? args[0] : 0, (argCount > 1 && args[1] >= 0) ? args[1] : 0, false);
+			return Level->FindUniqueTID(argCount > 0 ? args[0] : 0, (argCount > 1 && args[1] >= 0) ? args[1] : 0, bClientSide);
 
 		case ACSF_IsTIDUsed:
 			MIN_ARG_COUNT(1);
-			return Level->IsTIDUsed(args[0], false);
+			return Level->IsTIDUsed(args[0], bClientSide);
 
 		case ACSF_Sqrt:
 			MIN_ARG_COUNT(1);
@@ -6258,7 +6242,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 				}
 				else
 				{
-					auto it = Level->GetActorIterator(args[0]);
+					auto it = GetActorIterator(args[0]);
 					AActor *actor;
 
 					while ((actor = it.Next()) != NULL)
@@ -6293,7 +6277,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 				}
 				else
 				{
-					auto it = Level->GetActorIterator(args[0]);
+					auto it = GetActorIterator(args[0]);
 					AActor *actor;
 					
 					while ((actor = it.Next()) != NULL)
@@ -6312,7 +6296,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 		case ACSF_CheckFlag:
 			MIN_ARG_COUNT(2);
 		{
-			AActor *actor = Level->SingleActorFromTID(args[0], activator);
+			AActor *actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			if (actor != NULL)
 			{
 				return !!CheckActorFlag(actor, Level->Behaviors.LookupString(args[1]));
@@ -6370,7 +6354,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 					return 0;
 				}
 
-				AActor *actor = Level->SingleActorFromTID(args[0], activator);
+				AActor *actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 				if (actor != NULL)
 				{
 					auto powerup = actor->FindInventory(powerupclass);
@@ -6403,7 +6387,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 		case ACSF_PickActor:
 			MIN_ARG_COUNT(5);
 			{
-				actor = Level->SingleActorFromTID(args[0], activator);
+				actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 				if (actor == NULL)
 				{
 					return 0;
@@ -6455,10 +6439,10 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 				case 3: tid1 = args[2];
 				}
 
-				actor = Level->SingleActorFromTID(tid1, activator);
-				AActor * actor2 = tid2 == tid1 ? actor : Level->SingleActorFromTID(tid2, activator);
+				actor = Level->SingleActorFromTID(tid1, bClientSide, activator);
+				AActor * actor2 = tid2 == tid1 ? actor : Level->SingleActorFromTID(tid2, bClientSide, activator);
 
-				return COPY_AAPTREX(Level, actor, args[0]) == COPY_AAPTREX(Level, actor2, args[1]);
+				return COPY_AAPTREX(Level, actor, args[0], static_cast<EPTRClientSideState>(bClientSide)) == COPY_AAPTREX(Level, actor2, args[1], static_cast<EPTRClientSideState>(bClientSide));
 			}
 			break;
 
@@ -6466,7 +6450,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			MIN_ARG_COUNT(1);
 			{
 				if (args[0] == 0) {
-					actor = Level->SingleActorFromTID(args[0], activator);
+					actor = Level->SingleActorFromTID(args[0], false, activator);
 					if (actor != NULL) {
 						return P_Thing_CanRaise(actor);
 					}
@@ -6496,7 +6480,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 
 		case ACSF_GetActorRoll:
 			MIN_ARG_COUNT(1);
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			return actor != NULL? AngleToACS(actor->Angles.Roll) : 0;
 		
 		// [ZK] A_Warp in ACS
@@ -6512,8 +6496,8 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			const int flags = args[5];
 			
 			AActor* const reference = ((flags & WARPF_USEPTR) && (AAPTR_DEFAULT != dest))
-				? COPY_AAPTREX(Level, activator, dest)
-				: Level->SingleActorFromTID(dest, activator);
+				? COPY_AAPTREX(Level, activator, dest, static_cast<EPTRClientSideState>(bClientSide))
+				: Level->SingleActorFromTID(dest, bClientSide, activator);
 
 			if (nullptr == reference)
 			{
@@ -6554,7 +6538,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 		}
 		case ACSF_GetMaxInventory:
 			MIN_ARG_COUNT(2);
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			if (actor != NULL)
 			{
 				return CheckInventory(actor, Level->Behaviors.LookupString(args[1]), true);
@@ -6636,19 +6620,19 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			MIN_ARG_COUNT(3);
 		{
 			// [zombie] ACS version of A_CheckProximity
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			PClass *classname = PClass::FindClass(Level->Behaviors.LookupString(args[1]));
 			double distance = ACSToDouble(args[2]);
 			int count = argCount >= 4 ? args[3] : 1;
 			int flags = argCount >= 5 ? args[4] : 0;
 			int ptr = argCount >= 6 ? args[5] : AAPTR_DEFAULT;
-			return P_Thing_CheckProximity(Level, actor, classname, distance, count, flags, ptr);
+			return P_Thing_CheckProximity(Level, actor, classname, distance, count, flags, ptr, false, static_cast<EPTRClientSideState>(bClientSide));
 		}
 
 		case ACSF_CheckActorState:
 			MIN_ARG_COUNT(2);
 		{
-			actor = Level->SingleActorFromTID(args[0], activator);
+			actor = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			const char *statename = Level->Behaviors.LookupString(args[1]);
 			bool exact = (argCount > 2) ? !!args[2] : false;
 			if (actor && statename)
@@ -6669,8 +6653,8 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			MIN_ARG_COUNT(6);
 		{
 			// (target, ptr_select1, inflictor, ptr_select2, amount, damagetype)
-			AActor* target = COPY_AAPTREX(Level, Level->SingleActorFromTID(args[0], activator), args[1]);
-			AActor* inflictor = COPY_AAPTREX(Level, Level->SingleActorFromTID(args[2], activator), args[3]);
+			AActor *target = COPY_AAPTREX(Level, Level->SingleActorFromTID(args[0], bClientSide, activator), args[1], static_cast<EPTRClientSideState>(bClientSide));
+			AActor* inflictor = COPY_AAPTREX(Level, Level->SingleActorFromTID(args[2], bClientSide, activator), args[3], static_cast<EPTRClientSideState>(bClientSide));
 			FName damagetype(Level->Behaviors.LookupString(args[5]));
 			return P_DamageMobj(target, inflictor, inflictor, args[4], damagetype);
 		}
@@ -6691,7 +6675,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			}
 			else
 			{
-				auto it = Level->GetActorIterator(tid);
+				auto it = GetActorIterator(tid);
 				while ((actor = it.Next()) != nullptr)
 				{
 					// Don't log errors when affecting many actors because things might share a TID but not share the flag
@@ -6716,7 +6700,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			}
 			else
 			{
-				auto it = Level->GetActorIterator(tid);
+				auto it = GetActorIterator(tid);
 				while ((actor = it.Next()) != nullptr)
 				{
 					actor->SetTranslation(trname);
@@ -6760,7 +6744,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 		case ACSF_GetActorFloorTexture:
 			MIN_ARG_COUNT(1);
 		{
-			auto a = Level->SingleActorFromTID(args[0], activator);
+			auto a = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			if (a != nullptr)
 			{
 				return GlobalACSStrings.AddString(TexMan.GetGameTexture(a->floorpic)->GetName().GetChars());
@@ -6775,7 +6759,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 		case ACSF_GetActorFloorTerrain:
 			MIN_ARG_COUNT(1);
 		{
-			auto a = Level->SingleActorFromTID(args[0], activator);
+			auto a = Level->SingleActorFromTID(args[0], bClientSide, activator);
 			if (a != nullptr)
 			{
 				return GlobalACSStrings.AddString(Terrains[a->floorterrain].Name.GetChars());
@@ -6966,13 +6950,14 @@ int DLevelScript::RunScript()
 	ACSLocalArrays noarrays;
 	ACSLocalArrays *localarrays = &noarrays;
 	ScriptFunction *activeFunction = NULL;
+	ScriptPtr *ptr = nullptr;
 	FRemapTable *translation = 0;
 	int resultValue = 1;
 	int transi = -1;
 
 	if (InModuleScriptNumber >= 0)
 	{
-		ScriptPtr *ptr = activeBehavior->GetScriptPtr(InModuleScriptNumber);
+		ptr = activeBehavior->GetScriptPtr(InModuleScriptNumber);
 		assert(ptr != NULL);
 		if (ptr != NULL)
 		{
@@ -7053,7 +7038,7 @@ int DLevelScript::RunScript()
 
 	while (state == SCRIPT_Running)
 	{
-		if (++runaway > 2000000)
+		if ( ptr && !(ptr->Flags & SCRIPTF_Busy) && (++runaway > 2000000) )
 		{
 			Printf ("Runaway %s terminated\n", ScriptPresentation(script).GetChars());
 			state = SCRIPT_PleaseRemove;
@@ -8922,7 +8907,7 @@ scriptwait:
 					if (type & HUDMSG_LOG)
 					{
 						int consolecolor = color >= CR_BRICK && color < NUM_TEXT_COLORS && color != CR_UNTRANSLATED ? color + 'A' : '-';
-						Printf(PRINT_HIGH | PRINT_NONOTIFY, "\n" TEXTCOLOR_ESCAPESTR "%c%s\n%s\n%s\n", consolecolor, console_bar, work.GetChars(), console_bar);
+						Printf(PRINT_NONOTIFY, "\n" TEXTCOLOR_ESCAPESTR "%c%s\n%s\n%s\n", consolecolor, console_bar, work.GetChars(), console_bar);
 					}
 				}
 			}
@@ -9207,7 +9192,7 @@ scriptwait:
 
 				if (STACK(7) != 0)
 				{
-					auto iterator = Level->GetActorIterator(STACK(7));
+					auto iterator = GetActorIterator(STACK(7));
 					AActor *actor;
 
 					while ( (actor = iterator.Next ()) )
@@ -9322,7 +9307,7 @@ scriptwait:
 			}
 			else
 			{
-				auto it = Level->GetActorIterator(STACK(1));
+				auto it = GetActorIterator(STACK(1));
 				AActor *actor;
 				for (actor = it.Next(); actor != NULL; actor = it.Next())
 				{
@@ -9350,7 +9335,7 @@ scriptwait:
 			}
 			else
 			{
-				auto it = Level->GetActorIterator(STACK(3));
+				auto it = GetActorIterator(STACK(3));
 				AActor *actor;
 				for (actor = it.Next(); actor != NULL; actor = it.Next())
 				{
@@ -9387,7 +9372,7 @@ scriptwait:
 			}
 			else
 			{
-				auto it = Level->GetActorIterator(STACK(3));
+				auto it = GetActorIterator(STACK(3));
 				AActor *actor;
 				for (actor = it.Next(); actor != NULL; actor = it.Next())
 				{
@@ -9411,7 +9396,7 @@ scriptwait:
 			break;
 
 		case PCD_CHECKACTORINVENTORY:
-			STACK(2) = CheckInventory (Level->SingleActorFromTID(STACK(2), NULL),
+			STACK(2) = CheckInventory (Level->SingleActorFromTID(STACK(2), bClientSide, NULL),
 										Level->Behaviors.LookupString (STACK(1)), false);
 			sp--;
 			break;
@@ -9435,7 +9420,7 @@ scriptwait:
 				}
 				else
 				{
-					auto it = Level->GetActorIterator(STACK(2));
+					auto it = GetActorIterator(STACK(2));
 					AActor *actor;
 					for (actor = it.Next(); actor != NULL; actor = it.Next())
 					{
@@ -9575,7 +9560,7 @@ scriptwait:
 		case PCD_SETACTORPOSITION:
 			{
 				bool result = false;
-				AActor *actor = Level->SingleActorFromTID (STACK(5), activator);
+				AActor *actor = Level->SingleActorFromTID (STACK(5), bClientSide, activator);
 				if (actor != NULL)
 					result = P_MoveThing(actor, DVector3(ACSToDouble(STACK(4)), ACSToDouble(STACK(3)), ACSToDouble(STACK(2))), !!STACK(1));
 				sp -= 4;
@@ -9587,7 +9572,7 @@ scriptwait:
 		case PCD_GETACTORY:
 		case PCD_GETACTORZ:
 			{
-				AActor *actor = Level->SingleActorFromTID(STACK(1), activator);
+				AActor *actor = Level->SingleActorFromTID(STACK(1), bClientSide, activator);
 				if (actor == NULL)
 				{
 					STACK(1) = 0;
@@ -9605,28 +9590,28 @@ scriptwait:
 
 		case PCD_GETACTORFLOORZ:
 			{
-				AActor *actor = Level->SingleActorFromTID(STACK(1), activator);
+				AActor *actor = Level->SingleActorFromTID(STACK(1), bClientSide, activator);
 				STACK(1) = actor == NULL ? 0 : DoubleToACS(actor->floorz);
 			}
 			break;
 
 		case PCD_GETACTORCEILINGZ:
 			{
-				AActor *actor = Level->SingleActorFromTID(STACK(1), activator);
+				AActor *actor = Level->SingleActorFromTID(STACK(1), bClientSide, activator);
 				STACK(1) = actor == NULL ? 0 : DoubleToACS(actor->ceilingz);
 			}
 			break;
 
 		case PCD_GETACTORANGLE:
 			{
-				AActor *actor = Level->SingleActorFromTID(STACK(1), activator);
+				AActor *actor = Level->SingleActorFromTID(STACK(1), bClientSide, activator);
 				STACK(1) = actor == NULL ? 0 : AngleToACS(actor->Angles.Yaw);
 			}
 			break;
 
 		case PCD_GETACTORPITCH:
 			{
-				AActor *actor = Level->SingleActorFromTID(STACK(1), activator);
+				AActor *actor = Level->SingleActorFromTID(STACK(1), bClientSide, activator);
 				STACK(1) = actor == NULL ? 0 : PitchToACS(actor->Angles.Pitch);
 			}
 			break;
@@ -10060,7 +10045,7 @@ scriptwait:
 				}
 				else
 				{
-					auto iterator = Level->GetActorIterator(STACK(3));
+					auto iterator = GetActorIterator(STACK(3));
 					AActor *actor;
 					int count = 0;
 
@@ -10156,7 +10141,7 @@ scriptwait:
 
 		case PCD_GETACTORLIGHTLEVEL:
 		{
-			AActor *actor = Level->SingleActorFromTID(STACK(1), activator);
+			AActor *actor = Level->SingleActorFromTID(STACK(1), bClientSide, activator);
 			if (actor != NULL)
 			{
 				sector_t *sector = actor->Sector;
@@ -10233,7 +10218,7 @@ scriptwait:
 				}
 				else
 				{
-					auto iterator = Level->GetActorIterator(tag);
+					auto iterator = GetActorIterator(tag);
 					TArray<AActor*> actorsToMorph;
 
 					while (AActor *actor = iterator.Next())
@@ -10264,7 +10249,7 @@ scriptwait:
 				}
 				else
 				{
-					auto iterator = Level->GetActorIterator(tag);
+					auto iterator = GetActorIterator(tag);
 					TArray<AActor*> actorsToUnmorph;
 
 					while (AActor *actor = iterator.Next())
@@ -10453,7 +10438,7 @@ static DLevelScript *P_GetScriptGoing (FLevelLocals *l, AActor *who, line_t *whe
 {
 	// Intentionally not checking netgame status here as this should be consistent between singleplayer
 	// and multiplayer (this is how it will work should client/server ever get in, so force it now).
-	const bool clientside = IsClientSideScript(who, *code);
+	const bool clientside = IsClientSideScript(*code);
 	if (clientside && ShouldIgnoreClientSideScript(who))
 		return nullptr;
 
@@ -10481,7 +10466,7 @@ DLevelScript::DLevelScript (FLevelLocals *l, AActor *who, line_t *where, int num
 	if (clientside)
 	{
 		if (Level->ClientSideACSThinker == nullptr)
-			Level->ClientSideACSThinker = Level->CreateClientsideThinker<DACSThinker>();
+			Level->ClientSideACSThinker = Level->CreateClientSideThinker<DACSThinker>();
 
 		bClientSide = true;
 	}
@@ -10638,7 +10623,7 @@ int P_StartScript (FLevelLocals *Level, AActor *who, line_t *where, int script, 
 				{
 					Printf(PRINT_BOLD, "Non-net scripts are currently not requestable\n");
 				}
-				else if (consoleplayer == Net_Arbitrator && !IsClientSideScript(who, *scriptdata))
+				else if (consoleplayer == Net_Arbitrator && !IsClientSideScript(*scriptdata))
 				{
 					Printf(PRINT_BOLD, "%s tried to puke %s (\n",
 						who->player->userinfo.GetName(), ScriptPresentation(script).GetChars());
@@ -11020,4 +11005,16 @@ CCMD(acsprofile)
 ADD_STAT(ACS)
 {
 	return FStringf("ACS time: %f ms", ACSTime.TimeMS());
+}
+
+
+size_t DACSThinker::PropagateMark()
+{
+	TMapIterator<int, DLevelScript*> it(RunningScripts);
+	ScriptMap::Pair * pair;
+	while(it.NextPair(pair))
+	{
+		GC::Mark((DObject*&)pair->Value);
+	}
+	return Super::PropagateMark();
 }

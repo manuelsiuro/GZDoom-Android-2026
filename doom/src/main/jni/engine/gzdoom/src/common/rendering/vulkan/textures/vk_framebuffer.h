@@ -1,9 +1,31 @@
+/*
+** vk_framebuffer.h
+**
+** Vulkan backend
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2016-2020 Magnus Norddahl
+**
+** SPDX-License-Identifier: Zlib
+**
+**---------------------------------------------------------------------------
+**
+*/
 
 #pragma once
 
 #include "zvulkan/vulkanobjects.h"
 #include <array>
 #include <map>
+#include <vector>
 
 class VulkanRenderDevice;
 enum class PPFilterMode;
@@ -24,7 +46,7 @@ public:
 	int PresentImageIndex = -1;
 
 	std::unique_ptr<VulkanSemaphore> SwapChainImageAvailableSemaphore;
-	std::unique_ptr<VulkanSemaphore> RenderFinishedSemaphore;
+	std::vector<std::unique_ptr<VulkanSemaphore>> RenderFinishedSemaphores;
 
 private:
 	VulkanRenderDevice* fb = nullptr;

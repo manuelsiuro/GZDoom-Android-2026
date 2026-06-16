@@ -8,7 +8,7 @@ LOCAL_MODULE    := xmp_zmd
 
 LOCAL_CFLAGS := -frtti -Wall -Wextra -Wno-unused-parameter -fomit-frame-pointer -fsigned-char -DHAVE_POWF=1 -DLIBXMP_STATIC=1 -DLIBXMP_NO_PROWIZARD=1 -DLIBXMP_NO_DEPACKERS=1
 
-LOCAL_C_INCLUDES :=  $(LOCAL_PATH)/include  $(LOCAL_PATH)/src
+LOCAL_C_INCLUDES :=  $(LOCAL_PATH)/include  $(LOCAL_PATH)/src $(LOCAL_PATH)/../../../miniz
 
 LOCAL_SRC_FILES =  	\
     src/virtual.c \
@@ -20,6 +20,7 @@ LOCAL_SRC_FILES =  	\
     src/misc.c \
     src/mkstemp.c \
     src/md5.c \
+    src/rng.c \
     src/lfo.c \
     src/scan.c \
     src/control.c \
@@ -40,6 +41,7 @@ LOCAL_SRC_FILES =  	\
     src/tempfile.c \
     src/mix_paula.c \
     src/win32.c \
+    src/flow.c \
     src/loaders/common.c \
     src/loaders/iff.c \
     src/loaders/itsex.c \

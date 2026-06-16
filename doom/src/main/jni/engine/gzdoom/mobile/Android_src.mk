@@ -5,22 +5,19 @@ include $(CLEAR_VARS)
 
 #LOCAL_SHORT_COMMANDS := true
 
-LOCAL_MODULE    := gzdoom
+LOCAL_MODULE    := uzdoom
 
-LOCAL_CFLAGS   := -DNO_CLOCK_GETTIME -DUSE_GL_HW_BUFFERS -fvisibility=hidden  -D__MOBILE__  -DOPNMIDI_DISABLE_GX_EMULATOR -DGZDOOM  -DGZDOOM_GL3 -DGZDOOM_DEV_DEV -DNO_DEBUG_SERVER -D__STDINT_LIMITS -DENGINE_NAME=\"gzdoom_dev\" -DHAVE_VULKAN
+LOCAL_CFLAGS   := -DNO_CLOCK_GETTIME -DUSE_GL_HW_BUFFERS -fvisibility=hidden  -D__MOBILE__  -DOPNMIDI_DISABLE_GX_EMULATOR -DGZDOOM  -DGZDOOM_GL3 -DUZDOOM -DNO_DEBUG_SERVER -D__STDINT_LIMITS -DENGINE_NAME=\"uzdoom\" -DHAVE_VULKAN
 
-LOCAL_CPPFLAGS := -include g_pch.h -DHAVE_GLES2 -DHAVE_FLUIDSYNTH -DHAVE_MPG123 -DHAVE_SNDFILE -std=c++17 -Wno-inconsistent-missing-override -Werror=format-security  -fexceptions -fpermissive -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp -frtti -D__forceinline=inline -DNO_GTK -DNO_SSE -fsigned-char
+LOCAL_CPPFLAGS := -include g_pch.h -DHAVE_GLES2 -DHAVE_FLUIDSYNTH -DHAVE_MPG123 -DHAVE_SNDFILE -std=c++20 -Wno-inconsistent-missing-override -Werror=format-security  -fexceptions -fpermissive -Dstricmp=strcasecmp -Dstrnicmp=strncasecmp -frtti -D__forceinline=inline -DNO_GTK -DNO_SSE -fsigned-char
 
 LOCAL_CFLAGS  += -DNO_SEND_STATS -DMINIZ_NO_STDIO
-
-# This branch's g_game.cpp calls Mobile_IN_Move(usercmd_t*); the Clibs glue
-# selects that signature behind UZDOOM (emileb's 4.15+/UZDoom variant).
-LOCAL_CPPFLAGS += -DUZDOOM
 
 LOCAL_CFLAGS  += -DOPNMIDI_USE_LEGACY_EMULATOR
 LOCAL_CFLAGS  += -DADLMIDI_DISABLE_MUS_SUPPORT -DADLMIDI_DISABLE_XMI_SUPPORT -DADLMIDI_DISABLE_MIDI_SEQUENCER
 LOCAL_CFLAGS  += -DOPNMIDI_DISABLE_MUS_SUPPORT -DOPNMIDI_DISABLE_XMI_SUPPORT -DOPNMIDI_DISABLE_MIDI_SEQUENCER
 
+LOCAL_CFLAGS  += -DABSL_OPTION_USE_STD_RANGES=0
 LOCAL_C_INCLUDES := \
  $(TOP_DIR)/ \
  $(TOP_DIR)/AudioLibs_OpenTouch/fluidsynth-lite/include \
@@ -35,6 +32,7 @@ LOCAL_C_INCLUDES := \
     	$(GZDOOM_TOP_PATH)/src/common/models \
     	$(GZDOOM_TOP_PATH)/src/common/filesystem \
     	$(GZDOOM_TOP_PATH)/src/common/utility \
+    	$(GZDOOM_TOP_PATH)/src/utility \
     	$(GZDOOM_TOP_PATH)/src/common/cutscenes \
     	$(GZDOOM_TOP_PATH)/src/common/startscreen \
     	$(GZDOOM_TOP_PATH)/src/common/console \
@@ -99,6 +97,7 @@ LOCAL_C_INCLUDES := \
         $(GZDOOM_TOP_PATH)/libraries/ZVulkan/include \
         $(GZDOOM_TOP_PATH)/libraries/range_map/include \
         $(GZDOOM_TOP_PATH)/libraries/ZMusic/include \
+        $(GZDOOM_TOP_PATH)/libraries/abseil \
 \
  $(SDL_INCLUDE_PATHS) \
  $(TOP_DIR)/AudioLibs_OpenTouch/openal/include/AL \
@@ -215,6 +214,7 @@ PCH_SOURCES = \
 	d_net.cpp \
 	d_netinfo.cpp \
 	d_protocol.cpp \
+	d_steam.cpp \
 	doomstat.cpp \
 	g_cvars.cpp \
 	g_dumpinfo.cpp \
@@ -269,6 +269,7 @@ PCH_SOURCES = \
 	gamedata/p_terrain.cpp \
 	gamedata/statistics.cpp \
 	gamedata/teaminfo.cpp \
+	gamedata/doomfont.cpp \
 	playsim/mapthinkers/a_decalfx.cpp \
 	playsim/mapthinkers/a_doors.cpp \
 	playsim/mapthinkers/a_lightning.cpp \
@@ -395,7 +396,6 @@ PCH_SOURCES = \
 	common/2d/v_draw.cpp \
 	common/2d/wipe.cpp \
 	common/thirdparty/gain_analysis.cpp \
-	common/thirdparty/sfmt/SFMT.cpp \
 	common/thirdparty/utf8proc/utf8proc.c \
 	common/thirdparty/animlib.cpp \
 	common/startscreen/startscreen.cpp \
@@ -473,7 +473,6 @@ PCH_SOURCES = \
 	common/cutscenes/screenjob.cpp \
 	common/utility/engineerrors.cpp \
 	common/utility/i_module.cpp \
-	common/utility/gitinfo.cpp \
 	common/utility/m_alloc.cpp \
 	common/utility/utf8.cpp \
 	common/utility/palette.cpp \
@@ -483,7 +482,7 @@ PCH_SOURCES = \
 	common/utility/i_time.cpp \
 	common/utility/m_argv.cpp \
 	common/utility/s_playlist.cpp \
-	common/utility/name.cpp \
+	utility/name.cpp \
 	common/utility/r_memory.cpp \
 	common/utility/writezip.cpp \
 	common/utility/vga2ansi.cpp \
@@ -576,6 +575,7 @@ PCH_SOURCES = \
 	common/scripting/frontend/zcc_parser.cpp \
 	common/scripting/backend/vmbuilder.cpp \
 	common/scripting/backend/codegen.cpp \
+	utility/colorspace.cpp \
 	utility/nodebuilder/nodebuild.cpp \
 	utility/nodebuilder/nodebuild_classify_nosse2.cpp \
 	utility/nodebuilder/nodebuild_events.cpp \
@@ -631,6 +631,7 @@ SYSTEM_SOURCES  = ${PLAT_POSIX_SOURCES} ${PLAT_SDL_SOURCES} ${PLAT_UNIX_SOURCES}
 
 #	${VULKAN_SOURCES} \
 
+
 LOCAL_SRC_FILES = \
     $(ANDROID_SRC_FILES) \
 	${SYSTEM_SOURCES} \
@@ -680,7 +681,10 @@ LOCAL_SRC_FILES = \
     common/filesystem/source/critsec.cpp \
     common/filesystem/source/file_hog.cpp \
     common/filesystem/source/file_mvl.cpp \
-    common/widgets/widgetresourcedata.cpp \
+    widgets/errorwindow.cpp \
+    widgets/netstartwindow.cpp \
+    widgets/widgetresourcedata.cpp \
+    widgets/themedata.cpp \
     ../libraries/miniz/miniz.c \
     common/thirdparty/stb/stb_sprintf.c \
 
@@ -689,8 +693,8 @@ LOCAL_SRC_FILES = \
 LOCAL_LDLIBS := -ldl -llog -lOpenSLES
 LOCAL_LDLIBS +=  -lEGL -lGLESv1_CM
 
-LOCAL_STATIC_LIBRARIES :=  SDL2_net libjpeg lzma_gl3  bzip2_gl3 logwritter vpx_player webpmux zwidget glslang zmusic_g4d
-LOCAL_SHARED_LIBRARIES := touchcontrols openal SDL2 saffal
+LOCAL_STATIC_LIBRARIES :=  SDL2_net libjpeg lzma_uz  bzip2_uz logwritter vpx_player webpmux zwidget_uz glslang_uz zmusic_uz abseil_uz
+LOCAL_SHARED_LIBRARIES := touchcontrols openal  SDL2 saffal
 
 #Strip unused functions/data
 LOCAL_CFLAGS += -fvisibility=hidden -fdata-sections -ffunction-sections  -fPIC

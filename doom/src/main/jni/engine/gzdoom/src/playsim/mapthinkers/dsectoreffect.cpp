@@ -1,29 +1,22 @@
-//-----------------------------------------------------------------------------
-//
-// Copyright 1993-1996 id Software
-// Copyright 1999-2016 Randy Heit
-// Copyright 2002-2016 Christoph Oelckers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/
-//
-//-----------------------------------------------------------------------------
-//
-// DESCRIPTION:
-//		Base class for effects on sectors.
-//		[RH] Created this class hierarchy.
-//
-//-----------------------------------------------------------------------------
+/*
+** dsectoreffect.cpp
+**
+** Base class for effects on sectors.
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** [RH] Created this class hierarchy.
+*/
 
 #include "dsectoreffect.h"
 #include "p_local.h"
@@ -129,18 +122,30 @@ void DMovingCeiling::Construct(sector_t *sector, bool interpolate)
 	if (interpolate) interpolation = sector->SetInterpolation(sector_t::CeilingMove, true);
 }
 
-bool sector_t::MoveAttached(int crush, double move, int floorOrCeiling, bool resetfailed, bool instant)
+bool sector_t::MoveAttached(int crush, double move, int floorOrCeiling, bool resetfailed, bool instant, bool* crushed)
 {
-	if (!P_Scroll3dMidtex(this, crush, move, !!floorOrCeiling, instant) && resetfailed)
+	if (crushed != nullptr)
+		*crushed = false;
+	if (!P_Scroll3dMidtex(this, crush, move, !!floorOrCeiling, instant))
 	{
-		P_Scroll3dMidtex(this, crush, -move, !!floorOrCeiling, instant);
-		return false;
+		if (crushed != nullptr)
+			*crushed = true;
+		if (resetfailed)
+		{
+			P_Scroll3dMidtex(this, crush, -move, !!floorOrCeiling, instant);
+			return false;
+		}
 	}
-	if (!P_MoveLinkedSectors(this, crush, move, !!floorOrCeiling, instant) && resetfailed)
+	if (!P_MoveLinkedSectors(this, crush, move, !!floorOrCeiling, instant))
 	{
-		P_MoveLinkedSectors(this, crush, -move, !!floorOrCeiling, instant);
-		P_Scroll3dMidtex(this, crush, -move, !!floorOrCeiling, instant);
-		return false;
+		if (crushed != nullptr)
+			*crushed = true;
+		if (resetfailed)
+		{
+			P_MoveLinkedSectors(this, crush, -move, !!floorOrCeiling, instant);
+			P_Scroll3dMidtex(this, crush, -move, !!floorOrCeiling, instant);
+			return false;
+		}
 	}
 	return true;
 }
@@ -157,8 +162,11 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 	double 	lastpos;
 	double		movedest;
 	double		move;
+	bool crushed;
+	bool stopMoving;
 	//double		destheight;	//jff 02/04/98 used to keep floors/ceilings
 							// from moving thru each other
+	crushed = false;
 	lastpos = floorplane.fD();
 	switch (direction)
 	{
@@ -169,7 +177,7 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 		{
 			move = floorplane.HeightDiff(lastpos, dest);
 
-			if (!MoveAttached(crush, move, 0, true, instant)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, move, 0, true, instant)) return EMoveResult::pastdest;
 
 			floorplane.setD(dest);
 			flag = P_ChangeSector(this, crush, move, 0, false, instant);
@@ -188,7 +196,7 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 		}
 		else
 		{
-			if (!MoveAttached(crush, -speed, 0, true, instant)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, -speed, 0, true, instant, &crushed)) return EMoveResult::crushed;
 
 			floorplane.setD(movedest);
 
@@ -204,6 +212,8 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 			{
 				ChangePlaneTexZ(sector_t::floor, floorplane.HeightDiff(lastpos));
 				AdjustFloorClip();
+				if (crushed)
+					return EMoveResult::crushed;
 			}
 		}
 		break;
@@ -220,18 +230,20 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 			dest = -ceilingplane.fD();
 		}
 
+		stopMoving = crush < 0 || hexencrush;
 		movedest = floorplane.GetChangedHeight(speed);
 
 		if (movedest <= dest)
 		{
+			stopMoving = stopMoving || movedest != dest;
 			move = floorplane.HeightDiff(lastpos, dest);
 
-			if (!MoveAttached(crush, move, 0, true, instant)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, move, 0, stopMoving, instant)) return EMoveResult::pastdest;
 
 			floorplane.setD(dest);
 
 			flag = P_ChangeSector(this, crush, move, 0, false, instant);
-			if (flag)
+			if (flag && stopMoving)
 			{
 				floorplane.setD(lastpos);
 				P_ChangeSector(this, crush, -move, 0, true, instant);
@@ -246,7 +258,7 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 		}
 		else
 		{
-			if (!MoveAttached(crush, speed, 0, true, instant)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, speed, 0, stopMoving, instant, &crushed)) return EMoveResult::crushed;
 
 			floorplane.setD(movedest);
 
@@ -254,7 +266,7 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 			flag = P_ChangeSector(this, crush, speed, 0, false, instant);
 			if (flag)
 			{
-				if (crush >= 0 && !hexencrush)
+				if (!stopMoving)
 				{
 					ChangePlaneTexZ(sector_t::floor, floorplane.HeightDiff(lastpos));
 					AdjustFloorClip();
@@ -267,6 +279,8 @@ EMoveResult sector_t::MoveFloor(double speed, double dest, int crush, int direct
 			}
 			ChangePlaneTexZ(sector_t::floor, floorplane.HeightDiff(lastpos));
 			AdjustFloorClip();
+			if (crushed)
+				return EMoveResult::crushed;
 		}
 		break;
 	}
@@ -292,9 +306,12 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 	double 	lastpos;
 	double		movedest;
 	double		move;
+	bool crushed;
+	bool stopMoving;
 	//double		destheight;	//jff 02/04/98 used to keep floors/ceilings
 	// from moving thru each other
 
+	crushed = false;
 	lastpos = ceilingplane.fD();
 	switch (direction)
 	{
@@ -309,17 +326,19 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 		{
 			dest = -floorplane.fD();
 		}
+		stopMoving = crush < 0 || hexencrush;
 		movedest = ceilingplane.GetChangedHeight (-speed);
 		if (movedest <= dest)
 		{
+			stopMoving = stopMoving || movedest != dest;
 			move = ceilingplane.HeightDiff (lastpos, dest);
 
-			if (!MoveAttached(crush, move, 1, true)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, move, 1, stopMoving)) return EMoveResult::pastdest;
 
 			ceilingplane.setD(dest);
 			flag = P_ChangeSector (this, crush, move, 1, false);
 
-			if (flag && !(crush >= 0 && !hexencrush && movedest == dest))
+			if (flag && stopMoving)
 			{
 				ceilingplane.setD(lastpos);
 				P_ChangeSector (this, crush, -move, 1, true);
@@ -333,7 +352,7 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 		}
 		else
 		{
-			if (!MoveAttached(crush, -speed, 1, true)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, -speed, 1, stopMoving, false, &crushed)) return EMoveResult::crushed;
 
 			ceilingplane.setD(movedest);
 
@@ -341,7 +360,7 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 			flag = P_ChangeSector (this, crush, -speed, 1, false);
 			if (flag)
 			{
-				if (crush >= 0 && !hexencrush)
+				if (!stopMoving)
 				{
 					ChangePlaneTexZ(sector_t::ceiling, ceilingplane.HeightDiff (lastpos));
 					return EMoveResult::crushed;
@@ -352,6 +371,8 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 				return EMoveResult::crushed;
 			}
 			ChangePlaneTexZ(sector_t::ceiling, ceilingplane.HeightDiff (lastpos));
+			if (crushed)
+				return EMoveResult::crushed;
 		}
 		break;
 												
@@ -362,7 +383,7 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 		{
 			move = ceilingplane.HeightDiff (lastpos, dest);
 
-			if (!MoveAttached(crush, move, 1, true)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, move, 1, true)) return EMoveResult::pastdest;
 
 			ceilingplane.setD(dest);
 
@@ -370,8 +391,8 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 			if (flag)
 			{
 				ceilingplane.setD(lastpos);
-				P_ChangeSector (this, crush, move, 1, true);
-				MoveAttached(crush, move, 1, false);
+				P_ChangeSector (this, crush, -move, 1, true);
+				MoveAttached(crush, -move, 1, false);
 			}
 			else
 			{
@@ -381,7 +402,7 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 		}
 		else
 		{
-			if (!MoveAttached(crush, speed, 1, true)) return EMoveResult::crushed;
+			if (!MoveAttached(crush, speed, 1, true, false, &crushed)) return EMoveResult::crushed;
 
 			ceilingplane.setD(movedest);
 
@@ -394,6 +415,8 @@ EMoveResult sector_t::MoveCeiling(double speed, double dest, int crush, int dire
 				return EMoveResult::crushed;
 			}
 			ChangePlaneTexZ(sector_t::ceiling, ceilingplane.HeightDiff (lastpos));
+			if (crushed)
+				return EMoveResult::crushed;
 		}
 		break;
 	}

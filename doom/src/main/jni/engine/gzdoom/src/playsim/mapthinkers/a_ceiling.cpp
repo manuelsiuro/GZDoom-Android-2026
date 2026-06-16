@@ -1,32 +1,23 @@
-//-----------------------------------------------------------------------------
-//
-// Copyright 1993-1996 id Software
-// Copyright 1994-1996 Raven Software
-// Copyright 1998-1998 Chi Hoang, Lee Killough, Jim Flynn, Rand Phares, Ty Halderman
-// Copyright 1999-2016 Randy Heit
-// Copyright 2002-2016 Christoph Oelckers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see http://www.gnu.org/licenses/
-//
-//-----------------------------------------------------------------------------
-//
-//
-// DESCRIPTION:  Ceiling animation (lowering, crushing, raising)
-//
-//-----------------------------------------------------------------------------
-
-
+/*
+** a_ceiling.cpp
+**
+** Ceiling animation (lowering, crushing, raising)
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 1993-1996 id Software
+** Copyright 1994-1996 Raven Software
+** Copyright 1998-1998 Chi Hoang, Lee Killough, Jim Flynn, Rand Phares, Ty Halderman
+** Copyright 1999-2016 Marisa Heit
+** Copyright 2002-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+*/
 
 #include "doomdef.h"
 #include "p_local.h"
@@ -530,7 +521,7 @@ bool FLevelLocals::EV_DoCeiling (DCeiling::ECeiling type, line_t *line,
 		secnum = sec->sectornum;
 		// [RH] Hack to let manual crushers be retriggerable, too
 		tag ^= secnum | 0x1000000;
-		ActivateInStasisCeiling (tag);
+		rtn |= ActivateInStasisCeiling (tag);
 		return CreateCeiling(sec, type, line, tag, speed, speed2, height, crush, silent, change, hexencrush);
 	}
 	
@@ -538,7 +529,7 @@ bool FLevelLocals::EV_DoCeiling (DCeiling::ECeiling type, line_t *line,
 	// This restarts a crusher after it has been stopped
 	if (type == DCeiling::ceilCrushAndRaise)
 	{
-		ActivateInStasisCeiling (tag);
+		rtn |= ActivateInStasisCeiling (tag);
 	}
 
 	// affects all sectors with the same tag as the linedef
@@ -558,9 +549,10 @@ bool FLevelLocals::EV_DoCeiling (DCeiling::ECeiling type, line_t *line,
 //
 //============================================================================
 
-void FLevelLocals::ActivateInStasisCeiling (int tag)
+bool FLevelLocals::ActivateInStasisCeiling (int tag)
 {
 	DCeiling *scan;
+	bool rtn = false;
 	auto iterator = GetThinkerIterator<DCeiling>();
 
 	while ( (scan = iterator.Next ()) )
@@ -569,8 +561,10 @@ void FLevelLocals::ActivateInStasisCeiling (int tag)
 		{
 			scan->m_Direction = scan->m_OldDirection;
 			scan->PlayCeilingSound ();
+			rtn = true;
 		}
 	}
+	return rtn;
 }
 
 //============================================================================

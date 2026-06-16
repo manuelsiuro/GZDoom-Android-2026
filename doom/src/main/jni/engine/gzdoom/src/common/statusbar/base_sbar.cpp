@@ -1,66 +1,52 @@
 /*
 ** base_sbar.cpp
+**
 ** Base status bar implementation
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2016 Randy Heit
+**
+** Copyright 1998-2016 Marisa Heit
 ** Copyright 2017-2020 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
 
-#include <assert.h>
-
+#include <cassert>
 
 #include "base_sbar.h"
-#include "printf.h"
-#include "v_draw.h"
-#include "cmdlib.h"
-#include "texturemanager.h"
 #include "c_cvars.h"
-#include "v_font.h"
+#include "cmdlib.h"
+#include "i_interface.h"
+#include "printf.h"
+#include "r_videoscale.h"
+#include "texturemanager.h"
 #include "utf8.h"
+#include "v_draw.h"
+#include "v_font.h"
 #include "v_text.h"
 #include "vm.h"
-#include "i_interface.h"
-#include "r_videoscale.h"
 
 FGameTexture* CrosshairImage;
 static int CrosshairNum;
 
-
 IMPLEMENT_CLASS(DStatusBarCore, false, false)
 IMPLEMENT_CLASS(DHUDFont, false, false);
 
-
 CVAR(Color, crosshaircolor, 0xff0000, CVAR_ARCHIVE);
-CVAR(Int, crosshairhealth, 2, CVAR_ARCHIVE);
-CVARD(Float, crosshairscale, 0.5, CVAR_ARCHIVE, "changes the size of the crosshair");
-CVAR(Bool, crosshairgrow, false, CVAR_ARCHIVE);
+CVARD(Int, crosshairhealth, 2, CVAR_ARCHIVE, "0: basic, 1: red-green, 2: blue-green-yellow-red");
+CVARD(Float, crosshairscale, 1.0, CVAR_ARCHIVE, "changes the size of the crosshair");
+CVARD(Bool, crosshairgrow, false, CVAR_ARCHIVE, "grow crosshair upon pickup");
 
 CUSTOM_CVARD(Float, hud_scalefactor, 1.f, CVAR_ARCHIVE, "changes the hud scale")
 {
@@ -73,7 +59,6 @@ CUSTOM_CVARD(Bool, hud_aspectscale, true, CVAR_ARCHIVE, "enables aspect ratio co
 {
 	if (sysCallbacks.HudScaleChanged) sysCallbacks.HudScaleChanged();
 }
-
 
 void ST_LoadCrosshair(int num, bool alwaysload)
 {
@@ -118,7 +103,6 @@ void ST_UnloadCrosshair()
 	CrosshairNum = 0;
 }
 
-
 //---------------------------------------------------------------------------
 //
 // DrawCrosshair
@@ -137,22 +121,14 @@ void ST_DrawCrosshair(int phealth, double xpos, double ypos, double scale, DAngl
 		return;
 	}
 
-	if (crosshairscale > 0.0f)
-	{
-		size = twod->GetHeight() * crosshairscale * 0.005;
-	}
-	else
-	{
-		size = 1.;
-	}
+	int mult = max(twod->Height/720, 1); // 1080p: 1, 1440p: 2, 4K: 3
 
-	if (crosshairgrow)
-	{
-		size *= scale;
-	}
+	size = ((crosshairscale > 0.0f)? crosshairscale: 1.0) * mult;
 
-	w = int(CrosshairImage->GetDisplayWidth() * size);
-	h = int(CrosshairImage->GetDisplayHeight() * size);
+	if (crosshairgrow) size *= scale;
+
+	w = round(CrosshairImage->GetDisplayWidth() * size);
+	h = round(CrosshairImage->GetDisplayHeight() * size);
 
 	if (crosshairhealth == 1)
 	{

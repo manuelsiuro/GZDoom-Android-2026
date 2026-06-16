@@ -1,34 +1,22 @@
 /*
-** dynarray.cpp
+** dynarrays.cpp
 **
 ** internal data types for dynamic arrays
 **
 **---------------------------------------------------------------------------
+**
 ** Copyright 2016-2017 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -38,6 +26,7 @@
 #include "vm.h"
 #include "types.h"
 #include "v_draw.h"
+#include "TRS.h"
 
 // We need one specific type for each of the 8 integral VM types and instantiate the needed functions for each of them.
 // Dynamic arrays cannot hold structs because for every type there'd need to be an internal implementation which is impossible.
@@ -50,6 +39,7 @@ typedef TArray<double> FDynArray_F64;
 typedef TArray<void*> FDynArray_Ptr;
 typedef TArray<DObject*> FDynArray_Obj;
 typedef TArray<FString> FDynArray_String;
+typedef TArray<TRS> FDynArray_TRS;
 
 template<class T> void ArrayCopy(T *self, T *other)
 {
@@ -1107,6 +1097,119 @@ DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_String, Clear, ArrayClear<FDynArray_Stri
 	return 0;
 }
 
+
+//-----------------------------------------------------
+//
+// TRS array
+//
+//-----------------------------------------------------
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Copy, ArrayCopy<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_POINTER(other, FDynArray_TRS);
+	*self = *other;
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Move, ArrayMove<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_POINTER(other, FDynArray_TRS);
+	*self = std::move(*other);
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Append, ArrayAppend<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_POINTER(other, FDynArray_TRS);
+	self->Append(*other);
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION(FDynArray_TRS, Find)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_POINTER_NOT_NULL(item, TRS);
+	ACTION_RETURN_INT(self->Find(*item));
+}
+
+DEFINE_ACTION_FUNCTION(FDynArray_TRS, Push)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_POINTER_NOT_NULL(item, TRS);
+	ACTION_RETURN_INT(self->Push(*item));
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Pop, ArrayPop<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	ACTION_RETURN_BOOL(self->Pop());
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Delete, ArrayDelete<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_INT(index);
+	PARAM_INT(count);
+	self->Delete(index, count);
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION(FDynArray_TRS, Insert)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_INT(index);
+	PARAM_POINTER_NOT_NULL(item, TRS);
+	self->Insert(index, *item);
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, ShrinkToFit, ArrayShrinkToFit<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	self->ShrinkToFit();
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Grow, ArrayGrow<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_INT(count);
+	self->Grow(count);
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Resize, ArrayResize<FDynArray_TRS COMMA 0>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_INT(count);
+	self->Resize(count);
+	return 0;
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Reserve, ArrayReserve<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	PARAM_INT(count);
+	ACTION_RETURN_INT(self->Reserve(count));
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Max, ArrayMax<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	ACTION_RETURN_INT(self->Max());
+}
+
+DEFINE_ACTION_FUNCTION_NATIVE(FDynArray_TRS, Clear, ArrayClear<FDynArray_TRS>)
+{
+	PARAM_SELF_STRUCT_PROLOGUE(FDynArray_TRS);
+	self->Clear();
+	return 0;
+}
+
+
 DEFINE_FIELD_NAMED_X(DynArray_I8, FArray, Count, Size)		
 DEFINE_FIELD_NAMED_X(DynArray_I16, FArray, Count, Size)		
 DEFINE_FIELD_NAMED_X(DynArray_I32, FArray, Count, Size)		
@@ -1115,3 +1218,5 @@ DEFINE_FIELD_NAMED_X(DynArray_F64, FArray, Count, Size)
 DEFINE_FIELD_NAMED_X(DynArray_Ptr, FArray, Count, Size)	
 DEFINE_FIELD_NAMED_X(DynArray_Obj, FArray, Count, Size)
 DEFINE_FIELD_NAMED_X(DynArray_String, FArray, Count, Size)
+
+DEFINE_FIELD_NAMED_X(DynArray_TRS, FArray, Count, Size)

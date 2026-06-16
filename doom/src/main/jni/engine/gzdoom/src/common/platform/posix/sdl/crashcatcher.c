@@ -1,3 +1,26 @@
+/*
+** crashcatcher.c
+**
+**
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2009-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
+**---------------------------------------------------------------------------
+**
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -383,6 +406,9 @@ static void crash_handler(const char *logfile)
 
 int cc_install_handlers(int argc, char **argv, int num_signals, int *signals, const char *logfile, int (*user_info)(char*, char*))
 {
+#ifdef __ANDROID__
+    return 0;
+#endif
 	struct sigaction sa;
 	stack_t altss;
 	int retval;

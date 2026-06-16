@@ -3,7 +3,7 @@ LOCAL_PATH := $(call my-dir)/../libraries/bzip2
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE    := bzip2_gl3
+LOCAL_MODULE    := bzip2_uz
 
 LOCAL_C_INCLUDES :=   $(LOCAL_PATH)/include/
 

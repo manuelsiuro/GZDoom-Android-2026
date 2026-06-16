@@ -21,6 +21,17 @@ extern "C" {
  #define AL_APIENTRY
 #endif
 
+/* UZDoom 5.0's bundled thirdparty/alext.h + efx.h annotate prototypes with
+ * AL_API_NOEXCEPT/AL_API_NOEXCEPT17 (from newer openal-soft headers). This older
+ * vendored al.h wins the AL_AL_H include guard on the non-DYN_OPENAL mobile path,
+ * so define them as no-ops here to keep those headers parseable. */
+#ifndef AL_API_NOEXCEPT
+#define AL_API_NOEXCEPT
+#endif
+#ifndef AL_API_NOEXCEPT17
+#define AL_API_NOEXCEPT17
+#endif
+
 #if defined(TARGET_OS_MAC) && TARGET_OS_MAC
  #pragma export on
 #endif

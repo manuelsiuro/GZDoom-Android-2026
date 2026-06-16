@@ -1,34 +1,23 @@
 /*
 ** shared_sbar.cpp
+**
 ** Base status bar implementation
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
+**
+** Copyright 1998-2016 Marisa Heit
 ** Copyright 2017 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -71,8 +60,6 @@
 #define XHAIRPICKUPSIZE		(2+XHAIRSHRINKSIZE)
 #define POWERUPICONSIZE		32
 
-int WorldPaused();
-
 IMPLEMENT_CLASS(DBaseStatusBar, false, true)
 
 IMPLEMENT_POINTERS_START(DBaseStatusBar)
@@ -91,7 +78,7 @@ EXTERN_CVAR (Bool, am_showlevelname)
 EXTERN_CVAR(Bool, inter_subtitles)
 EXTERN_CVAR(Bool, ui_screenborder_classic_scaling)
 
-CVAR(Int, hud_scale, 0, CVAR_ARCHIVE);
+CVAR(Int, hud_scale, -1, CVAR_ARCHIVE);
 CVAR(Bool, log_vgafont, false, CVAR_ARCHIVE)
 CVAR(Bool, hud_oldscale, true, CVAR_ARCHIVE)
 
@@ -107,7 +94,7 @@ CVAR (Flag, pf_hazard,		paletteflash, PF_HAZARD)
 
 
 // Stretch status bar to full screen width?
-CUSTOM_CVAR (Int, st_scale, 0, CVAR_ARCHIVE)
+CUSTOM_CVAR (Int, st_scale, -1, CVAR_ARCHIVE)
 {
 	if (self < -1)
 	{
@@ -125,7 +112,7 @@ EXTERN_CVAR(Float, hud_scalefactor)
 EXTERN_CVAR(Bool, hud_aspectscale)
 
 CVAR (Bool, crosshairon, true, CVAR_ARCHIVE);
-CVAR (Int, crosshair, 0, CVAR_ARCHIVE)
+CVAR (Int, crosshair, 1, CVAR_ARCHIVE)
 CVAR (Bool, crosshairforce, false, CVAR_ARCHIVE)
 CUSTOM_CVAR(Int, am_showmaplabel, 2, CVAR_ARCHIVE)
 {
@@ -684,7 +671,7 @@ int DBaseStatusBar::GetPlayer ()
 
 void DBaseStatusBar::Tick ()
 {
-	if (!WorldPaused())
+	if (!WorldPaused(false))
 	{
 		PrevCrosshairSize = CrosshairSize;
 
@@ -1241,7 +1228,7 @@ double DBaseStatusBar::DrawConsistancy(double yOfs) const
 		{
 			desync = true;
 			// Fell out of sync with the host in packet server mode. Which specific user it is doesn't really matter.
-			if (NetMode == NET_PacketServer && consoleplayer != Net_Arbitrator)
+			if (consoleplayer != Net_Arbitrator)
 			{
 				text = "Out of sync with host";
 				break;
@@ -1282,7 +1269,7 @@ double DBaseStatusBar::DrawWaiting(double yOfs) const
 		if (players[client].waiting)
 		{
 			isWaiting = true;
-			if (NetMode == NET_PacketServer && consoleplayer != Net_Arbitrator)
+			if (consoleplayer != Net_Arbitrator)
 			{
 				text = "Waiting for host";
 				break;

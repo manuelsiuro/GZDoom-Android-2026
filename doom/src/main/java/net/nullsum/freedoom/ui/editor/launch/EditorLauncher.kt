@@ -31,10 +31,10 @@ suspend fun launchProject(activity: Activity, project: MapProject, result: Gener
         if (!iwad.exists() && project.iwadFile.lowercase().startsWith("freedoom")) {
             Utils.copyFreedoomFilesToSD(activity)
         }
-        // GZDoom 4.15 (__MOBILE__) loads its base data from ./res relative to the
+        // UZDoom 5.0 (__MOBILE__) loads its base data from ./res relative to the
         // game dir; keep this in sync with LaunchState.launchGame().
-        Utils.copyAsset(activity, "gzdoom_dev_gl3.pk3", "$base/res")
-        Utils.copyAsset(activity, "game_support.pk3", "$base/res")
+        Utils.copyAsset(activity, "uzdoom.pk3", "$base/res")
+        Utils.copyAsset(activity, "uzdoom_game_support.pk3", "$base/res")
         Utils.copyAsset(activity, "game_widescreen_gfx.pk3", base)
         Utils.copyAsset(activity, "lights.pk3", base)
         Utils.copyAsset(activity, "brightmaps.pk3", base)

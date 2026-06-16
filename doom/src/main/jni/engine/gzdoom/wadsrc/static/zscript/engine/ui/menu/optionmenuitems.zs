@@ -1,36 +1,33 @@
 /*
-** optionmenuitems.txt
+** optionmenuitems.zs
+**
 ** Control items for option menus
 **
 **---------------------------------------------------------------------------
+**
 ** Copyright 2010-2017 Christoph Oelckers
-** All rights reserved.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+**---------------------------------------------------------------------------
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
+
+enum GrayCheckMode
+{
+	None = 0, // ?
+	Gray = 1 << 0,
+	Hide = 1 << 1,
+	Inv  = 1 << 2,
+};
 
 class OptionMenuItem : MenuItemBase
 {
@@ -38,7 +35,7 @@ class OptionMenuItem : MenuItemBase
 	bool mCentered;
 	CVar mGrayCheck;
 	int mGrayCheckVal;
-	bool mHideInsteadOfGraying;
+	int mGrayCheckMode;
 
 	protected void Init(
 		String label,
@@ -46,7 +43,7 @@ class OptionMenuItem : MenuItemBase
 		bool center = false,
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
 		Super.Init(0, 0, command);
@@ -54,7 +51,20 @@ class OptionMenuItem : MenuItemBase
 		mCentered = center;
 		mGrayCheck = graycheck;
 		mGrayCheckVal = graycheckVal;
-		mHideInsteadOfGraying = hideInsteadOfGraying;
+
+		switch (graycheckMode)
+		{
+		case 'Gray':    mGrayCheckMode = Gray;     break;
+		case 'Hide':    mGrayCheckMode = Hide;     break;
+		case 'GrayInv': mGrayCheckMode = Gray|Inv; break;
+		case 'HideInv': mGrayCheckMode = Hide|Inv; break;
+		default:
+			if (mGrayCheck == null) break;
+			ThrowAbortException(
+				"Unknown graycheckMode '%s'. Expected Gray|Hide|GrayInv|HideInv",
+				graycheckMode
+			);
+		}
 	}
 
 	protected void drawText(int x, int y, int color, String text, bool grayed = false)
@@ -84,14 +94,25 @@ class OptionMenuItem : MenuItemBase
 		return (14 * CleanXfac_1);
 	}
 
+	bool ViewTest(GrayCheckMode flag)
+	{
+		if (mGrayCheck != null)
+		{
+			bool match = mGrayCheck.GetInt() == mGrayCheckVal;
+			if (mGrayCheckMode == flag) return match;
+			if (mGrayCheckMode == flag|Inv) return !match;
+		}
+		return false;
+	}
+
 	virtual bool IsGrayed()
 	{
-		return !mHideInsteadOfGraying && mGrayCheck != null && mGrayCheck.GetInt() == mGrayCheckVal;
+		return ViewTest(Gray);
 	}
 
 	override bool Visible()
 	{
-		return !(mHideInsteadOfGraying && mGrayCheck != null && mGrayCheck.GetInt() == mGrayCheckVal);
+		return !ViewTest(Hide);
 	}
 
 	override bool Selectable()
@@ -125,9 +146,17 @@ class OptionMenuItem : MenuItemBase
 class OptionMenuItemSubmenu : OptionMenuItem
 {
 	int mParam;
-	OptionMenuItemSubmenu Init(String label, Name command, int param = 0, bool centered = false)
+	OptionMenuItemSubmenu Init(
+		String label,
+		Name command,
+		int param = 0,
+		bool centered = false,
+		CVar graycheck = null,
+		int graycheckVal = 0,
+		name graycheckMode = 'Hide'
+	)
 	{
-		Super.init(label, command, centered);
+		Super.init(label, command, centered, graycheck, graycheckVal, graycheckMode);
 		mParam = param;
 		return self;
 	}
@@ -159,9 +188,17 @@ class OptionMenuItemSubmenu : OptionMenuItem
 class OptionMenuItemLabeledSubmenu : OptionMenuItemSubmenu
 {
 	CVar mLabelCVar;
-	OptionMenuItemSubmenu Init(String label, CVar labelcvar, Name command, int param = 0)
+	OptionMenuItemSubmenu Init(
+		String label,
+		CVar labelcvar,
+		Name command,
+		int param = 0,
+		CVar graycheck = null,
+		int graycheckVal = 0,
+		name graycheckMode = 'Hide'
+	)
 	{
-		Super.init(label, command, false);
+		Super.init(label, command, param, false, graycheck, graycheckVal, graycheckMode);
 		mLabelCVar = labelcvar;
 		return self;
 	}
@@ -189,9 +226,17 @@ class OptionMenuItemCommand : OptionMenuItemSubmenu
 	bool mCloseOnSelect;
 	private bool mUnsafe;
 
-	OptionMenuItemCommand Init(String label, Name command, bool centered = false, bool closeonselect = false)
+	OptionMenuItemCommand Init(
+		String label,
+		Name command,
+		bool centered = false,
+		bool closeonselect = false,
+		CVar graycheck = null,
+		int graycheckVal = 0,
+		name graycheckMode = 'Hide'
+	)
 	{
-		Super.Init(label, command, 0, centered);
+		Super.Init(label, command, 0, centered, graycheck, graycheckVal, graycheckMode);
 		ccmd = command;
 		mCloseOnSelect = closeonselect;
 		mUnsafe = true;
@@ -234,10 +279,16 @@ class OptionMenuItemSafeCommand : OptionMenuItemCommand
 {
 	String mPrompt;
 
-
-	OptionMenuItemSafeCommand Init(String label, Name command, String prompt = "")
+	OptionMenuItemSafeCommand Init(
+		String label,
+		Name command,
+		String prompt = "",
+		CVar graycheck = null,
+		int graycheckVal = 0,
+		name graycheckMode = 'Gray'
+	)
 	{
-		Super.Init(label, command);
+		Super.Init(label, command, false, false, graycheck, graycheckVal, graycheckMode);
 		mPrompt = prompt;
 		return self;
 	}
@@ -286,10 +337,10 @@ class OptionMenuItemOptionBase : OptionMenuItem
 		CVar graycheck,
 		int center,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, false, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, false, graycheck, graycheckVal, graycheckMode);
 		mValues = values;
 		mCenter = center;
 	}
@@ -392,10 +443,10 @@ class OptionMenuItemOption : OptionMenuItemOptionBase
 		CVar graycheck = null,
 		int center = 0,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, values, graycheck, center, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, values, graycheck, center, graycheckVal, graycheckMode);
 		mCVar = CVar.FindCVar(mAction);
 		if (mCVar) SetCVarDescription(mCVar, label);
 		return self;
@@ -674,9 +725,15 @@ class OptionMenuItemStaticText : OptionMenuItem
 	int mColor;
 
 	// this function is only for use from MENUDEF, it needs to do some strange things with the color for backwards compatibility.
-	OptionMenuItemStaticText Init(String label, int cr = -1)
+	OptionMenuItemStaticText Init(
+		String label,
+		int cr = -1,
+		CVar graycheck = null,
+		int graycheckVal = 0,
+		name graycheckMode = 'Hide'
+	)
 	{
-		Super.Init(label, 'None', true);
+		Super.Init(label, 'None', true, graycheck, graycheckVal, graycheckMode);
 		mColor = OptionMenuSettings.mFontColor;
 		if ((cr & 0xffff0000) == 0x12340000) mColor = cr & 0xffff;
 		else if (cr > 0) mColor = OptionMenuSettings.mFontColorHeader;
@@ -716,9 +773,17 @@ class OptionMenuItemStaticTextSwitchable : OptionMenuItem
 	int mCurrent;
 
 	// this function is only for use from MENUDEF, it needs to do some strange things with the color for backwards compatibility.
-	OptionMenuItemStaticTextSwitchable Init(String label, String label2, Name command, int cr = -1)
+	OptionMenuItemStaticTextSwitchable Init(
+		String label,
+		String label2,
+		Name command,
+		int cr = -1,
+		CVar graycheck = null,
+		int graycheckVal = 0,
+		name graycheckMode = 'Hide'
+	)
 	{
-		Super.Init(label, command, true);
+		Super.Init(label, command, true, graycheck, graycheckVal, graycheckMode);
 		mAltText = label2;
 		mCurrent = 0;
 
@@ -795,10 +860,10 @@ class OptionMenuSliderBase : OptionMenuItem
 		Name command = 'none',
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, false, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, false, graycheck, graycheckVal, graycheckMode);
 		mMin = min;
 		mMax = max;
 		mStep = step;
@@ -961,10 +1026,10 @@ class OptionMenuItemSlider : OptionMenuSliderBase
 		int showval = 1,
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, min, max, step, showval, command, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, min, max, step, showval, command, graycheck, graycheckVal, graycheckMode);
 		mCVar =CVar.FindCVar(command);
 		return self;
 	}
@@ -1007,10 +1072,10 @@ class OptionMenuItemColorPicker : OptionMenuItem
 		Name command,
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, false, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, false, graycheck, graycheckVal, graycheckMode);
 		CVar cv = CVar.FindCVar(command);
 		if (cv != null && cv.GetRealType() != CVar.CVAR_Color) cv = null;
 		mCVar = cv;
@@ -1092,10 +1157,10 @@ class OptionMenuFieldBase : OptionMenuItem
 		Name command,
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, false, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, false, graycheck, graycheckVal, graycheckMode);
 		mCVar = CVar.FindCVar(mAction);
 	}
 
@@ -1161,10 +1226,10 @@ class OptionMenuItemTextField : OptionMenuFieldBase
 		Name command,
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, graycheck, graycheckVal, graycheckMode);
 		mEnter = null;
 		return self;
 	}
@@ -1242,10 +1307,10 @@ class OptionMenuItemNumberField : OptionMenuFieldBase
 		float step = 1,
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, graycheck, graycheckVal, graycheckMode);
 		mMinimum = min(minimum, maximum);
 		mMaximum = max(minimum, maximum);
 		mStep = max(1, step);
@@ -1313,10 +1378,10 @@ class OptionMenuItemScaleSlider : OptionMenuItemSlider
 		String negone = "",
 		CVar graycheck = null,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, min, max, step, 0, graycheck, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, min, max, step, 0, graycheck, graycheckVal, graycheckMode);
 		mCVar =CVar.FindCVar(command);
 		TextZero = zero;
 		TextNEgOne = negone;
@@ -1390,10 +1455,10 @@ class OptionMenuItemFlagOption : OptionMenuItemOption
 		CVar greycheck = null,
 		int center = 0,
 		int graycheckVal = 0,
-		bool hideInsteadOfGraying = false
+		name graycheckMode = 'Gray'
 	)
 	{
-		Super.Init(label, command, values, greycheck, center, graycheckVal, hideInsteadOfGraying);
+		Super.Init(label, command, values, greycheck, center, graycheckVal, graycheckMode);
 		mBitShift = bitShift;
 
 		return self;

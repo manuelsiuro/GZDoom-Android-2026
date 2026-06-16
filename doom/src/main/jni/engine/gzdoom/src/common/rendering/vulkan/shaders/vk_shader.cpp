@@ -1,22 +1,22 @@
 /*
-**  Vulkan backend
-**  Copyright (c) 2016-2020 Magnus Norddahl
+** vk_shader.cpp
 **
-**  This software is provided 'as-is', without any express or implied
-**  warranty.  In no event will the authors be held liable for any damages
-**  arising from the use of this software.
+** Vulkan backend
 **
-**  Permission is granted to anyone to use this software for any purpose,
-**  including commercial applications, and to alter it and redistribute it
-**  freely, subject to the following restrictions:
+**---------------------------------------------------------------------------
 **
-**  1. The origin of this software must not be misrepresented; you must not
-**     claim that you wrote the original software. If you use this software
-**     in a product, an acknowledgment in the product documentation would be
-**     appreciated but is not required.
-**  2. Altered source versions must be plainly marked as such, and must not be
-**     misrepresented as being the original software.
-**  3. This notice may not be removed or altered from any source distribution.
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
+**
+** SPDX-License-Identifier: GPL-3.0-or-later
+**
+**---------------------------------------------------------------------------
+**
+** Copyright 2016-2020 Magnus Norddahl
+**
+** SPDX-License-Identifier: Zlib
+**
+**---------------------------------------------------------------------------
 **
 */
 
@@ -188,7 +188,7 @@ static const char *shaderBindings = R"(
 	#endif
 
 	// This must match the HWViewpointUniforms struct
-	layout(set = 1, binding = 0, std140) uniform ViewpointUBO {
+	layout(set = 1, binding = 0, std140) uniform readonly ViewpointUBO {
 		mat4 ProjectionMatrix;
 		mat4 ViewMatrix;
 		mat4 NormalViewMatrix;
@@ -209,7 +209,7 @@ static const char *shaderBindings = R"(
 		float uThickFogMultiplier;
 	};
 
-	layout(set = 1, binding = 1, std140) uniform MatricesUBO {
+	layout(set = 1, binding = 1, std140) uniform readonly MatricesUBO {
 		mat4 ModelMatrix;
 		mat4 NormalModelMatrix;
 		mat4 TextureMatrix;
@@ -248,18 +248,18 @@ static const char *shaderBindings = R"(
 		vec4 padding1, padding2, padding3;
 	};
 
-	layout(set = 1, binding = 2, std140) uniform StreamUBO {
+	layout(set = 1, binding = 2, std140) uniform readonly StreamUBO {
 		StreamData data[MAX_STREAM_DATA];
 	};
 
 	// light buffers
-	layout(set = 1, binding = 3, std430) buffer LightBufferSSO
+	layout(set = 1, binding = 3, std430) buffer readonly LightBufferSSO
 	{
 	    vec4 lights[];
 	};
 
 	// bone matrix buffers
-	layout(set = 1, binding = 4, std430) buffer BoneBufferSSO
+	layout(set = 1, binding = 4, std430) buffer readonly BoneBufferSSO
 	{
 	    mat4 bones[];
 	};

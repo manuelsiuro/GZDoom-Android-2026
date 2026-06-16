@@ -1,34 +1,23 @@
 /*
-** g_level.cpp
+** g_mapinfo.cpp
+**
 ** Parses MAPINFO
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2006 Randy Heit
-** Copyright 2009 Christoph Oelckers
-** All rights reserved.
 **
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
+** Copyright 1998-2016 Marisa Heit
+** Copyright 2009-2016 Christoph Oelckers
+** Copyright 2017-2025 GZDoom Maintainers and Contributors
+** Copyright 2025-2026 UZDoom Maintainers and Contributors
 **
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
+** SPDX-License-Identifier: GPL-3.0-or-later
 **
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+** Code written prior to 2026 is also licensed under:
+**
+** SPDX-License-Identifier: BSD-3-Clause
+**
 **---------------------------------------------------------------------------
 **
 */
@@ -51,6 +40,7 @@
 #include "events.h"
 #include "i_system.h"
 #include "screenjob.h"
+#include "texturemanager.h"
 
 static TArray<cluster_info_t> wadclusterinfos;
 TArray<level_info_t> wadlevelinfos;
@@ -141,7 +131,8 @@ static level_info_t *FindLevelByWarpTrans (int num)
 
 bool CheckWarpTransMap (FString &mapname, bool substitute)
 {
-	if (mapname[0] == '&' && (mapname[1] & 0xDF) == 'W' &&
+	if (mapname.Len() > 4 &&
+		mapname[0] == '&' && (mapname[1] & 0xDF) == 'W' &&
 		(mapname[2] & 0xDF) == 'T' && mapname[3] == '@')
 	{
 		level_info_t *lev = FindLevelByWarpTrans (atoi (&mapname[4]));
@@ -150,7 +141,7 @@ bool CheckWarpTransMap (FString &mapname, bool substitute)
 			mapname = lev->MapName;
 			return true;
 		}
-		else if (substitute)
+		else if (substitute && mapname.Len() > 5)
 		{
 			char a = mapname[4], b = mapname[5];
 			mapname = "MAP";
@@ -280,6 +271,7 @@ void level_info_t::Reset()
 	Snapshot = { 0,0,0,0,0,nullptr };
 	deferred.Clear();
 	skyspeed1 = skyspeed2 = skymistspeed = 0.f;
+	skymistyscale = 1.f;
 	fadeto = 0;
 	outsidefog = 0xff000000;
 	cdtrack = 0;
@@ -288,8 +280,10 @@ void level_info_t::Reset()
 	aircontrol = 0.f;
 	WarpTrans = 0;
 	airsupply = 20;
-	compatflags = compatflags2 = 0;
-	compatmask = compatmask2 = 0;
+	compatflags = 0;
+	compatflags2 = 0;
+	compatmask = 0;
+	compatmask2 = 0;
 	Translator = "";
 	RedirectType = NAME_None;
 	RedirectMapName = "";
@@ -1115,6 +1109,13 @@ DEFINE_MAP_OPTION(skymist, true)
 		}
 		info->skymistspeed = float(parse.sc.Float * (TICRATE / 1000.));
 	}
+}
+
+DEFINE_MAP_OPTION(skymistyscale, false)
+{
+	parse.ParseAssign();
+	parse.sc.MustGetFloat();
+	info->skymistyscale = clamp(parse.sc.Float, 0.002, 544.0);
 }
 
 // Vavoom compatibility
@@ -1943,6 +1944,7 @@ MapFlagHandlers[] =
 	{ "compat_voodoozombies",			MITYPE_COMPATFLAG, 0, COMPATF2_VOODOO_ZOMBIES },
 	{ "compat_noacsargcheck",			MITYPE_COMPATFLAG, 0, COMPATF2_NOACSARGCHECK },
 	{ "compat_novdolllockmsg",			MITYPE_COMPATFLAG, 0, COMPATF2_NOVDOLLLOCKMSG },
+	{ "compat_emulatemikoportals",		MITYPE_COMPATFLAG, 0, COMPATF2_EMULATEMIKOPORTALS },
 
 	{ "cd_start_track",					MITYPE_EATNEXT,	0, 0 },
 	{ "cd_end1_track",					MITYPE_EATNEXT,	0, 0 },
@@ -2051,10 +2053,10 @@ void FMapInfoParser::ParseMapDefinition(level_info_t &info)
 				break;
 
 			case MITYPE_CLRCOMPATFLAG:
-				info.compatflags &= ~handler->data1;
-				info.compatflags2 &= ~handler->data2;
-				info.compatmask |= handler->data1;
-				info.compatmask2 |= handler->data2;
+				info.compatflags &= ~ELevelCompatFlags::FromInt(handler->data1);
+				info.compatflags2 &= ~ELevelCompatFlags2::FromInt(handler->data2);
+				info.compatmask |= ELevelCompatFlags::FromInt(handler->data1);
+				info.compatmask2 |= ELevelCompatFlags2::FromInt(handler->data2);
 				break;
 
 			case MITYPE_COMPATFLAG:
@@ -2075,16 +2077,16 @@ void FMapInfoParser::ParseMapDefinition(level_info_t &info)
 
 				if (set)
 				{
-					info.compatflags |= handler->data1;
-					info.compatflags2 |= handler->data2;
+					info.compatflags |= ELevelCompatFlags::FromInt(handler->data1);
+					info.compatflags2 |= ELevelCompatFlags2::FromInt(handler->data2);
 				}
 				else
 				{
-					info.compatflags &= ~handler->data1;
-					info.compatflags2 &= ~handler->data2;
+					info.compatflags &= ~ELevelCompatFlags::FromInt(handler->data1);
+					info.compatflags2 &= ~ELevelCompatFlags2::FromInt(handler->data2);
 				}
-				info.compatmask |= handler->data1;
-				info.compatmask2 |= handler->data2;
+				info.compatmask |= ELevelCompatFlags::FromInt(handler->data1);
+				info.compatmask2 |= ELevelCompatFlags2::FromInt(handler->data2);
 			}
 			break;
 
@@ -2140,23 +2142,29 @@ void FMapInfoParser::ParseMapDefinition(level_info_t &info)
 //
 //==========================================================================
 
-static int GetDefaultLevelNum(const char *mapname)
+static int GetDefaultLevelNum(const char *mapname, int &id24num)
 {
 	if (!strnicmp (mapname, "MAP", 3) && strlen(mapname) <= 5)
 	{
 		int mapnum = atoi (mapname + 3);
 
 		if (mapnum >= 1 && mapnum <= 99)
+		{
+			id24num = mapnum;
 			return mapnum;
+		}
 	}
 	else if (mapname[0] == 'E' &&
 			mapname[1] >= '0' && mapname[1] <= '9' &&
 			mapname[2] == 'M' &&
-			mapname[3] >= '0' && mapname[3] <= '9')
+			mapname[3] >= '0' && mapname[3] <= '9' && strlen(mapname) <= 5)
 	{
+		// ID24 allows levelnums >= 10
+		// The old ZDoom default does not - its value range is too small.
 		int epinum = mapname[1] - '1';
-		int mapnum = mapname[3] - '0';
-		return epinum*10 + mapnum;
+		int mapnum = atoi(mapname + 3);
+		id24num = mapnum;
+		if (strlen(mapname) == 4) return epinum*10 + mapnum;
 	}
 	return 0;
 }
@@ -2271,7 +2279,7 @@ level_info_t *FMapInfoParser::ParseMapHeader(level_info_t &defaultinfo)
 
 	// Set up levelnum now so that you can use Teleport_NewMap specials
 	// to teleport to maps with standard names without needing a levelnum.
-	levelinfo->levelnum = GetDefaultLevelNum(levelinfo->MapName.GetChars());
+	levelinfo->levelnum = GetDefaultLevelNum(levelinfo->MapName.GetChars(), levelinfo->id24_levelnum);
 
 	// Does this map have a song defined via SNDINFO's $map command?
 	// Set that as this map's default music if it does.
@@ -2446,9 +2454,12 @@ static void SetLevelNum (level_info_t *info, int num)
 	for (unsigned int i = 0; i < wadlevelinfos.Size(); ++i)
 	{
 		if (wadlevelinfos[i].levelnum == num)
+		{
 			wadlevelinfos[i].levelnum = 0;
+		}
 	}
 	info->levelnum = num;
+	info->id24_levelnum = 0;	// no more special handling if we have an explicit definition.
 }
 
 //==========================================================================
@@ -2672,13 +2683,14 @@ void G_ClearMapinfo()
 //
 //==========================================================================
 
-void G_ParseMapInfo (FString basemapinfo)
+void G_ParseMapInfo(FString basemapinfo)
 {
 	int lump, lastlump = 0;
 	level_info_t gamedefaults;
 	TArray<FString> secretMaps;
 
-	int flags1 = 0, flags2 = 0;
+	ELevelCompatFlags flags1 = 0;
+	ELevelCompatFlags2 flags2 = 0;
 	if (gameinfo.gametype == GAME_Doom)
 	{
 		int comp = fileSystem.CheckNumForName("COMPLVL");
@@ -2689,7 +2701,7 @@ void G_ParseMapInfo (FString basemapinfo)
 			int length = fileSystem.FileLength(comp);
 			if (length == 7 && !strnicmp("vanilla", data, 7))
 			{
-				flags1 = 
+				flags1 =
 					COMPATF_SHORTTEX | COMPATF_STAIRINDEX | COMPATF_USEBLOCKING | COMPATF_NODOORLIGHT | COMPATF_SPRITESORT |
 					COMPATF_TRACE | COMPATF_MISSILECLIP | COMPATF_SOUNDTARGET | COMPATF_DEHHEALTH | COMPATF_CROSSDROPOFF |
 					COMPATF_LIGHT | COMPATF_MASKEDMIDTEX |
@@ -2736,7 +2748,7 @@ void G_ParseMapInfo (FString basemapinfo)
 		int baselump = fileSystem.GetNumForFullName(basemapinfo.GetChars());
 		if (fileSystem.GetFileContainer(baselump) > 0)
 		{
-			I_FatalError("File %s is overriding core lump %s.", 
+			I_FatalError("File %s is overriding core lump %s.",
 				fileSystem.GetResourceFileName(fileSystem.GetFileContainer(baselump)), basemapinfo.GetChars());
 		}
 		parse.ParseMapInfo(baselump, gamedefaults, defaultinfo);
@@ -2745,12 +2757,12 @@ void G_ParseMapInfo (FString basemapinfo)
 	gamedefaults.compatmask |= flags1;
 	gamedefaults.compatflags2 |= flags2;
 	gamedefaults.compatmask2 |= flags2;
-	
-	static const char *mapinfonames[] = { "MAPINFO", "ZMAPINFO", "UMAPINFO", NULL };
+
+	static const char* mapinfonames[] = { "MAPINFO", "ZMAPINFO", "UMAPINFO", NULL };
 	int nindex;
 
 	// Parse any extra MAPINFOs.
-	while ((lump = fileSystem.FindLumpMulti (mapinfonames, &lastlump, false, &nindex)) != -1)
+	while ((lump = fileSystem.FindLumpMulti(mapinfonames, &lastlump, false, &nindex)) != -1)
 	{
 		if (nindex == 0)
 		{
@@ -2787,11 +2799,11 @@ void G_ParseMapInfo (FString basemapinfo)
 
 	if (AllEpisodes.Size() == 0)
 	{
-		I_FatalError ("You cannot use clearepisodes in a MAPINFO if you do not define any new episodes after it.");
+		I_FatalError("You cannot use clearepisodes in a MAPINFO if you do not define any new episodes after it.");
 	}
 	if (AllSkills.Size() == 0)
 	{
-		I_FatalError ("You cannot use clearskills in a MAPINFO if you do not define any new skills after it.");
+		I_FatalError("You cannot use clearskills in a MAPINFO if you do not define any new skills after it.");
 	}
 
 	// Find any and all secret maps.
@@ -2811,6 +2823,34 @@ void G_ParseMapInfo (FString basemapinfo)
 			li->flags3 |= LEVEL3_SECRET;
 		}
 	}
+}
+
+void G_AddBoomHelpScreens()
+{
+	// Now add Boom's dynamic help screens to the infopages array if it got marked accordingly.
+	// Doing this manually via config files would be a bit inconvenient for 100 file names, 
+	// so use a "*" entry in the list of help screens to insert these.
+	for (unsigned i = 0; i < gameinfo.infoPages.Size(); i++)
+	{
+		auto help = gameinfo.infoPages[i];
+		if (!strcmp(help.GetChars(), "*"))
+		{
+			gameinfo.infoPages.Delete(i);
+			for (int ii = 1; ii <= 99; ii++)
+			{
+				// only add the screens that exist.
+				FStringf helpxx("HELP%02d", ii);
+				auto texid = TexMan.CheckForTexture(helpxx.GetChars(), ETextureType::MiscPatch, FTextureManager::TEXMAN_TryAny);
+				if (texid.Exists())
+				{
+					gameinfo.infoPages.Insert(i++, FName(helpxx));
+				}
+			}
+			break;
+		}
+	}
+	
+
 }
 
 DEFINE_GLOBAL(AllEpisodes)

@@ -522,7 +522,7 @@ inline VulkanCommandPool::VulkanCommandPool(VulkanDevice *device, int queueFamil
 	VkCommandPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.queueFamilyIndex = queueFamilyIndex;
-	poolInfo.flags = 0;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
 	VkResult result = vkCreateCommandPool(device->device, &poolInfo, nullptr, &pool);
 	CheckVulkanError(result, "Could not create command pool");
