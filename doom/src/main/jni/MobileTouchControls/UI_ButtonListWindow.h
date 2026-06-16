@@ -11,7 +11,7 @@
 namespace touchcontrols
 {
 
-void showButtonListWindow(  TouchControlsContainer *con );
+    void showButtonListWindow(TouchControlsContainer *con);
 
 }
 #endif //OPENTOUCH_UI_BUTTONLISTWINDOW_H

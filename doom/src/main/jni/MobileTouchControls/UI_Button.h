@@ -3,6 +3,8 @@
 #include "GLRect.h"
 #include "OpenGLUtils.h"
 #include "UI_TextBox.h"
+#include "TapDetect.h"
+
 
 #ifndef _UI_Button_H_
 #define _UI_Button_H_
@@ -11,41 +13,43 @@
 namespace touchcontrols
 {
 
-class UI_Button : public UI_TextBox
-{
-	bool pressed;
+    class UI_Button : public UI_TextBox
+    {
+        bool pressed;
 
-	int touchId;
+        int touchId;
 
-	GLuint glTex;
+        GLuint glTex;
 
-	GLRect glRect;
+        GLRect glRect;
 
-    std::string bg_image;
+        std::string bg_image;
 
-    uint32_t uid;
-public:
+        uint32_t uid;
 
-    sigc::signal<void, uint32_t, uint32_t> signal;
+        TapDetect tapDetect;
 
+    public:
 
-	UI_Button( std::string tag, RectF pos, uint32_t uid, std::string font_filename, int fontSet,
-	            uint32_t params, std::string text, float textSize, std::string bg_image );
+        sigc::signal<void, uint32_t, uint32_t> signal;
 
-	bool processPointer(int action, int pid, float x, float y);
+        UI_Button(std::string tag, RectF pos, uint32_t uid, std::string font_filename, int fontSet,
+                  uint32_t params, std::string text, float textSize, std::string bg_image);
 
- 	void resetOutput();
+        bool processPointer(int action, int pid, float x, float y);
 
-	bool drawGL(bool forEditor = false);
+        void resetOutput();
 
-	bool initGL();
+        bool drawGL(bool forEditor = false);
 
-	void updateSize();
+        bool initGL();
 
-	void saveXML(TiXmlDocument &doc);
+        void updateSize();
 
-	void loadXML(TiXmlDocument &doc);
-};
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+    };
 
 }
 

@@ -6,7 +6,7 @@ OGG_ROOT := $(LOCAL_PATH)/../deps/libogg/include
 VORBIS_ROOT := $(LOCAL_PATH)/../deps/libvorbis/include
 
 LOCAL_CFLAGS := -DHAVE_EXTERNAL_LIBS
-LOCAL_CPPFLAGS += -std=c++11 -pthread -frtti -fexceptions
+LOCAL_CPPFLAGS += -std=c++11 -pthread
 LOCAL_C_INCLUDES := $(OGG_ROOT) $(VORBIS_ROOT)  $(LOCAL_PATH)/../../android_external_flac/include
 
 LOCAL_MODULE   := sndfile
@@ -40,7 +40,9 @@ LOCAL_SRC_FILES := mat5.c windows.c G72x/g723_24.c G72x/g72x.c \
        ircam.c xi.c ima_oki_adpcm.c \
        $(OGG_SRC_FILES) $(VORBIS_SRC_FILES)
 
-#LOCAL_LDLIBS += -llog -ldl
 LOCAL_STATIC_LIBRARIES := flac
+
+LOCAL_CFLAGS += -fvisibility=hidden -fdata-sections -ffunction-sections
+
 include $(BUILD_STATIC_LIBRARY)
 

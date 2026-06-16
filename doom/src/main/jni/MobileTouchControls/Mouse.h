@@ -3,6 +3,7 @@
 #include "GLRect.h"
 #include "PointF.h"
 #include "OpenGLUtils.h"
+#include "TapDetect.h"
 
 #ifndef _Mouse_H_
 #define _Mouse_H_
@@ -18,63 +19,61 @@
 namespace touchcontrols
 {
 
-class Mouse : public ControlSuper
-{
-	bool pressed;
-	bool hideGraphics;
+    class Mouse : public ControlSuper
+    {
+        bool pressed;
+        bool hideGraphics;
 
-	int id;
+        int id;
 
-	int id2;
+        int id2;
 
-	std::string image;
+        std::string image;
 
-	GLuint glTex;
+        GLuint glTex;
 
-	GLRect glRect;
-	//GLLines *glLines;
+        GLRect glRect;
+        //GLLines *glLines;
 
-	PointF valueRel;
+        PointF valueRel;
 
-	PointF last;
-	PointF fingerPos;
-	PointF anchor;
-	int glitchFix;
+        PointF last;
+        PointF fingerPos;
+        PointF anchor;
+        int glitchFix;
 
+        TapDetect tapDetect;
 
-	//Double tap stuff
-	int tapState; //0 = waiting for first press, 1 = waiting for first lift,
-	int tapCounter;
-public:
-	sigc::signal<void,int, float,float,float,float> signal_action;
+        void emit(int, float, float, float, float);
 
-	sigc::signal<void, int> signal_double_tap;
+    public:
+        sigc::signal<void, int, float, float, float, float> signal_action;
 
+        Mouse(std::string tag, RectF pos, std::string image_filename);
 
-	Mouse(std::string tag,RectF pos,std::string image_filename);
+        void setHideGraphics(bool v);
 
-	void setHideGraphics(bool v);
+        void resetOutput();
 
-   	void resetOutput();
+        bool processPointer(int action, int pid, float x, float y);
 
-	bool processPointer(int action, int pid, float x, float y);
+        bool drawGL(bool);
 
-	bool drawGL(bool);
+        bool initGL();
 
-	bool initGL();
+        void updateSize();
 
-	void updateSize();
+        void saveXML(TiXmlDocument &doc);
 
-	void saveXML(TiXmlDocument &doc);
+        void loadXML(TiXmlDocument &doc);
 
-	void loadXML(TiXmlDocument &doc);
-private:
+    private:
+        void reset();
 
-	void reset();
-	void calcNewValue();
-	void doUpdate();
-	double getMS();
-};
+        void calcNewValue();
+
+        void doUpdate();
+    };
 
 }
 

@@ -3,6 +3,14 @@
 #include <android/log.h>
 
 #include "TouchControlsContainer.h"
+
+
+namespace touchcontrols
+{
+    sigc::signal<void, int> signal_vibrate;
+}
+
+
 extern "C"
 {
 
@@ -10,120 +18,184 @@ extern "C"
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "JNITouchControlsUtils", __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR,"JNITouchControlsUtils", __VA_ARGS__))
 
-//static JNIEnv* jni_env_UI = 0;
+static JavaVM *jvm;
 
-static JavaVM* jvm;
-
-
-void setTCJNIEnv( JavaVM* jvm_)
+void setTCJNIEnv(JavaVM *jvm_)
 {
-	jvm = jvm_;
+    jvm = jvm_;
 }
 
-static JNIEnv *my_getJNIEnv ( )
+static JNIEnv *my_getJNIEnv()
 {
-	JNIEnv *pJNIEnv ;
+    JNIEnv *pJNIEnv;
 
-	if ( jvm && ( jvm->GetEnv ( (void**) &pJNIEnv, JNI_VERSION_1_4 ) >= 0 ) )
-	{
-		return pJNIEnv ;
-	}
-	return 0 ;
+    if(jvm && (jvm->GetEnv((void **) &pJNIEnv, JNI_VERSION_1_4) >= 0))
+    {
+        return pJNIEnv;
+    }
+
+    return 0;
 }
 
-JNIEnv * getEnv()
+JNIEnv *getEnv()
 {
-	if (!jvm)
-		LOGE("ERROR, jvm for getEnv is NULL");
+    if(!jvm)
+        LOGE("ERROR, jvm for getEnv is NULL");
 
 
-	JNIEnv* pJNIEnv = 0;
+    JNIEnv *pJNIEnv = 0;
 
-	bool isAttached = false;
-	int status = jvm->GetEnv((void **) &pJNIEnv, JNI_VERSION_1_4);
-	if(status < 0) {
-		//LOGI("Attaching...");
+    bool isAttached = false;
+    int status = jvm->GetEnv((void **) &pJNIEnv, JNI_VERSION_1_4);
 
-		status = jvm->AttachCurrentThread(&pJNIEnv, 0);
+    if(status < 0)
+    {
+        //LOGI("Attaching...");
 
-		if(status < 0) {
-			LOGE("getEnv: callback_handler: failed to attach current thread");
-		}
-		isAttached = true;
-	}
-	if (pJNIEnv)
-		LOGI("getEnv env looks OK");
-	else
-		LOGE("ERROR, getEnv env is NULL");
+        status = jvm->AttachCurrentThread(&pJNIEnv, 0);
 
-	return pJNIEnv;
+        if(status < 0)
+        {
+            LOGE("getEnv: callback_handler: failed to attach current thread");
+        }
+
+        isAttached = true;
+    }
+
+    if(pJNIEnv)
+        LOGI("getEnv env looks OK");
+    else
+        LOGE("ERROR, getEnv env is NULL");
+
+    return pJNIEnv;
 }
 
 
 void showTouchSettings()
 {
-	JNIEnv * env = getEnv();
+    JNIEnv *env = getEnv();
 
-	jclass myClass =  env->FindClass("com/beloko/touchcontrols/TouchControlsSettings");
-	jmethodID myMethod = env->GetStaticMethodID(myClass, "showSettings", "()V");
-	env->CallStaticVoidMethod(myClass, myMethod);
+    jclass myClass = env->FindClass("com/beloko/touchcontrols/TouchControlsSettings");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "showSettings", "()V");
+    env->CallStaticVoidMethod(myClass, myMethod);
 }
 
 void showEditButtons()
 {
-	JNIEnv * env = getEnv();
+    JNIEnv *env = getEnv();
 
-	jclass myClass =  env->FindClass("com/beloko/touchcontrols/TouchControlsEditing");
-	jmethodID myMethod = env->GetStaticMethodID(myClass, "show", "()V");
-	env->CallStaticVoidMethod(myClass, myMethod);
+    jclass myClass = env->FindClass("com/beloko/touchcontrols/TouchControlsEditing");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "show", "()V");
+    env->CallStaticVoidMethod(myClass, myMethod);
 }
 
 
 void showCustomCommands()
 {
-	JNIEnv * env = getEnv();
+    JNIEnv *env = getEnv();
 
-	jclass myClass =  env->FindClass("com/beloko/touchcontrols/CustomCommands");
-	jmethodID myMethod = env->GetStaticMethodID(myClass,  "showCommands", "()V");
-	env->CallStaticVoidMethod(myClass, myMethod);
+    jclass myClass = env->FindClass("com/beloko/touchcontrols/CustomCommands");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "showCommands", "()V");
+    env->CallStaticVoidMethod(myClass, myMethod);
 
 }
 
 void toggleKeyboard()
 {
-	JNIEnv * env = getEnv();
+    JNIEnv *env = getEnv();
 
-	jclass myClass =  env->FindClass("com/beloko/touchcontrols/ShowKeyboard");
-	jmethodID myMethod = env->GetStaticMethodID(myClass,  "toggleKeyboard", "()V");
-	env->CallStaticVoidMethod(myClass, myMethod);
+    jclass myClass = env->FindClass("com/beloko/touchcontrols/ShowKeyboard");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "toggleKeyboard", "()V");
+    env->CallStaticVoidMethod(myClass, myMethod);
 
 }
 
 void showKeyboard(int val)
 {
-	JNIEnv * env = getEnv();
+    JNIEnv *env = getEnv();
 
-	jclass myClass =  env->FindClass("com/beloko/touchcontrols/ShowKeyboard");
-	jmethodID myMethod = env->GetStaticMethodID(myClass,  "showKeyboard", "(I)V");
-	env->CallStaticVoidMethod(myClass, myMethod, val);
+    jclass myClass = env->FindClass("com/beloko/touchcontrols/ShowKeyboard");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "showKeyboard", "(I)V");
+    env->CallStaticVoidMethod(myClass, myMethod, val);
 
+}
+
+static bool consoleBoxCanceled;
+
+void openConsoleBox(const char *title)
+{
+    JNIEnv *env = getEnv();
+    jstring title_j;
+
+    title_j = env->NewStringUTF(title);
+
+    consoleBoxCanceled = false;
+
+    jclass myClass = env->FindClass("org/libsdl/app/NativeConsoleBox");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "openConsoleBox", "(Ljava/lang/String;)V");
+    env->CallStaticVoidMethod(myClass, myMethod, title_j);
+
+    env->DeleteLocalRef(title_j);
+    env->DeleteLocalRef(myClass);
+    //env->DeleteLocalRef(myMethod);
+}
+
+void addTextConsoleBox(const char *text)
+{
+    if(!text)
+        return;
+
+    JNIEnv *env = getEnv();
+    jstring text_j;
+
+    text_j = env->NewStringUTF(text);
+
+    jclass myClass = env->FindClass("org/libsdl/app/NativeConsoleBox");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "addTextConsoleBox", "(Ljava/lang/String;)V");
+    env->CallStaticVoidMethod(myClass, myMethod, text_j);
+
+    env->DeleteLocalRef(text_j);
+    env->DeleteLocalRef(myClass);
+    //env->DeleteLocalRef(myMethod);
+}
+
+
+void closeConsoleBox()
+{
+    JNIEnv *env = getEnv();
+
+    jclass myClass = env->FindClass("org/libsdl/app/NativeConsoleBox");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "closeConsoleBox", "()V");
+    env->CallStaticVoidMethod(myClass, myMethod);
+}
+
+void JNICALL
+Java_org_libsdl_app_NativeConsoleBox_cancel(JNIEnv * env , jclass cls )
+{
+consoleBoxCanceled = true;
+}
+
+bool getConsoleBoxCanceled()
+{
+    return consoleBoxCanceled;
 }
 
 //This is to try and stop the occasional crash on shutdown
 int android_app_is_shutting_down = 0;
+
 void appShutdown()
 {
-	android_app_is_shutting_down = 1;
+    android_app_is_shutting_down = 1;
 }
 
 //This should not be here
-void ChangeDroidMusic(int action,int param1,int param2)
+void ChangeDroidMusic(int action, int param1, int param2)
 {
-	JNIEnv * env = getEnv();
-
-	jclass myClass =  env->FindClass("com/beloko/opengames/CDAudioPlayer");
-	jmethodID myMethod = env->GetStaticMethodID(myClass,  "callback", "(III)V");
-	env->CallStaticVoidMethod(myClass, myMethod, action,param1,param2);
+    JNIEnv * env = getEnv();
+    return;
+    jclass myClass = env->FindClass("com/beloko/opengames/CDAudioPlayer");
+    jmethodID myMethod = env->GetStaticMethodID(myClass, "callback", "(III)V");
+    env->CallStaticVoidMethod(myClass, myMethod, action, param1, param2);
 }
 
 
@@ -134,67 +206,111 @@ static std::vector<touchcontrols::ControlSuper *> editiableControls;
 
 #define EXPORT_ME __attribute__ ((visibility("default")))
 
-void setControlsContainer(touchcontrols::TouchControlsContainer * cc)
+void setControlsContainer(touchcontrols::TouchControlsContainer *cc)
 {
     controlsContainer = cc;
 }
 
-jint EXPORT_ME Java_com_beloko_touchcontrols_TouchControlsEditing_JNIGetNbrControls(JNIEnv *env, jobject obj)
+jint EXPORT_ME Java_com_beloko_touchcontrols_TouchControlsEditing_JNIGetNbrControls(JNIEnv * env, jobject
+obj)
 {
-    if (!controlsContainer)
-        return 0;
+if(!controlsContainer)
+return 0;
 
-    touchcontrols::TouchControls *editing = controlsContainer->getEditingControls();
+touchcontrols::TouchControls *editing = controlsContainer->getEditingControls();
 
-    if (!editing)
-        return 0;
+if(!editing)
+return 0;
 
-    editiableControls.clear();
+editiableControls.
 
-    for (int n=0;n<editing->getControls()->size();n++)
-    {
-        if ((editing->getControls()->at(n)->type == TC_TYPE_BUTTON) && (editing->getControls()->at(n)->tag != ""))
-        {
-            editiableControls.push_back(editing->getControls()->at(n));
-        }
-    }
+clear();
 
-    return editiableControls.size();
+for(
+int n = 0;
+n<editing->getControls()->size(); n++)
+{
+if((editing->getControls()->
+at(n)
+->type == TC_TYPE_BUTTON) && (editing->getControls()->
+at(n)
+->tag != ""))
+{
+editiableControls.
+push_back(editing
+->getControls()->
+at(n)
+);
+}
 }
 
-void EXPORT_ME Java_com_beloko_touchcontrols_TouchControlsEditing_JNIGetControlInfo(JNIEnv *env, jobject obj,
-        jint pos,jobject info)
-{
-    jclass clazz;
-    jfieldID fid;
-    clazz = env->GetObjectClass( info);
-    if (0 == clazz)
-    {
-        LOGE("Java_com_beloko_duke_TouchControlsSettings_JNIGetControlInfo, GetObjectClass returned 0");
-        return;
-    }
+return editiableControls.
 
+size();
 
-    jstring tag = env->NewStringUTF(editiableControls.at(pos)->tag.c_str());
-    fid = env->GetFieldID(clazz,"tag","Ljava/lang/String;");
-    env->SetObjectField(info,fid,tag);
-
-    jstring image = env->NewStringUTF(static_cast<touchcontrols::Button*>(editiableControls.at(pos))->image.c_str());
-    fid = env->GetFieldID(clazz,"image","Ljava/lang/String;");
-    env->SetObjectField(info,fid,image);
-
-
-    fid = env->GetFieldID(clazz,"enabled","Z");
-    env->SetBooleanField(info,fid,editiableControls.at(pos)->isEnabled());
-
-    fid = env->GetFieldID(clazz,"hidden","Z");
-       env->SetBooleanField(info,fid,editiableControls.at(pos)->isHidden());
-   // env->SetIntField()
 }
 
-void EXPORT_ME Java_com_beloko_touchcontrols_TouchControlsEditing_JNISetHidden(JNIEnv *env, jobject obj,
-        jint pos,jboolean hidden)
+void EXPORT_ME Java_com_beloko_touchcontrols_TouchControlsEditing_JNIGetControlInfo(JNIEnv * env, jobject
+obj,
+jint pos, jobject
+info)
 {
-    editiableControls.at(pos)->setHidden(hidden);
+jclass clazz;
+jfieldID fid;
+clazz = env->GetObjectClass(info);
+
+if(0 == clazz)
+{
+LOGE("Java_com_beloko_duke_TouchControlsSettings_JNIGetControlInfo, GetObjectClass returned 0");
+return;
+}
+
+
+jstring tag = env->NewStringUTF(editiableControls.at(pos)->tag.c_str());
+fid = env->GetFieldID(clazz, "tag", "Ljava/lang/String;");
+env->
+SetObjectField(info, fid, tag
+);
+
+jstring image = env->NewStringUTF(static_cast<touchcontrols::Button *>(editiableControls.at(pos))->image.c_str());
+fid = env->GetFieldID(clazz, "image", "Ljava/lang/String;");
+env->
+SetObjectField(info, fid, image
+);
+
+
+fid = env->GetFieldID(clazz, "enabled", "Z");
+env->
+SetBooleanField(info, fid, editiableControls
+.
+at(pos)
+->
+
+isEnabled()
+
+);
+
+fid = env->GetFieldID(clazz, "hidden", "Z");
+env->
+SetBooleanField(info, fid, editiableControls
+.
+at(pos)
+->
+
+isHidden()
+
+);
+// env->SetIntField()
+}
+
+void EXPORT_ME Java_com_beloko_touchcontrols_TouchControlsEditing_JNISetHidden(JNIEnv * env, jobject
+obj,
+jint pos, jboolean
+hidden)
+{
+editiableControls.
+at(pos)
+->
+setHidden(hidden);
 }
 }

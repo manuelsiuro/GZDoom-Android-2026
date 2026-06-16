@@ -1,0 +1,28 @@
+Compiled from "FileJNI.java"
+public class com.opentouchgaming.saffal.FileJNI {
+  static final java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  public com.opentouchgaming.saffal.FileJNI();
+    descriptor: ()V
+
+  public static native void initSAFPaths(java.lang.String[], int);
+    descriptor: ([Ljava/lang/String;I)V
+
+  public static int fopen(java.lang.String, java.lang.String);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;)I
+
+  public static int mkdir(java.lang.String);
+    descriptor: (Ljava/lang/String;)I
+
+  public static int exists(java.lang.String);
+    descriptor: (Ljava/lang/String;)I
+
+  public static int delete(java.lang.String);
+    descriptor: (Ljava/lang/String;)I
+
+  public static int rename(java.lang.String, java.lang.String);
+    descriptor: (Ljava/lang/String;Ljava/lang/String;)I
+
+  public static java.lang.String[] opendir(java.lang.String);
+    descriptor: (Ljava/lang/String;)[Ljava/lang/String;
+}

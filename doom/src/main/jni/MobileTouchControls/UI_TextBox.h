@@ -13,47 +13,53 @@
 namespace touchcontrols
 {
 
-class UI_TextBox : public ControlSuper
-{
-	bool pressed;
+    class UI_TextBox : public ControlSuper
+    {
+        bool pressed;
 
-	int id;
+        int id;
 
-	GLuint glTex;
+        GLuint glTex;
 
-	GLRect glRect;
+        GLRect glRect;
 
-    std::string image;
-    std::string text;
-    float textSize;
-    float charSpacing;
-    int fontSet; //0 or 1
-    uint32_t params;
+        std::string image;
+        std::string text;
+        float textHeight;
+        float textWidthScale = 0.625; //The glyph width is the height scaled by this
+        float charSpacing;
+        int fontSet; //0 or 1
+        uint32_t params;
 
-    std::vector< FontInfo > fontInfoVec;
+        uint32_t color;
 
-    float getCharWidth(unsigned char c);
+        std::vector <FontInfo> fontInfoVec;
 
-    float getTotalWidth();
+        float getCharWidth(unsigned char c);
 
-public:
+        float getTotalWidth();
 
-	UI_TextBox( std::string tag, RectF pos, std::string font_filename, int fontSet, uint32_t params, std::string text, float textSize );
+    public:
 
-	bool processPointer(int action, int pid, float x, float y);
+        UI_TextBox(std::string tag, RectF pos, std::string font_filename, int fontSet, uint32_t params, std::string text, float textSize,
+                   uint32_t color = COLOUR_WHITE);
 
- 	void resetOutput();
+        bool processPointer(int action, int pid, float x, float y);
 
-	bool drawGL(bool forEditor = false);
+        void resetOutput();
 
-	bool initGL();
+        bool drawGL(bool forEditor = false);
 
-	void updateSize();
+        bool initGL();
 
-	void saveXML(TiXmlDocument &doc);
+        void updateSize();
 
-	void loadXML(TiXmlDocument &doc);
-};
+        void scaleSize(float x, float y);
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+    };
 
 }
 

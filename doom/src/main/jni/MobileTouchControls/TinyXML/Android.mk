@@ -24,8 +24,6 @@ LOCAL_SRC_FILES :=\
 	tinystr.cpp \
 	tinyxmlerror.cpp \
 	tinyxmlparser.cpp \
-	
-LOCAL_LDLIBS :=
 
-#include $(BUILD_SHARED_LIBRARY)
+
 include $(BUILD_STATIC_LIBRARY)

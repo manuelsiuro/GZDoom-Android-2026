@@ -11,68 +11,71 @@
 namespace touchcontrols
 {
 
-class JoyStick : public ControlSuper
-{
-	bool pressed;
-	bool hideGraphics;
-	bool centreAnchor;
+    class JoyStick : public ControlSuper
+    {
+        bool pressed;
+        bool hideGraphics;
+        bool centreAnchor;
 
-	int id;
+        int id;
 
-	std::string image;
-	std::string imageBg;
+        std::string image;
+        std::string imageBg;
 
-	GLuint glTex;
-	GLuint glTexBg;
+        GLuint glTex;
+        GLuint glTexBg;
 
-	GLRect glRect;
-	GLRect glRectBg;
+        GLRect glRect;
+        GLRect glRectBg;
 
-	PointF valueTouch;
-	PointF valueJoy;
+        PointF valueTouch;
+        PointF valueJoy;
 
-	PointF last;
-	PointF fingerPos;
-	PointF anchor;
-	int glitchFix;
-
-
-	//Double tap stuff
-	int doubleTapState; //0 = waiting for first press, 1 = waiting for first lift,
-	double doubleTapCounter;
-public:
-	sigc::signal<void, float,float,float,float> signal_move;
-
-	sigc::signal<void, int> signal_double_tap;
+        PointF last;
+        PointF fingerPos;
+        PointF anchor;
+        int glitchFix;
 
 
-	JoyStick(std::string tag,RectF pos,std::string image_filename);
+        //Double tap stuff
+        int doubleTapState; //0 = waiting for first press, 1 = waiting for first lift,
+        double doubleTapCounter;
+    public:
+        sigc::signal<void, float, float, float, float> signal_move;
 
-	void setHideGraphics(bool v);
-	void setCentreAnchor(bool v);
+        sigc::signal<void, int> signal_double_tap;
 
-	void setBackground(std::string image_filename);
 
-    void resetOutput();
+        JoyStick(std::string tag, RectF pos, std::string image_filename);
 
-	bool processPointer(int action, int pid, float x, float y);
+        void setHideGraphics(bool v);
 
-	bool drawGL(bool forEditor = false);
+        void setCentreAnchor(bool v);
 
-	bool initGL();
+        void setBackground(std::string image_filename);
 
-	void updateSize();
+        void resetOutput();
 
-	void saveXML(TiXmlDocument &doc);
+        bool processPointer(int action, int pid, float x, float y);
 
-	void loadXML(TiXmlDocument &doc);
-private:
+        bool drawGL(bool forEditor = false);
 
-	void reset();
-	void calcNewValue();
-	void doUpdate();
-	double getMS();
-};
+        bool initGL();
+
+        void updateSize();
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+
+    private:
+
+        void reset();
+
+        void calcNewValue();
+
+        void doUpdate();
+    };
 
 }
 

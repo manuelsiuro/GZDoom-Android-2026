@@ -9,9 +9,9 @@
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR,"AssetFileCache", __VA_ARGS__))
 
 
-AssetFileCache::AssetFileCache ( AAsset* asset ) : asset ( asset )
+AssetFileCache::AssetFileCache(AAsset *asset) : asset(asset)
 {
-    fileSize = AAsset_getLength ( asset );
+    fileSize = AAsset_getLength(asset);
 
     pageSize = 1024 * 1024;
     nbrPageData = 8;
@@ -19,48 +19,49 @@ AssetFileCache::AssetFileCache ( AAsset* asset ) : asset ( asset )
     pos = 0;
 
     uint32_t totalPages = fileSize / pageSize;
-    if ( fileSize % pageSize != 0 )
+
+    if(fileSize % pageSize != 0)
     {
         totalPages++;
     }
 
     this->totalPages = totalPages;
 
-    if ( totalPages < nbrPageData )
+    if(totalPages < nbrPageData)
     {
         nbrPageData = totalPages;
     }
 
-    for ( int32_t n = 0; n < totalPages; n++ )
+    for(int32_t n = 0; n < totalPages; n++)
     {
-        pages.push_back ( new Page() );
+        pages.push_back(new Page());
     }
 
-    for ( int32_t n = 0; n < nbrPageData; n++ )
+    for(int32_t n = 0; n < nbrPageData; n++)
     {
-        pageData.push_back ( new PageData ( pageSize ) );
+        pageData.push_back(new PageData(pageSize));
     }
 
-    LOGI ( "Created, asset = %p, fileSize = %d, totalPages = %d, nbrPageData = %d", asset, fileSize, totalPages, nbrPageData );
+    LOGI("Created, asset = %p, fileSize = %d, totalPages = %d, nbrPageData = %d", asset, fileSize, totalPages, nbrPageData);
 }
 
 AssetFileCache::~AssetFileCache()
 {
-    AAsset_close ( asset );
+    AAsset_close(asset);
 
-    for ( int32_t n = 0; n < nbrPageData; n++ )
+    for(int32_t n = 0; n < nbrPageData; n++)
     {
         delete pageData[n];
     }
 
-    for ( int32_t n = 0; n < totalPages; n++ )
+    for(int32_t n = 0; n < totalPages; n++)
     {
         delete pages[n];
     }
 }
 
 
-uint32_t AssetFileCache::read ( char* buf, int size )
+uint32_t AssetFileCache::read(char *buf, int size)
 {
     // Out 'time' is incremented everytime we get a read
     time++;
@@ -68,62 +69,68 @@ uint32_t AssetFileCache::read ( char* buf, int size )
     //LOGI ( "READ %p pos = %ld, size = %d", asset, pos, size );
 
     uint32_t written = 0;
-    while ( written < size )
+
+    while(written < size)
     {
         //LOGI("Read size = %d", temp);
-        written += readDataFromPage ( buf + written, size - written );
+        written += readDataFromPage(buf + written, size - written);
     }
 
     return size;
 }
 
-uint32_t AssetFileCache::seek ( fpos_t offset, int origin )
+uint32_t AssetFileCache::seek(fpos_t offset, int origin)
 {
     // LOGI("seek %ld %d", offset, origin );
-    switch ( origin )
+    switch(origin)
     {
-    case SEEK_SET:
-        pos = offset;
-        break;
-    case SEEK_CUR:
-        pos += offset;
-        break;
-    case SEEK_END:
-        pos = fileSize;
-    default:
-        break;
+        case SEEK_SET:
+            pos = offset;
+            break;
+
+        case SEEK_CUR:
+            pos += offset;
+            break;
+
+        case SEEK_END:
+            pos = fileSize;
+
+        default:
+            break;
     }
 
     return pos;
 }
 
-PageData*  AssetFileCache::getPage()
+PageData *AssetFileCache::getPage()
 {
     PageData *data = NULL;
 
     // First see if any data not in use
-    for ( int32_t n = 0; n < nbrPageData; n++ )
+    for(int32_t n = 0; n < nbrPageData; n++)
     {
-        if ( pageData.at ( n )->inUse == false )
+        if(pageData.at(n)->inUse == false)
         {
-            data = pageData.at ( n );
+            data = pageData.at(n);
             // LOGI("getPage found unused at %d (%p)",n, data);
-            pageData.at ( n )->inUse = true;
+            pageData.at(n)->inUse = true;
             break;
         }
     }
 
     // Find the oldest used page
-    if ( data == NULL )
+    if(data == NULL)
     {
         uint32_t oldestTime = 0xFFFFFFFF;
         Page *oldestPage = NULL;
-        for ( int32_t n = 0; n < totalPages; n++ )
+
+        for(int32_t n = 0; n < totalPages; n++)
         {
             Page *page = pages[n];
-            if ( page->pageData != NULL )
+
+            if(page->pageData != NULL)
             {
-                if ( page->lastAccess < oldestTime )
+                if(page->lastAccess < oldestTime)
                 {
                     oldestTime = page->lastAccess;
                     oldestPage = page;
@@ -140,26 +147,26 @@ PageData*  AssetFileCache::getPage()
 
 }
 
-uint32_t AssetFileCache::posToPageNbr ( fpos_t pos )
+uint32_t AssetFileCache::posToPageNbr(fpos_t pos)
 {
     return pos / pageSize;
 }
 
-void printBytes ( char *buf, int size )
+void printBytes(char *buf, int size)
 {
-    for ( int n = 0; n < size; n++ )
+    for(int n = 0; n < size; n++)
     {
-        LOGI ( "0x%02x", buf[n] );
+        LOGI("0x%02x", buf[n]);
     }
 }
 
-uint32_t AssetFileCache::readDataFromPage ( char* buf, uint32_t size )
+uint32_t AssetFileCache::readDataFromPage(char *buf, uint32_t size)
 {
-    uint32_t maxFromPage = ( pageSize - ( pos % pageSize ) );
+    uint32_t maxFromPage = (pageSize - (pos % pageSize));
 
     uint32_t bytesToRead;
 
-    if ( size > maxFromPage )
+    if(size > maxFromPage)
     {
         bytesToRead = maxFromPage;
     }
@@ -168,13 +175,13 @@ uint32_t AssetFileCache::readDataFromPage ( char* buf, uint32_t size )
         bytesToRead = size;
     }
 
-    uint32_t pageNbr = posToPageNbr ( pos );
+    uint32_t pageNbr = posToPageNbr(pos);
 
     Page *page = pages[pageNbr];
     page->lastAccess = time;
 
     // Check if page is already cached
-    if ( page->pageData )
+    if(page->pageData)
     {
         // LOGI ( "USING CACHE asset = %p, data = %p", asset, page->pageData->data );
     }
@@ -183,17 +190,17 @@ uint32_t AssetFileCache::readDataFromPage ( char* buf, uint32_t size )
 
         // Get a data block and cache the data
         PageData *data = getPage();
-        AAsset_seek ( asset, pageNbr * pageSize, SEEK_SET );
-        AAsset_read ( asset, data->data, pageSize );
+        AAsset_seek(asset, pageNbr * pageSize, SEEK_SET);
+        AAsset_read(asset, data->data, pageSize);
         // LOGI ( "CACHE MISS asset = %p, Cached data at %p", asset,  data->data );
         page->pageData = data;
         //printBytes( data->data, 50 );
     }
 
 
-    char * dataSource =  page->pageData->data + ( pos % pageSize );
+    char *dataSource = page->pageData->data + (pos % pageSize);
     //LOGI("buf = %p, dataSource = %p, bytes = %d", buf, dataSource, bytesToRead);
-    memcpy ( buf, dataSource, bytesToRead );
+    memcpy(buf, dataSource, bytesToRead);
 
     // printBytes( buf, 50 );
 

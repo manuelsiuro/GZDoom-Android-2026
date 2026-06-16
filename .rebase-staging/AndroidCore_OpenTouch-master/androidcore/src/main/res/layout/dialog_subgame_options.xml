@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="10dp"
+    android:minWidth="500dp"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Title:" />
+
+        <EditText
+            android:importantForAutofill="no"
+            android:id="@+id/subgame_title_edittext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Name" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Args:" />
+
+        <EditText
+            android:importantForAutofill="no"
+            android:id="@+id/subgame_args_edittext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="" />
+    </LinearLayout>
+
+    <CheckBox
+        android:id="@+id/run_from_here_checkBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Run from this directory (For total conversions)" />
+
+    <TextView
+        android:id="@+id/run_dir_textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="/run/folder/"
+        android:visibility="gone" />
+
+    <include layout="@layout/view_horizontal_line" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Weapon wheel items:" />
+
+        <Spinner
+            android:id="@+id/weapon_wheel_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <include layout="@layout/view_horizontal_line" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/image_textview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Image:   " />
+
+        <TextView
+            android:id="@+id/subgame_image_path"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toLeftOf="@id/subgame_image_choose_button"
+            android:layout_toRightOf="@+id/image_textview"
+            android:text="" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/image_textview"
+            android:text="Tip: Place a file called 'icon.png' in the mod folder." />
+
+        <Button
+            android:id="@+id/subgame_image_choose_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:text="Choose" />
+    </RelativeLayout>
+
+
+</LinearLayout>

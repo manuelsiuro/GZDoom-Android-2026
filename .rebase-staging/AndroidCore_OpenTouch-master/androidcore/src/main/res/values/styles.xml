@@ -1,0 +1,53 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <!-- Theme.AppCompat.DayNight.NoActionBar -->
+    <!-- Theme.MaterialComponents.DayNight.NoActionBar-->
+    <style name="AppTheme" parent="Theme.MaterialComponents.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <!-- Set the default style for all MaterialButtons -->
+        <item name="materialButtonStyle">@style/Widget.App.Button</item>
+    </style>
+
+    <!-- This style applies the theme overlay to the button -->
+    <style name="Widget.App.Button" parent="Widget.MaterialComponents.Button">
+        <!-- Force the text color to white -->
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+
+
+    <style name="DialogThemeFullscreen" parent="android:Theme.DeviceDefault.Light">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+    </style>
+
+    <style name="DialogThemeFullscreen_dark">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+    </style>
+
+
+    <style name="SettingSubText">
+        <item name="android:textColor">#A0A0A0</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="DialogTitleText">
+        <item name="android:textColor">#A0A0A0</item>
+        <item name="android:textSize">25dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ButtonMaterial" parent="@style/Theme.MaterialComponents.Light"/>
+    <style name="TextMaterial" parent="@style/Theme.MaterialComponents"/>
+
+</resources>

@@ -1,0 +1,108 @@
+Compiled from "UtilsSAF.java"
+public class com.opentouchgaming.saffal.UtilsSAF {
+  static java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  static android.content.Context context;
+    descriptor: Landroid/content/Context;
+  static int cacheNativeFs;
+    descriptor: I
+  static boolean CASE_INSENSITIVE;
+    descriptor: Z
+  static java.util.List<com.opentouchgaming.saffal.UtilsSAF$TreeRoot> treeRoots;
+    descriptor: Ljava/util/List;
+  public com.opentouchgaming.saffal.UtilsSAF();
+    descriptor: ()V
+
+  public static void setContext(android.content.Context, boolean);
+    descriptor: (Landroid/content/Context;Z)V
+
+  public static com.opentouchgaming.saffal.UtilsSAF$TreeRoot getTreeRoot();
+    descriptor: ()Lcom/opentouchgaming/saffal/UtilsSAF$TreeRoot;
+
+  public static java.util.List<com.opentouchgaming.saffal.UtilsSAF$TreeRoot> getTreeRoots();
+    descriptor: ()Ljava/util/List;
+
+  public static void setTreeRoot(com.opentouchgaming.saffal.UtilsSAF$TreeRoot);
+    descriptor: (Lcom/opentouchgaming/saffal/UtilsSAF$TreeRoot;)V
+
+  public static void addTreeRoot(com.opentouchgaming.saffal.UtilsSAF$TreeRoot);
+    descriptor: (Lcom/opentouchgaming/saffal/UtilsSAF$TreeRoot;)V
+
+  public static void removeTreeRoot(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  public static void clearTreeRoots();
+    descriptor: ()V
+
+  private static void rebuildNativePaths();
+    descriptor: ()V
+
+  public static com.opentouchgaming.saffal.UtilsSAF$TreeRoot getTreeRootForPath(java.lang.String);
+    descriptor: (Ljava/lang/String;)Lcom/opentouchgaming/saffal/UtilsSAF$TreeRoot;
+
+  public static com.opentouchgaming.saffal.DocumentNode findDocumentNode(java.lang.String);
+    descriptor: (Ljava/lang/String;)Lcom/opentouchgaming/saffal/DocumentNode;
+
+  public static android.content.ContentResolver getContentResolver();
+    descriptor: ()Landroid/content/ContentResolver;
+
+  public static void openDocumentTree(android.app.Activity, int);
+    descriptor: (Landroid/app/Activity;I)V
+
+  public static void saveTreeRoots(android.content.Context);
+    descriptor: (Landroid/content/Context;)V
+
+  public static void saveTreeRoot(android.content.Context);
+    descriptor: (Landroid/content/Context;)V
+
+  public static boolean loadTreeRoots(android.content.Context);
+    descriptor: (Landroid/content/Context;)Z
+
+  public static boolean loadTreeRoot(android.content.Context);
+    descriptor: (Landroid/content/Context;)Z
+
+  public static boolean ready();
+    descriptor: ()Z
+
+  public static boolean isInSAFRoot(java.lang.String);
+    descriptor: (Ljava/lang/String;)Z
+
+  public static boolean isRootOfSAFRoot(java.lang.String);
+    descriptor: (Ljava/lang/String;)Z
+
+  public static java.lang.String getFdPath(int);
+    descriptor: (I)Ljava/lang/String;
+
+  public static java.io.File getRealFile(java.lang.String);
+    descriptor: (Ljava/lang/String;)Ljava/io/File;
+
+  static java.io.InputStream getInputStream(androidx.documentfile.provider.DocumentFile) throws java.io.FileNotFoundException;
+    descriptor: (Landroidx/documentfile/provider/DocumentFile;)Ljava/io/InputStream;
+
+  static android.os.ParcelFileDescriptor getParcelDescriptor(java.lang.String, android.net.Uri, boolean) throws java.io.IOException;
+    descriptor: (Ljava/lang/String;Landroid/net/Uri;Z)Landroid/os/ParcelFileDescriptor;
+
+  static boolean renameDocument(java.lang.String, android.net.Uri, java.lang.String) throws java.io.IOException;
+    descriptor: (Ljava/lang/String;Landroid/net/Uri;Ljava/lang/String;)Z
+
+  static boolean deleteDocument(java.lang.String, android.net.Uri) throws java.io.IOException;
+    descriptor: (Ljava/lang/String;Landroid/net/Uri;)Z
+
+  public static java.lang.String getDocumentPath(java.lang.String);
+    descriptor: (Ljava/lang/String;)Ljava/lang/String;
+
+  private static java.lang.String getDocumentPath(java.lang.String, com.opentouchgaming.saffal.UtilsSAF$TreeRoot);
+    descriptor: (Ljava/lang/String;Lcom/opentouchgaming/saffal/UtilsSAF$TreeRoot;)Ljava/lang/String;
+
+  public static java.lang.String[] getParts(java.lang.String);
+    descriptor: (Ljava/lang/String;)[Ljava/lang/String;
+
+  private static void DBG(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  private static boolean lambda$removeTreeRoot$0(java.lang.String, com.opentouchgaming.saffal.UtilsSAF$TreeRoot);
+    descriptor: (Ljava/lang/String;Lcom/opentouchgaming/saffal/UtilsSAF$TreeRoot;)Z
+
+  static {};
+    descriptor: ()V
+}

@@ -57,13 +57,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- sensorLandscape: the GZDoom 4.15 GLES framebuffer is sized once at
+             init and SDL owns the surface, so the surface must never change
+             aspect mid-game (rotating to portrait stretched the image). Both
+             landscape directions still work. -->
         <activity
             android:name=".Game"
             android:exported="false"
             android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize|density"
             android:launchMode="singleTop"
             android:process=":Game"
-            android:screenOrientation="fullUser"
+            android:screenOrientation="sensorLandscape"
             tools:ignore="DiscouragedApi" />
 
         <!-- Shares generated WADs from the map editor via the Android share sheet. -->

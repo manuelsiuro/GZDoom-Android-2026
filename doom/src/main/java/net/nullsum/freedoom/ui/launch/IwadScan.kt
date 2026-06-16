@@ -9,6 +9,8 @@ import java.io.File
 val EXCLUDED_IWAD_FILES = setOf(
     "prboom-plus.wad", "gzdoom.pk3", "gzdoom_dev.pk3",
     "lights_dt.pk3", "brightmaps_dt.pk3", "lights.pk3", "brightmaps.pk3",
+    // Extra engine pk3s bundled with the GZDoom 4.15 stack — not selectable IWADs.
+    "game_widescreen_gfx.pk3", "game_support.pk3", "gzdoom_dev_gl3.pk3",
 )
 
 /**

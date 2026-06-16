@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/primary"
+        android:title="Use Primary (default + fast)" />
+    <item
+        android:id="@+id/secondary"
+        android:title="Use Secondary (experimental)"/>
+    <item
+        android:id="@+id/export"
+        android:title="Import/Export"/>
+
+</menu>

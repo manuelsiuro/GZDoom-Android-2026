@@ -11,67 +11,107 @@
 namespace touchcontrols
 {
 
-class WheelSelect : public ControlSuper
-{
-    bool pressed;
-    bool hideGraphics;
+    enum WheelSelectMode
+    {
+        WHEELSELECT_GP_MODE_HOLD,
+        WHEELSELECT_GP_MODE_TAP,
+    };
 
-    int id;
+    class WheelSelect : public ControlSuper
+    {
+        bool pressed;
+        bool hideGraphics;
 
-    std::string image;
+        int id;
 
-    GLuint glTex;
-    GLuint glTexFade;
+        std::string image;
 
-    GLRect glRect;
-    GLRect glRectFade;
+        GLuint glTex;
+        GLuint glTexFade;
+        GLuint glTexSelected;
 
+        GLRect glRect;
+        GLRect glRectFade;
+        GLRect glRectSelected;
 
-    PointF last;
-    PointF fingerPos;
-    PointF anchor;
+        PointF last;
+        PointF fingerPos;
+        PointF anchor;
 
-    PointF centre;
+        PointF centre;
 
-    int nbrSegs;
+        bool visible;
 
-    int selectedSeg;
+        int nbrSegs;
 
-    bool useFadeSegs; //default no
-    int enabledSegs;
-public:
+        int selectedSeg;
 
-    sigc::signal<void, int> signal_selected;
-    sigc::signal<void, int> signal_enabled;
-    sigc::signal<void, int> signal_scroll;
+        WheelSelectMode gamepadMode;
+        bool gamepadMultiTap; // True to allow rapid taping of button to cycle weapons
+        int gamepadAutoTimeout;
+        bool gamepadInUse;
+        float gamepadLastX;
+        float gamepadLastY;
 
-    WheelSelect ( std::string tag, RectF pos, std::string image_filename, int segments );
+        uint64_t gamepadLastMoveTime; // Store the time the gamepad axis last moved, used for auto timout
 
-    void setSegmentEnabled ( int seg, bool v );
+        bool axisBlock;
+        uint64_t axisBlockDelay; // Stop the gamepad axis working for a short amount of time after selection
 
-    void setHideGraphics ( bool v );
+        bool useFadeSegs; //default no
+        int enabledSegs;
+    public:
 
-    void resetOutput();
+        sigc::signal<void, int> signal_selected;
+        sigc::signal<void, int> signal_enabled;
+        sigc::signal<void, int> signal_scroll;
 
-    bool processPointer ( int action, int pid, float x, float y );
+        WheelSelect(std::string tag, RectF pos, std::string image_filename, int segments);
 
-    bool drawGL ( bool forEditor = false );
+        void setWheelVisible(bool visible);
 
-    bool initGL();
+        void setSegmentEnabled(int seg, bool v);
 
-    void updateSize();
+        void setHideGraphics(bool v);
 
-    void saveXML ( TiXmlDocument &doc );
+        void resetOutput();
 
-    void loadXML ( TiXmlDocument &doc );
-private:
+        bool processPointer(int action, int pid, float x, float y);
 
-    void reset();
-    void calcNewValue();
-    void doUpdate();
-    float distCentre ( float x, float y );
-    bool inCentre ( float x, float y );
-};
+        void processGamepad(float x, float y);
+
+        bool blockGamepad(); // Returns true if need to block the axis values
+
+        void setGamepadMode(WheelSelectMode mode, int autoTimeout);
+
+        bool gamepadActionButton(int state);
+
+        bool drawGL(bool forEditor = false);
+
+        bool initGL();
+
+        void updateSize();
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+
+        void reset();
+
+    private:
+
+        void calcNewValue();
+
+        void doUpdate();
+
+        float distCentre(float x, float y);
+
+        bool inCentre(float x, float y);
+
+        bool gamepadUpdateSeg();
+
+        void gamepadSelect();
+    };
 
 }
 

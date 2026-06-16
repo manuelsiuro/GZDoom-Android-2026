@@ -1,0 +1,83 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/relativeLayout1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+               >
+
+    <ScrollView
+        android:id="@+id/scrollview"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/linearLayout2"
+        android:layout_margin="20dp"
+        android:layout_alignParentTop="true">
+
+        <TextView
+            android:id="@+id/about_text_textview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Nzb filename"/>
+    </ScrollView>
+
+    <it.gmariotti.changelibs.library.view.ChangeLogRecyclerView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:chg="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/changeLogView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/linearLayout2"
+        android:layout_marginTop="20dp"
+        chg:rowLayoutId="@layout/changelogrow_layout_my"
+        chg:rowHeaderLayoutId="@layout/changelogrowheader_layout_my"
+        android:layout_gravity="center" />
+
+    <LinearLayout
+        android:id="@+id/linearLayout2"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ok_button"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:theme="@style/ButtonMaterial"
+            android:text="OK"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/about_changes_button"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:theme="@style/ButtonMaterial"
+            android:text="Changes"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/about_license_button"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:theme="@style/ButtonMaterial"
+            android:text="About"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/about_rate_button"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:theme="@style/ButtonMaterial"
+            android:text="Rate Me!"/>
+    </LinearLayout>
+
+</RelativeLayout>

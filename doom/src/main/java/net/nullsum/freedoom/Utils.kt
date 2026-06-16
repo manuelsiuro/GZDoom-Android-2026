@@ -62,21 +62,11 @@ object Utils {
         copyAsset(responsibleActivity, "10secto2.wad", fullWadDir)
         copyAsset(responsibleActivity, "10secto2.txt", fullWadDir)
 
-        // copy a custom gzdoom iniFile to set midi device to fluidsynth
-        val iniFileName = "zdoom.ini"
-        val iniFolderName = "/gzdoom_dev"
-        var tester = File("$fullBaseDir$iniFolderName/$iniFileName")
-        if (!tester.exists()) {
-            Log.d(LOG, "zdoom.ini file not present, copying custom one")
-            copyAsset(responsibleActivity, iniFileName, fullBaseDir + iniFolderName)
-        } else {
-            Log.d(LOG, "zdoom.ini file is already present")
-        }
-
-        // copy over gzdoom mod/package files
+        // copy over gzdoom mod/package files (selectable as add-on chips;
+        // GZDoom 4.15 also autoloads the copies placed in the base dir).
         val fullModDir = "$fullBaseDir/mods"
 
-        tester = File("$fullModDir/brightmaps.pk3")
+        var tester = File("$fullModDir/brightmaps.pk3")
         if (!tester.exists()) {
             copyAsset(responsibleActivity, "brightmaps.pk3", fullModDir)
         }
@@ -84,11 +74,6 @@ object Utils {
         tester = File("$fullModDir/lights.pk3")
         if (!tester.exists()) {
             copyAsset(responsibleActivity, "lights.pk3", fullModDir)
-        }
-
-        tester = File("$fullModDir/zdextra.pk3")
-        if (!tester.exists()) {
-            copyAsset(responsibleActivity, "zdextra.pk3", fullModDir)
         }
     }
 
@@ -259,6 +244,7 @@ object Utils {
         val assetManager = ctx.assets
 
         try {
+            File(destdir).mkdirs()
             val input = assetManager.open(file)
             val out = FileOutputStream("$destdir/$file")
             copyFile(input, out)

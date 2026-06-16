@@ -1,0 +1,75 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+
+    compileSdkVersion 35
+    viewBinding.enabled true
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    defaultConfig {
+        minSdkVersion 19
+        targetSdkVersion 35
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    sourceSets {
+        main {
+            java {
+                exclude 'org/libsdl/app2012_orig/**'
+                exclude 'org/libsdl/app3000_orig/**'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    //useLibrary 'org.apache.http.legacy'
+    namespace 'com.opentouchgaming.androidcore'
+}
+
+
+android {
+    defaultConfig {
+        vectorDrawables.useSupportLibrary = true
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation project(path: ':saffal')
+    implementation project(path: ':changeloglib')
+
+    implementation 'net.lingala.zip4j:zip4j:2.11.5'
+
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0' //4.16.0 Needed to launch on Nvidia Shield (5.x fails)
+    implementation 'com.github.bumptech.glide:glide:4.16.0'         //4.16.0 Needed to launch on Nvidia Shield (5.x fails)
+
+    implementation 'com.google.code.gson:gson:2.13.2'
+    implementation 'org.ocpsoft.prettytime:prettytime:4.0.6.Final'
+
+    implementation libs.material // 1.12 is maximum for API 19
+
+    implementation 'androidx.appcompat:appcompat:1.6.1'  // 1.6.1 is maximum for API 19
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2' // Needed for API 19
+}

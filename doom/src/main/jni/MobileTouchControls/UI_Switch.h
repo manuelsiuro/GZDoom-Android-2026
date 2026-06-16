@@ -2,6 +2,8 @@
 #include "ControlSuper.h"
 #include "GLRect.h"
 #include "OpenGLUtils.h"
+#include "TapDetect.h"
+
 
 #ifndef _UI_Switch_H_
 #define _UI_Switch_H_
@@ -10,47 +12,50 @@
 namespace touchcontrols
 {
 
-class UI_Switch : public ControlSuper
-{
-    bool pressed;
+    class UI_Switch : public ControlSuper
+    {
+        bool pressed;
 
-    int touchId;
+        int touchId;
 
-    uint32_t uid;
+        uint32_t uid;
 
-    GLuint glTexOn;
-    GLuint glTexOff;
+        GLuint glTexOn;
+        GLuint glTexOff;
 
-    GLRect glRect;
+        GLRect glRect;
 
-    std::string off_image;
-    std::string on_image;
+        std::string off_image;
+        std::string on_image;
 
-    bool isOn;
+        bool isOn;
 
-public:
+        TapDetect tapDetect;
 
-    UI_Switch ( std::string tag, RectF pos, uint32_t uid, std::string on_image, std::string off_image );
+    public:
 
-    sigc::signal<void, uint32_t, bool> signal;
+        UI_Switch(std::string tag, RectF pos, uint32_t uid, std::string on_image, std::string off_image);
 
-    bool getValue();
-    void setValue( bool );
+        sigc::signal<void, uint32_t, bool> signal;
 
-    bool processPointer ( int action, int pid, float x, float y );
+        bool getValue();
 
-    void resetOutput();
+        void setValue(bool);
 
-    bool drawGL ( bool forEditor = false );
+        bool processPointer(int action, int pid, float x, float y);
 
-    bool initGL();
+        void resetOutput();
 
-    void updateSize();
+        bool drawGL(bool forEditor = false);
 
-    void saveXML ( TiXmlDocument &doc );
+        bool initGL();
 
-    void loadXML ( TiXmlDocument &doc );
-};
+        void updateSize();
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+    };
 
 }
 

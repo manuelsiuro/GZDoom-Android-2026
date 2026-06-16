@@ -1,0 +1,153 @@
+Compiled from "NativeLib.java"
+public class org.libsdl.app.NativeLib implements com.beloko.touchcontrols.ControlInterface {
+  public static final int SDL_SCANCODE_A;
+    descriptor: I
+  public static final int SDL_SCANCODE_1;
+    descriptor: I
+  public static final int SDL_SCANCODE_0;
+    descriptor: I
+  public static final int SDL_SCANCODE_RETURN;
+    descriptor: I
+  public static final int SDL_SCANCODE_ESCAPE;
+    descriptor: I
+  public static final int SDL_SCANCODE_BACKSPACE;
+    descriptor: I
+  public static final int SDL_SCANCODE_TAB;
+    descriptor: I
+  public static final int SDL_SCANCODE_SPACE;
+    descriptor: I
+  public static final int SDL_SCANCODE_MINUS;
+    descriptor: I
+  public static final int SDL_SCANCODE_EQUALS;
+    descriptor: I
+  public static final int SDL_SCANCODE_COMMA;
+    descriptor: I
+  public static final int SDL_SCANCODE_PERIOD;
+    descriptor: I
+  public static final int SDL_SCANCODE_SLASH;
+    descriptor: I
+  public static final int SDL_SCANCODE_F1;
+    descriptor: I
+  public static final int SDL_SCANCODE_PRINTSCREEN;
+    descriptor: I
+  public static final int SDL_SCANCODE_INSERT;
+    descriptor: I
+  public static final int SDL_SCANCODE_HOME;
+    descriptor: I
+  public static final int SDL_SCANCODE_PAGEUP;
+    descriptor: I
+  public static final int SDL_SCANCODE_DELETE;
+    descriptor: I
+  public static final int SDL_SCANCODE_END;
+    descriptor: I
+  public static final int SDL_SCANCODE_PAGEDOWN;
+    descriptor: I
+  public static final int SDL_SCANCODE_RIGHT;
+    descriptor: I
+  public static final int SDL_SCANCODE_LEFT;
+    descriptor: I
+  public static final int SDL_SCANCODE_DOWN;
+    descriptor: I
+  public static final int SDL_SCANCODE_UP;
+    descriptor: I
+  public static final int SDL_SCANCODE_POWER;
+    descriptor: I
+  public static final int SDL_SCANCODE_LCTRL;
+    descriptor: I
+  public static final int SDL_SCANCODE_LSHIFT;
+    descriptor: I
+  public static final int SDL_SCANCODE_LALT;
+    descriptor: I
+  public static final int SDL_SCANCODE_RCTRL;
+    descriptor: I
+  public static final int SDL_SCANCODE_RSHIFT;
+    descriptor: I
+  public static final int SDL_SCANCODE_RALT;
+    descriptor: I
+  public org.libsdl.app.NativeLib();
+    descriptor: ()V
+
+  public static native int init(java.lang.String, int, int, java.lang.String[], int, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
+    descriptor: (Ljava/lang/String;II[Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
+
+  public static native void setScreenSize(int, int);
+    descriptor: (II)V
+
+  public static native void setFramebufferSize(int, int, int);
+    descriptor: (III)V
+
+  public static native boolean touchEvent(int, int, float, float);
+    descriptor: (IIFF)Z
+
+  public static native void keypress(int, int, int);
+    descriptor: (III)V
+
+  public static native int doAction(int, int);
+    descriptor: (II)I
+
+  public static native void backButton();
+    descriptor: ()V
+
+  public static native void analogFwd(float, float);
+    descriptor: (FF)V
+
+  public static native void analogSide(float, float);
+    descriptor: (FF)V
+
+  public static native void analogPitch(int, float, float);
+    descriptor: (IFF)V
+
+  public static native void analogYaw(int, float, float);
+    descriptor: (IFF)V
+
+  public static native void weaponWheelSettings(int, int, int);
+    descriptor: (III)V
+
+  public static native int audioOverride(int, int);
+    descriptor: (II)I
+
+  public static native int loadTouchSettings(java.lang.String);
+    descriptor: (Ljava/lang/String;)I
+
+  public static native int saveTouchSettings(java.lang.String);
+    descriptor: (Ljava/lang/String;)I
+
+  public static native int executeCommand(java.lang.String);
+    descriptor: (Ljava/lang/String;)I
+
+  public static native int renderControls();
+    descriptor: ()I
+
+  public void initTouchControls_if(java.lang.String, int, int);
+    descriptor: (Ljava/lang/String;II)V
+
+  public boolean touchEvent_if(int, int, float, float);
+    descriptor: (IIFF)Z
+
+  public void keyPress_if(int, int, int);
+    descriptor: (III)V
+
+  public void doAction_if(int, int);
+    descriptor: (II)V
+
+  public void analogFwd_if(float);
+    descriptor: (F)V
+
+  public void analogSide_if(float);
+    descriptor: (F)V
+
+  public void analogPitch_if(int, float);
+    descriptor: (IF)V
+
+  public void analogYaw_if(int, float);
+    descriptor: (IF)V
+
+  public void setTouchSettings_if(float, float, float, float, float, int);
+    descriptor: (FFFFFI)V
+
+  public void quickCommand_if(java.lang.String);
+    descriptor: (Ljava/lang/String;)V
+
+  public int mapKey(int, int);
+    descriptor: (II)I
+}

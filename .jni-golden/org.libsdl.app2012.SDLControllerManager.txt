@@ -1,0 +1,59 @@
+Compiled from "SDLControllerManager.java"
+public class org.libsdl.app2012.SDLControllerManager {
+  protected static org.libsdl.app2012.SDLJoystickHandler mJoystickHandler;
+    descriptor: Lorg/libsdl/app2012/SDLJoystickHandler;
+  protected static org.libsdl.app2012.SDLHapticHandler mHapticHandler;
+    descriptor: Lorg/libsdl/app2012/SDLHapticHandler;
+  private static final java.lang.String TAG;
+    descriptor: Ljava/lang/String;
+  public org.libsdl.app2012.SDLControllerManager();
+    descriptor: ()V
+
+  public static native int nativeSetupJNI();
+    descriptor: ()I
+
+  public static native int nativeAddJoystick(int, java.lang.String, java.lang.String, int, int, boolean, int, int, int, int);
+    descriptor: (ILjava/lang/String;Ljava/lang/String;IIZIIII)I
+
+  public static native int nativeRemoveJoystick(int);
+    descriptor: (I)I
+
+  public static native int nativeAddHaptic(int, java.lang.String);
+    descriptor: (ILjava/lang/String;)I
+
+  public static native int nativeRemoveHaptic(int);
+    descriptor: (I)I
+
+  public static native int onNativePadDown(int, int);
+    descriptor: (II)I
+
+  public static native int onNativePadUp(int, int);
+    descriptor: (II)I
+
+  public static native void onNativeJoy(int, int, float);
+    descriptor: (IIF)V
+
+  public static native void onNativeHat(int, int, int, int);
+    descriptor: (IIII)V
+
+  public static void initialize();
+    descriptor: ()V
+
+  public static boolean handleJoystickMotionEvent(android.view.MotionEvent);
+    descriptor: (Landroid/view/MotionEvent;)Z
+
+  public static void pollInputDevices();
+    descriptor: ()V
+
+  public static void pollHapticDevices();
+    descriptor: ()V
+
+  public static void hapticRun(int, float, int);
+    descriptor: (IFI)V
+
+  public static void hapticStop(int);
+    descriptor: (I)V
+
+  public static boolean isDeviceSDLJoystick(int);
+    descriptor: (I)Z
+}

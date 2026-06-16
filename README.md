@@ -59,10 +59,12 @@ running, and **playable on modern 64-bit Android devices**.
   uncompressed/page-aligned.
 - **FMOD removed.** Audio now uses the open **OpenAL + FluidSynth** backend (this also unblocked
   arm64), so the project is fully open-source with no proprietary blobs.
-- **Native engine rebased** onto Emile Belanger's actively-maintained, FMOD-free Freedoom/GZDoom
-  fork ([emileb/gzdoom](https://github.com/emileb/gzdoom)), which uses the same
-  `net.nullsum.freedoom` JNI surface. Builds with the current **NDK (r27)** — the dead 2017
-  submodule tree and the old `build.sh`/patch-overlay system are gone.
+- **Native engine rebased onto GZDoom 4.15** — Emile Belanger's actively-maintained
+  `mobile_4.15.x` branch ([emileb/gzdoom](https://github.com/emileb/gzdoom)), the same engine
+  generation that ships in Delta Touch. That brings SDL2, the modern GLES3 renderer, ZMusic,
+  and **ZScript support** (most idgames releases of the last decade need GZDoom 4.x, so the
+  Browse tab's downloads actually run now). Builds with the current **NDK (r27)** — the dead
+  2017 submodule tree and the old `build.sh`/patch-overlay system are gone.
 - **AGP 9 / Gradle Kotlin DSL**, version catalog, AGP-9 built-in Kotlin — **zero build, lint, and
   manifest warnings.**
 
@@ -86,26 +88,24 @@ source for the engine and its dependencies is vendored under `doom/src/main/jni/
 
 See [`CLAUDE.md`](CLAUDE.md) for the architecture and build details.
 
-### Known limitation: sprite transparency on the Android Emulator
+### Known limitation: rendering on the Android Emulator
 
-On the Android Emulator, enemies, pickups, and the HUD weapon render inside **opaque black
-rectangles**. This is an emulator artifact, not an engine bug: the engine uses the legacy
-GL ES 1.1 fixed-function pipeline (alpha test + texture-alpha blending), and the emulator's
-GLES1 translation chain (`libGLESv1_CM_emulation.so` → "OpenGL ES Translator" → host GL →
-Metal on Mac hosts) mishandles fixed-function fragment alpha. The same APK renders correctly
-on real devices (verified on a Samsung Galaxy S24). If you need correct rendering in the
-emulator, cold-boot the AVD with software rendering — `emulator -avd <name> -gpu
-swiftshader_indirect` — or do visual checks on hardware.
+On the Android Emulator the engine boots, plays sound, and accepts input, but the game
+framebuffer presents **black** (the native touch-control overlay and the engine's own UI
+windows are visible). This reproduces on both emulator GPU modes (SwiftShader and host-GPU
+translation), which both run GL through a translation layer; the previous engine generation
+had similar emulator-only artifacts that did not occur on real devices. Verify rendering on
+real hardware.
 
 ## Third-party components
 
-- **Engine:** [emileb/gzdoom](https://github.com/emileb/gzdoom) — maintained, FMOD-free
-  Freedoom/GZDoom port (vendored, built with NDK r27 for armeabi-v7a + arm64-v8a).
+- **Engine:** [emileb/gzdoom](https://github.com/emileb/gzdoom) `mobile_4.15.x` — GZDoom 4.15
+  mobile port (vendored, built with NDK r27 for armeabi-v7a + arm64-v8a).
 - **Audio:** OpenAL + [FluidSynth](https://github.com/FluidSynth/fluidsynth)-lite, mpg123,
   libsndfile (Emile Belanger's `AudioLibs_OpenTouch`).
-- **Graphics:** [jwzgles](https://www.jwz.org/jwzgl/) GL ES 1.x-over-ES2 wrapper.
 - **Input:** [emileb/MobileTouchControls](https://github.com/emileb/MobileTouchControls).
-- **Platform:** [SDL](https://www.libsdl.org/) 1.x, [SAFFAL](https://github.com/emileb/SAFFAL).
+- **Platform:** [SDL2](https://www.libsdl.org/) (emileb fork), [SAFFAL](https://github.com/emileb/SAFFAL),
+  Clibs_OpenTouch glue, ZMusic, glslang, ZWidget.
 - **Map editor:** **png2wad** PNG→WAD converter (originally a C# tool by
   [@akaAgar](https://github.com/akaAgar/png2wad), ported to C/C++ here), built as `libpng2wad.so`
   via the `:png2wad-sdk` module.
@@ -128,7 +128,8 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
 - [x] Add a WAD-download feature (idgames + classic shareware/freeware games)
 - [x] Import-your-own-copy flow for the commercial IWADs (Doom, Doom II, Final Doom, …)
 - [x] In-app PNG2WAD map editor (draw a grid → generate a playable map → launch it)
-- [ ] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x / Vulkan (modern GZDoom 4.x)
+- [x] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x (GZDoom 4.15, `mobile_4.15.x`)
+- [ ] Verify/fix rendering on a real device, then investigate the emulator black-screen present
 
 ## Links to the Freedoom community
 [Freedoom official GitHub](https://github.com/freedoom/freedoom) ·

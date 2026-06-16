@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/dialog_border_color"
+    android:minWidth="350dp"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gyroscope options"
+        android:textSize="30dp" />
+
+    <Switch
+        android:id="@+id/gyro_enable_switch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enable:" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="right"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Turn sens:"
+            android:textSize="20dp" />
+
+        <SeekBar
+            android:id="@+id/gyro_x_seekBar"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+
+            android:max="400" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="right"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Look sens:"
+            android:textSize="20dp" />
+
+        <SeekBar
+            android:id="@+id/gyro_y_seekBar"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:max="400" />
+    </LinearLayout>
+
+    <CheckBox
+        android:id="@+id/gyro_roll_to_turn_checkBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="'Yaw' device to turn" />
+
+    <CheckBox
+        android:id="@+id/gyro_invert_x_checkBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Invert turn" />
+
+    <CheckBox
+        android:id="@+id/gyro_invert_y_checkBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Invert look" />
+
+    <CheckBox
+        android:id="@+id/gyro_swap_xy_checkBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="SWAP X/Y" />
+
+    <Button
+        android:id="@+id/gyro_calibrate_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Calibrate" />
+
+</LinearLayout>

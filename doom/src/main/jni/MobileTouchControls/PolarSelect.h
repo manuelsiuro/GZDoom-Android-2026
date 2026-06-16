@@ -14,52 +14,57 @@
 namespace touchcontrols
 {
 
-class PolarSelect : public ControlSuper
-{
-	bool pressed;
-	bool hideGraphics;
+    class PolarSelect : public ControlSuper
+    {
+        bool pressed;
+        bool hideGraphics;
 
-	int id;
+        int id;
 
-	std::string image;
-	GLuint glTex;
-	GLRect glRect;
+        std::string image;
+        GLuint glTex;
+        GLRect glRect;
 
-	PointF fingerPos;
+        PointF fingerPos;
 
-	PointF centre;
-
-
-public:
-
-	sigc::signal<void, int, float,float> signal_action;
-
-	PolarSelect(std::string tag,RectF pos,std::string image_filename);
+        PointF centre;
 
 
-	void setHideGraphics(bool v);
+    public:
 
-	void resetOutput();
+        sigc::signal<void, int, float, float> signal_action;
 
-	bool processPointer(int action, int pid, float x, float y);
+        PolarSelect(std::string tag, RectF pos, std::string image_filename);
 
-	bool drawGL(bool forEditor = false);
 
-	bool initGL();
+        void setHideGraphics(bool v);
 
-	void updateSize();
+        void resetOutput();
 
-	void saveXML(TiXmlDocument &doc);
+        bool processPointer(int action, int pid, float x, float y);
 
-	void loadXML(TiXmlDocument &doc);
-private:
+        bool drawGL(bool forEditor = false);
 
-	void reset();
-	void calcNewValue();
-	void doUpdate();
-	float distCentre(float x, float y);
-	float getAngle(float x, float y);
-};
+        bool initGL();
+
+        void updateSize();
+
+        void saveXML(TiXmlDocument &doc);
+
+        void loadXML(TiXmlDocument &doc);
+
+    private:
+
+        void reset();
+
+        void calcNewValue();
+
+        void doUpdate();
+
+        float distCentre(float x, float y);
+
+        float getAngle(float x, float y);
+    };
 
 }
 

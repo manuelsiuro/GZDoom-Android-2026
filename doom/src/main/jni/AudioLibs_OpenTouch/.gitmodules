@@ -1,0 +1,9 @@
+[submodule "fluidsynth/src/main/jni/fluidsynth-android"]
+	path = fluidsynth/src/main/jni/fluidsynth-android
+	url = https://github.com/emileb/fluidsynth-android.git
+[submodule "openal-soft/src/main/jni/openal"]
+	path = openal-soft/src/main/jni/openal
+	url = https://github.com/emileb/openal-soft.git
+[submodule "oboe/src/main/jni/oboe"]
+	path = oboe/src/main/jni/oboe
+	url = https://github.com/google/oboe.git
