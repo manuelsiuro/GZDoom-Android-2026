@@ -47,7 +47,7 @@ To change engine behavior, edit the source under `doom/src/main/jni/gzdoom_andro
 
 **touchcontrols module** (`com.beloko.touchcontrols`) — beloko/nvllsvm's on-screen touch controls and gamepad handling (`ControlInterpreter`, `ControlConfig`, `TouchControlsEditing`, `GamePadFragment`), plus a vendored drag-sort ListView under `com.mobeta.android.dslv`. Its native side is the `MobileTouchControls` submodule compiled into `libtouchcontrols.so`.
 
-**Native source layout** (`doom/src/main/jni/`): `Android.mk` includes the per-component makefiles — `GL` (GL ES shim), `jpeg8d`, `gzdoom_android`, `FMOD_studio`, `fluidsynth`, `openal-soft-android`, `MobileTouchControls`, `SDL`. SDL is an old 1.x branch; FMOD and OpenAL provide audio; FluidSynth handles MIDI/soundfont music.
+**Native source layout** (`doom/src/main/jni/`): `Android.mk` includes the per-component makefiles — `jwzgles` (GL ES1-over-ES2 shim), the `AudioLibs_OpenTouch` stack (`libsndfile-android`, `libmpg123`, `fluidsynth-lite`, `openal`, `android_external_flac`), `jpeg8d`, `gzdoom_android/mobile`, `SAFFAL`, `MobileTouchControls`, and `SDL`. SDL is an old 1.x branch; OpenAL provides audio output and FluidSynth handles MIDI/soundfont music (no FMOD).
 
 ## Notable constraints
 
