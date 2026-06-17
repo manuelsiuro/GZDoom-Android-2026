@@ -22,6 +22,10 @@ import com.msa.freedoom.ui.editor.launch.launchProject
 import com.msa.freedoom.ui.editor.model.MapDoc
 import com.msa.freedoom.ui.editor.model.MapProject
 import com.msa.freedoom.ui.editor.model.MapTheme
+import com.msa.freedoom.ui.editor.model.MapThing
+import com.msa.freedoom.ui.editor.model.TextureRole
+import com.msa.freedoom.ui.editor.model.ThingCatalog
+import com.msa.freedoom.ui.editor.model.ThingType
 import com.msa.freedoom.ui.editor.model.TileType
 import com.msa.freedoom.ui.editor.model.Tuning
 import com.msa.freedoom.ui.editor.model.WadFormat
@@ -30,8 +34,13 @@ import com.msa.freedoom.ui.launch.scanIwads
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 
-/** The active editing tool. Pan lets a one-finger drag move the view (two fingers always transform). */
-enum class EditorTool { Brush, Eraser, Bucket, Line, Rect, Eyedropper, Pan }
+/**
+ * The active editing tool. Pan lets a one-finger drag move the view (two fingers always
+ * transform). Thing places the active [ThingType] (tap empty cell), while Select only edits
+ * already-placed things (tap to select, drag to move, palette to retype, inspector to delete)
+ * and never drops new ones.
+ */
+enum class EditorTool { Brush, Eraser, Bucket, Line, Rect, Eyedropper, Pan, Thing, Select }
 
 /**
  * An in-progress line/rectangle the user is dragging out. Held in state so the canvas can draw a
@@ -89,6 +98,16 @@ class MapEditorState(
 
     /** Brush tip size in cells (1, 2 or 3) for Brush/Eraser. */
     var brushSize by mutableStateOf(1)
+
+    /** The thing type the Thing tool places. Defaults to the Imp. */
+    var selectedThingType by mutableStateOf(ThingCatalog.byId(3001) ?: ThingCatalog.all.first())
+
+    /** The thing palette category currently shown (kept here so it survives tool toggles). */
+    var thingCategory by mutableStateOf(selectedThingType.category)
+
+    /** Index into the current map's [MapDoc.things] of the selected thing, or null. */
+    var selectedThingIndex by mutableStateOf<Int?>(null)
+        private set
 
     /** The line/rectangle currently being dragged out, for the canvas to preview. */
     var shapePreview by mutableStateOf<ShapePreview?>(null)
@@ -227,6 +246,128 @@ class MapEditorState(
         activeTool = EditorTool.Brush
     }
 
+    // ---- things (manual placement) ----
+
+    fun selectThingType(type: ThingType) { selectedThingType = type }
+
+    /**
+     * Palette pick: always updates the active type; in [EditorTool.Select] with a thing
+     * selected, also retypes that placed thing (edit-in-place after positioning).
+     */
+    fun pickThingType(type: ThingType) {
+        selectedThingType = type
+        if (activeTool == EditorTool.Select) retypeSelectedThing(type)
+    }
+
+    /** Change the type of the selected placed thing. One undo step. */
+    fun retypeSelectedThing(type: ThingType) {
+        val idx = selectedThingIndex ?: return
+        val m = currentMap
+        val t = m.things.getOrNull(idx) ?: return
+        if (t.type == type.id) return
+        val things = m.things.toMutableList().apply { this[idx] = t.copy(type = type.id) }
+        pushUndoAndCommit(m.copy(things = things))
+    }
+
+    /** Topmost placed thing at a cell, or null. */
+    fun thingIndexAt(x: Int, y: Int): Int? =
+        currentMap.things.indexOfLast { it.cellX == x && it.cellY == y }.takeIf { it >= 0 }
+
+    /** Select (or clear) the placed thing under a cell; returns true if one was found. */
+    fun selectThingAt(x: Int, y: Int): Boolean {
+        val idx = thingIndexAt(x, y)
+        selectedThingIndex = idx
+        return idx != null
+    }
+
+    fun clearThingSelection() { selectedThingIndex = null }
+
+    /** Point the palette at the selected thing's type/category (so Select shows what's chosen). */
+    fun syncPaletteToSelected() {
+        val idx = selectedThingIndex ?: return
+        val t = currentMap.things.getOrNull(idx) ?: return
+        ThingCatalog.byId(t.type)?.let {
+            selectedThingType = it
+            thingCategory = it.category
+        }
+    }
+
+    /**
+     * Place the active [selectedThingType] at a cell. Rejected (returns false) if the cell is
+     * out of bounds or not an open-floor tile (a thing in a wall would spawn stuck). One undo step.
+     */
+    fun placeThingAt(x: Int, y: Int): Boolean {
+        val m = currentMap
+        if (x !in 0 until m.width || y !in 0 until m.height) return false
+        if (!m.tileAt(x, y).acceptsThing) return false
+        val newThings = m.things + MapThing(type = selectedThingType.id, cellX = x, cellY = y)
+        pushUndoAndCommit(m.copy(things = newThings))
+        selectedThingIndex = newThings.lastIndex
+        return true
+    }
+
+    /** Move the selected thing to a new open-floor cell. One undo step. Returns false if rejected. */
+    fun moveSelectedThingTo(x: Int, y: Int): Boolean {
+        val idx = selectedThingIndex ?: return false
+        val m = currentMap
+        if (x !in 0 until m.width || y !in 0 until m.height) return false
+        if (!m.tileAt(x, y).acceptsThing) return false
+        val t = m.things.getOrNull(idx) ?: return false
+        if (t.cellX == x && t.cellY == y) return false
+        val things = m.things.toMutableList().apply { this[idx] = t.copy(cellX = x, cellY = y) }
+        pushUndoAndCommit(m.copy(things = things))
+        return true
+    }
+
+    fun deleteSelectedThing() {
+        val idx = selectedThingIndex ?: return
+        val m = currentMap
+        if (idx !in m.things.indices) return
+        pushUndoAndCommit(m.copy(things = m.things.toMutableList().apply { removeAt(idx) }))
+        selectedThingIndex = null
+    }
+
+    /** Delete the thing under a cell (e.g. from a long-press). Returns true if one was removed. */
+    fun deleteThingAt(x: Int, y: Int): Boolean {
+        val idx = thingIndexAt(x, y) ?: return false
+        val m = currentMap
+        pushUndoAndCommit(m.copy(things = m.things.toMutableList().apply { removeAt(idx) }))
+        if (selectedThingIndex == idx) selectedThingIndex = null
+        return true
+    }
+
+    /** Set the angle (degrees) of the selected thing, normalised to 0..359. One undo step. */
+    fun setSelectedThingAngle(angle: Int) {
+        val idx = selectedThingIndex ?: return
+        val m = currentMap
+        val t = m.things.getOrNull(idx) ?: return
+        val a = ((angle % 360) + 360) % 360
+        if (t.angle == a) return
+        val things = m.things.toMutableList().apply { this[idx] = t.copy(angle = a) }
+        pushUndoAndCommit(m.copy(things = things))
+    }
+
+    // ---- textures / manual-things toggles ----
+
+    fun textureOverride(role: TextureRole): List<String> =
+        project.textureOverrides[role.name].orEmpty()
+
+    fun setTextureOverride(role: TextureRole, names: List<String>) {
+        val map = project.textureOverrides.toMutableMap()
+        if (names.isEmpty()) map.remove(role.name) else map[role.name] = names
+        project = project.copy(textureOverrides = map)
+        markDirty()
+    }
+
+    fun setManualThings(enabled: Boolean) {
+        if (project.manualThings == enabled) return
+        project = project.copy(manualThings = enabled)
+        markDirty()
+    }
+
+    /** Absolute path of the project's IWAD (for the native texture reader). */
+    fun iwadAbsolutePath(): String = File(AppSettings.getQuakeFullDir(), project.iwadFile).absolutePath
+
     /** Fill the whole current map with one tile (one undo step). */
     fun clearMap(tile: TileType) {
         val m = currentMap
@@ -273,6 +414,7 @@ class MapEditorState(
     fun undo() {
         val restored = undo.undo(currentMap) ?: return
         setCurrentMap(restored)
+        selectedThingIndex = null
         refreshUndoFlags()
         markDirty()
     }
@@ -280,6 +422,7 @@ class MapEditorState(
     fun redo() {
         val restored = undo.redo(currentMap) ?: return
         setCurrentMap(restored)
+        selectedThingIndex = null
         refreshUndoFlags()
         markDirty()
     }
@@ -342,6 +485,7 @@ class MapEditorState(
 
     fun selectMap(index: Int) {
         currentMapIndex = index.coerceIn(0, project.maps.lastIndex)
+        selectedThingIndex = null
         undo.clear()
         refreshUndoFlags()
         scale = 1f

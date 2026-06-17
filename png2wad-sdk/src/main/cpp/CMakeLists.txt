@@ -24,6 +24,7 @@ add_library(
         png2wad
         SHARED
         png2wad-jni.cpp
+        textures-jni.cpp
         Toolbox.cpp
         INIFile.cpp
         Config.cpp
@@ -31,6 +32,7 @@ add_library(
         DoomMap.cpp
         Generator.cpp
         PNGToWad.cpp
+        TextureReader.cpp
 
         # ZDBSP sources
         zdbsp/blockmapbuilder.cpp

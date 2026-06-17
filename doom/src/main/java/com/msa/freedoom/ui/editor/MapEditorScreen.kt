@@ -34,8 +34,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -106,6 +108,11 @@ import com.msa.freedoom.ui.editor.launch.shareWad
 import com.msa.freedoom.ui.editor.model.MapTheme
 import com.msa.freedoom.ui.editor.model.TileType
 import com.msa.freedoom.ui.editor.model.WadFormat
+import com.msa.freedoom.ui.editor.texture.TextureBrowserSheet
+import com.msa.freedoom.ui.editor.texture.TextureCache
+import com.msa.freedoom.ui.editor.texture.rememberTextureCache
+import com.msa.freedoom.ui.editor.things.ThingInspector
+import com.msa.freedoom.ui.editor.things.ThingPaletteStrip
 import com.msa.freedoom.ui.launch.WadEntry
 
 /**
@@ -137,8 +144,12 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     var showReplace by remember { mutableStateOf(false) }
     var showTemplates by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
+    var showTextures by remember { mutableStateOf(false) }
     var testWarnings by remember { mutableStateOf<List<String>?>(null) }
     var pendingClear by remember { mutableStateOf<TileType?>(null) }
+
+    // Shared decoded-texture cache (opens the IWAD once); closed when the editor leaves composition.
+    val textureCache = rememberTextureCache()
 
     fun toast(msg: String) {
         scope.launch { snackbarHostState.showSnackbar(msg) }
@@ -189,6 +200,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
                 onProjects = { closeDrawer(); showProjects = true },
                 onReplaceTile = { closeDrawer(); showReplace = true },
                 onTemplates = { closeDrawer(); showTemplates = true },
+                onTextures = { closeDrawer(); showTextures = true },
                 onClearMap = { closeDrawer(); pendingClear = it },
                 onGenerate = { closeDrawer(); onGenerate() },
                 onShare = { closeDrawer(); onShare() },
@@ -213,7 +225,8 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
             modifier = modifier,
         ) { innerPadding ->
             BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                if (maxWidth >= WIDE_BREAKPOINT) LandscapeBody(state) else PortraitBody(state)
+                if (maxWidth >= WIDE_BREAKPOINT) LandscapeBody(state, textureCache)
+                else PortraitBody(state, textureCache)
             }
         }
     }
@@ -226,6 +239,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     if (showReplace) ReplaceTileDialog(state) { showReplace = false }
     if (showTemplates) TemplatesDialog(state) { showTemplates = false }
     if (showRename) RenameDialog(state) { showRename = false }
+    if (showTextures) TextureBrowserSheet(state, textureCache) { showTextures = false }
     testWarnings?.let { warnings ->
         ValidationDialog(
             warnings = warnings,
@@ -257,20 +271,25 @@ private val WIDE_BREAKPOINT = 600.dp
 
 /** Portrait / narrow: left tool rail, canvas fills, modifiers + palette stacked below. */
 @Composable
-private fun PortraitBody(state: MapEditorState) {
+private fun PortraitBody(state: MapEditorState, textureCache: TextureCache) {
     Row(modifier = Modifier.fillMaxSize()) {
         EditorToolRail(state)
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             CanvasArea(state, modifier = Modifier.weight(1f).fillMaxWidth())
-            ModifiersBar(state)
-            TilePaletteStrip(state)
+            if (state.activeTool == EditorTool.Thing || state.activeTool == EditorTool.Select) {
+                ThingInspector(state)
+                ThingPaletteStrip(state, textureCache)
+            } else {
+                ModifiersBar(state)
+                TilePaletteStrip(state)
+            }
         }
     }
 }
 
 /** Landscape / wide (≥600dp): tool rail, canvas fills, a right side panel holds modifiers + palette. */
 @Composable
-private fun LandscapeBody(state: MapEditorState) {
+private fun LandscapeBody(state: MapEditorState, textureCache: TextureCache) {
     Row(modifier = Modifier.fillMaxSize()) {
         EditorToolRail(state)
         CanvasArea(state, modifier = Modifier.weight(1f).fillMaxHeight())
@@ -282,8 +301,13 @@ private fun LandscapeBody(state: MapEditorState) {
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ModifiersBar(state, wrap = true)
-            TilePaletteStrip(state, wrap = true)
+            if (state.activeTool == EditorTool.Thing || state.activeTool == EditorTool.Select) {
+                ThingInspector(state)
+                ThingPaletteStrip(state, textureCache)
+            } else {
+                ModifiersBar(state, wrap = true)
+                TilePaletteStrip(state, wrap = true)
+            }
         }
     }
 }
@@ -361,6 +385,8 @@ private val TOOL_SPECS: List<Triple<EditorTool, ImageVector, Int>> = listOf(
     Triple(EditorTool.Rect, DoomIcons.Rect, R.string.editor_tool_rect),
     Triple(EditorTool.Eyedropper, DoomIcons.Colorize, R.string.editor_tool_pick),
     Triple(EditorTool.Pan, DoomIcons.Pan, R.string.editor_tool_pan),
+    Triple(EditorTool.Thing, Icons.Filled.Place, R.string.editor_tool_thing),
+    Triple(EditorTool.Select, Icons.Filled.Edit, R.string.editor_tool_select),
 )
 
 /**
@@ -520,6 +546,7 @@ private fun EditorDrawer(
     onProjects: () -> Unit,
     onReplaceTile: () -> Unit,
     onTemplates: () -> Unit,
+    onTextures: () -> Unit,
     onClearMap: (TileType) -> Unit,
     onGenerate: () -> Unit,
     onShare: () -> Unit,
@@ -561,6 +588,7 @@ private fun EditorDrawer(
             DrawerItem(stringResource(R.string.editor_maps_label, state.project.maps.size), DoomIcons.Layers, onMaps)
             DrawerItem(stringResource(R.string.editor_new_from_template), Icons.Filled.Add, onTemplates)
             DrawerItem(stringResource(R.string.editor_generation_tuning), DoomIcons.Tune, onTuning)
+            DrawerItem(stringResource(R.string.editor_textures_menu), DoomIcons.Palette, onTextures)
             DrawerItem(stringResource(R.string.editor_replace_tile_menu), DoomIcons.Fill, onReplaceTile)
 
             Spacer(Modifier.height(8.dp))
@@ -863,6 +891,22 @@ private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.editor_auto_populate))
+            }
+            Spacer(Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = state.project.manualThings,
+                    onCheckedChange = { state.setManualThings(it) },
+                )
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(stringResource(R.string.editor_manual_things))
+                    Text(
+                        stringResource(R.string.editor_manual_things_help),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
 

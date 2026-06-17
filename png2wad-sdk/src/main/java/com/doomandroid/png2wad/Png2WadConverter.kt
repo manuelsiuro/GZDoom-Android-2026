@@ -16,4 +16,22 @@ class Png2WadConverter {
      * @return true if successful, false otherwise.
      */
     external fun generateWad(pngPaths: Array<String>, outWadPath: String, configPath: String): Boolean
+
+    /**
+     * Like [generateWad], but also injects hand-placed things.
+     *
+     * @param perMapThings parallel to [pngPaths]; each entry is a compact
+     *   descriptor of placed things, "type,cellX,cellY,angle,flags;..." in
+     *   editor grid-cell coordinates (empty string = no placed things for that map).
+     * @param suppressAutoThings when true, disables the procedural monster/item
+     *   scatter so only hand-placed things appear (the grid Start tile still
+     *   yields a player start).
+     */
+    external fun generateWadWithThings(
+        pngPaths: Array<String>,
+        perMapThings: Array<String>,
+        suppressAutoThings: Boolean,
+        outWadPath: String,
+        configPath: String
+    ): Boolean
 }

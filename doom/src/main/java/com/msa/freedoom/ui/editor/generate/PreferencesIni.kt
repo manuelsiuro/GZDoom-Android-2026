@@ -1,6 +1,7 @@
 package com.msa.freedoom.ui.editor.generate
 
 import com.msa.freedoom.ui.editor.model.MapProject
+import com.msa.freedoom.ui.editor.model.TextureRole
 import com.msa.freedoom.ui.editor.model.Tuning
 import com.msa.freedoom.ui.editor.model.WadFormat
 import kotlin.math.roundToInt
@@ -47,9 +48,24 @@ fun buildPreferencesIni(project: MapProject): String {
         // for readability; convert only the `Textures.*` value lists to semicolons so the
         // converter actually sees each texture name (the legacy comma form was read as one
         // truncated, invalid name — every generated map had missing floor/wall textures).
+        //
+        // User texture overrides (real names picked from the IWAD) replace the default
+        // `Textures.<key>` value list for the matching role, applied across every theme.
+        val overridesByIniKey: Map<String, List<String>> = TextureRole.entries
+            .mapNotNull { role ->
+                project.textureOverrides[role.name]?.filter { it.isNotBlank() }
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { role.iniKey to it }
+            }
+            .toMap()
+
         append(
             THEME_BLOCKS.lineSequence().joinToString("\n") { line ->
-                if (line.startsWith("Textures.")) line.replace(',', ';') else line
+                if (!line.startsWith("Textures.")) return@joinToString line
+                val key = line.substringAfter("Textures.").substringBefore('=')
+                val override = overridesByIniKey[key]
+                if (override != null) "Textures.$key=" + override.joinToString(";")
+                else line.replace(',', ';')
             },
         )
     }

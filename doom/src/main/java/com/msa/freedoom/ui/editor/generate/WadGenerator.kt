@@ -44,7 +44,22 @@ suspend fun generateWad(
         val modsDir = File(AppSettings.getQuakeFullDir(), "mods").apply { mkdirs() }
         val wadFile = File(modsDir, sanitizeWadName(project.name) + ".wad")
 
-        val ok = Png2WadConverter().generateWad(pngPaths, wadFile.absolutePath, ini.absolutePath)
+        // Per-map thing descriptors (only the valid, in-bounds, open-floor ones).
+        val perMapThings = project.maps.map { encodeThings(validThings(it)) }
+        val hasPlacedThings = perMapThings.any { it.isNotEmpty() }
+
+        val converter = Png2WadConverter()
+        val ok = if (hasPlacedThings || project.manualThings) {
+            converter.generateWadWithThings(
+                pngPaths,
+                perMapThings.toTypedArray(),
+                project.manualThings,
+                wadFile.absolutePath,
+                ini.absolutePath,
+            )
+        } else {
+            converter.generateWad(pngPaths, wadFile.absolutePath, ini.absolutePath)
+        }
         if (ok && wadFile.exists()) GenerateResult(wadFile, total) else null
     }.getOrElse {
         it.printStackTrace()

@@ -26,6 +26,18 @@ enum class TileType(val displayName: String, val rgb: Int) {
     /** Cached opaque Compose colour for rendering the editor canvas and palette swatches. */
     val composeColor: Color = Color(0xFF000000 or rgb.toLong())
 
+    /**
+     * Whether a hand-placed thing may stand on this tile. Only *open floor* cells
+     * qualify; [Wall], [Door], [Secret] and [Exit] become solid/structural geometry,
+     * so a thing there would spawn stuck inside a wall. ([Start] is the player's
+     * entrance room — a valid open floor for manual placement.)
+     */
+    val acceptsThing: Boolean
+        get() = when (this) {
+            Room, SpecialFloor, SpecialCeiling, Sky, Start -> true
+            Wall, Door, Secret, Exit -> false
+        }
+
     companion object {
         private val byOrdinal = entries.toTypedArray()
 

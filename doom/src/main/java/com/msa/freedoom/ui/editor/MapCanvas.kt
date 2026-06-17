@@ -17,10 +17,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.IntOffset
+import com.msa.freedoom.ui.editor.model.ThingCatalog
+import com.msa.freedoom.ui.editor.model.ThingCategory
 import com.msa.freedoom.ui.editor.model.TileType
 import kotlin.math.min
 
@@ -59,6 +62,12 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                     var bucketDone = false
                     var transforming = false
                     var shaping = false
+                    // Thing tool: defer placement to release (so a pinch starting here never
+                    // drops a stray thing). thingHadHit = the down cell already had a thing
+                    // (→ select + drag-move); otherwise a tap places a new one on release.
+                    var thinging = false
+                    var thingHadHit = false
+                    var thingFinalCell: IntOffset? = null
                     // The initial down is acted on lazily, on the first follow-up event, so we
                     // can still tell a tap/drag (1 finger) from a pinch (2 fingers) and avoid a
                     // stray dot when the user starts a two-finger zoom. `seeded` guards it.
@@ -79,6 +88,21 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                 state.startShape(it.x, it.y)
                                 shaping = true
                             }
+                            EditorTool.Thing, EditorTool.Select -> {
+                                thinging = true
+                                thingFinalCell = cell
+                                cell?.let {
+                                    val hit = state.thingIndexAt(it.x, it.y)
+                                    if (hit != null) {
+                                        state.selectThingAt(it.x, it.y)
+                                        thingHadHit = true
+                                        if (tool == EditorTool.Select) state.syncPaletteToSelected()
+                                    } else if (tool == EditorTool.Select) {
+                                        // Select on empty space clears the current selection.
+                                        state.clearThingSelection()
+                                    }
+                                }
+                            }
                             else -> { // Brush / Eraser
                                 state.beginStroke()
                                 painting = true
@@ -96,6 +120,7 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                             // paint, and abandon any in-progress stroke or shape.
                             if (painting) { state.endStroke(); painting = false }
                             if (shaping) { state.cancelShape(); shaping = false }
+                            thinging = false
                             seeded = true
                             transforming = true
                             applyTransform(
@@ -135,6 +160,11 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                 }
                                 change.consume()
                             }
+                            tool == EditorTool.Thing || tool == EditorTool.Select -> {
+                                screenToCell(state, change.position, size.width, size.height)
+                                    ?.let { thingFinalCell = it }
+                                change.consume()
+                            }
                             else -> { // Brush / Eraser: paint each dragged-over cell
                                 screenToCell(state, change.position, size.width, size.height)
                                     ?.let { state.paintAt(it.x, it.y) }
@@ -144,6 +174,15 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                     }
                     if (painting) state.endStroke()
                     if (shaping) state.commitShape()
+                    if (thinging) {
+                        thingFinalCell?.let { end ->
+                            when {
+                                thingHadHit -> state.moveSelectedThingTo(end.x, end.y)
+                                // Only the Thing tool places; Select leaves empty taps as deselect.
+                                tool == EditorTool.Thing -> state.placeThingAt(end.x, end.y)
+                            }
+                        }
+                    }
                 }
             },
     ) {
@@ -163,7 +202,9 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
             @Suppress("UNUSED_EXPRESSION") state.project
             @Suppress("UNUSED_EXPRESSION") state.strokeRevision
             @Suppress("UNUSED_EXPRESSION") state.shapePreview
+            @Suppress("UNUSED_EXPRESSION") state.selectedThingIndex
             drawGrid(state, size)
+            drawThings(state, size)
         }
     }
 }
@@ -211,6 +252,45 @@ private fun DrawScope.drawGrid(state: MapEditorState, size: Size) {
             drawRect(color, Offset(cx * cell, cy * cell), Size(cell, cell))
         }
     }
+}
+
+/** Draws hand-placed things as category-coloured markers with an angle pip; selected = ring. */
+private fun DrawScope.drawThings(state: MapEditorState, size: Size) {
+    val map = state.currentMap
+    if (map.things.isEmpty()) return
+    val cell = min(size.width / map.width, size.height / map.height)
+    if (cell <= 0f) return
+    val r = cell * 0.34f
+    val selected = state.selectedThingIndex
+    val ringStroke = (2f / state.scale).coerceAtLeast(0.75f)
+
+    map.things.forEachIndexed { idx, t ->
+        if (t.cellX !in 0 until map.width || t.cellY !in 0 until map.height) return@forEachIndexed
+        val cx = (t.cellX + 0.5f) * cell
+        val cy = (t.cellY + 0.5f) * cell
+        val color = thingMarkerColor(ThingCatalog.byId(t.type)?.category)
+        drawCircle(Color.Black.copy(alpha = 0.55f), r + ringStroke, Offset(cx, cy))
+        drawCircle(color, r, Offset(cx, cy))
+        // Angle pip: Doom 0°=east, 90°=north (screen up = -y).
+        val rad = Math.toRadians(t.angle.toDouble())
+        val dx = kotlin.math.cos(rad).toFloat()
+        val dy = -kotlin.math.sin(rad).toFloat()
+        drawLine(Color.White, Offset(cx, cy), Offset(cx + dx * r, cy + dy * r), ringStroke)
+        if (idx == selected) {
+            drawCircle(Color.White, r + ringStroke * 2f, Offset(cx, cy), style = Stroke(width = ringStroke))
+        }
+    }
+}
+
+/** Marker colour per thing category (canvas only; the palette shows real sprite thumbnails). */
+private fun thingMarkerColor(category: ThingCategory?): Color = when (category) {
+    ThingCategory.Starts -> Color(0xFF4CAF50)
+    ThingCategory.Keys -> Color(0xFFFFC107)
+    ThingCategory.Monsters -> Color(0xFFE53935)
+    ThingCategory.Weapons -> Color(0xFF29B6F6)
+    ThingCategory.Ammo -> Color(0xFFAB47BC)
+    ThingCategory.Items -> Color(0xFF26C6DA)
+    ThingCategory.Misc, null -> Color(0xFF9E9E9E)
 }
 
 /** Applies a pinch (zoom around the centroid) plus pan, clamping scale. */

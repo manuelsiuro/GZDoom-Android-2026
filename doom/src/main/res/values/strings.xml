@@ -234,6 +234,11 @@
     <string name="editor_tool_rect">Rectangle</string>
     <string name="editor_tool_pick">Pick</string>
     <string name="editor_tool_pan">Pan</string>
+    <string name="editor_tool_thing">Things</string>
+    <string name="editor_tool_select">Select</string>
+    <string name="editor_textures_menu">Textures…</string>
+    <string name="editor_manual_things">Manual things only</string>
+    <string name="editor_manual_things_help">Place every monster and item by hand; the random scatter is turned off (the Start tile still spawns the player).</string>
     <string name="editor_filled">Filled</string>
     <string name="editor_tip">Tip %1$d×</string>
     <string name="editor_sym_off">Sym Off</string>
