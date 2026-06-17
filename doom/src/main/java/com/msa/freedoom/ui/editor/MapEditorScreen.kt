@@ -2,7 +2,7 @@
 
 package com.msa.freedoom.ui.editor
 
-import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +61,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -81,10 +83,12 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import com.msa.freedoom.R
 import com.msa.freedoom.ui.DoomIcons
 import com.msa.freedoom.ui.editor.data.ProjectSummary
 import com.msa.freedoom.ui.editor.generate.renderMapBitmap
@@ -108,6 +112,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         state.loadCurrentOrNew()
@@ -123,11 +128,16 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     var showTemplates by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var testWarnings by remember { mutableStateOf<List<String>?>(null) }
+    var pendingClear by remember { mutableStateOf<TileType?>(null) }
+
+    fun toast(msg: String) {
+        scope.launch { snackbarHostState.showSnackbar(msg) }
+    }
 
     val startTest = {
         scope.launch {
             if (!state.generateAndLaunch()) {
-                Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
+                toast(context.getString(R.string.editor_failed_generate))
             }
         }
         Unit
@@ -140,8 +150,10 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     val onGenerate = {
         scope.launch {
             val r = state.generate()
-            val msg = if (r != null) "WAD generated: ${r.wadFile.name}" else "Failed to generate WAD"
-            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            toast(
+                if (r != null) context.getString(R.string.editor_wad_generated, r.wadFile.name)
+                else context.getString(R.string.editor_failed_generate),
+            )
         }
         Unit
     }
@@ -149,7 +161,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
         scope.launch {
             val wad = state.generateForShare()
             if (wad != null) shareWad(context, wad)
-            else Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
+            else toast(context.getString(R.string.editor_failed_generate))
         }
         Unit
     }
@@ -167,6 +179,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
                 onProjects = { closeDrawer(); showProjects = true },
                 onReplaceTile = { closeDrawer(); showReplace = true },
                 onTemplates = { closeDrawer(); showTemplates = true },
+                onClearMap = { closeDrawer(); pendingClear = it },
                 onGenerate = { closeDrawer(); onGenerate() },
                 onShare = { closeDrawer(); onShare() },
             )
@@ -184,6 +197,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
                     onFit = { state.resetView() },
                 )
             },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             // Host already insets this subtree; zero here to avoid double status-bar inset.
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             modifier = modifier,
@@ -198,7 +212,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     if (showTheme) ThemeDialog(state) { showTheme = false }
     if (showMaps) MapsSheet(state) { showMaps = false }
     if (showTuning) TuningSheet(state) { showTuning = false }
-    if (showProjects) ProjectsSheet(state) { showProjects = false }
+    if (showProjects) ProjectsSheet(state, onMessage = ::toast) { showProjects = false }
     if (showReplace) ReplaceTileDialog(state) { showReplace = false }
     if (showTemplates) TemplatesDialog(state) { showTemplates = false }
     if (showRename) RenameDialog(state) { showRename = false }
@@ -207,6 +221,21 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
             warnings = warnings,
             onTestAnyway = { testWarnings = null; startTest() },
             onDismiss = { testWarnings = null },
+        )
+    }
+    pendingClear?.let { tile ->
+        AlertDialog(
+            onDismissRequest = { pendingClear = null },
+            title = { Text(stringResource(R.string.editor_confirm_clear_title)) },
+            text = { Text(stringResource(R.string.editor_confirm_clear_text)) },
+            confirmButton = {
+                TextButton(onClick = { state.clearMap(tile); pendingClear = null }) {
+                    Text(stringResource(R.string.editor_clear))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingClear = null }) { Text(stringResource(R.string.cancel_button)) }
+            },
         )
     }
 }
@@ -265,7 +294,7 @@ private fun EditorTopBar(
     TopAppBar(
         navigationIcon = {
             IconButton(onClick = onMenu) {
-                Icon(Icons.Filled.Menu, contentDescription = "Open menu")
+                Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.editor_open_menu))
             }
         },
         title = {
@@ -278,31 +307,31 @@ private fun EditorTopBar(
         },
         actions = {
             IconButton(onClick = { state.undo() }, enabled = state.canUndo) {
-                Icon(DoomIcons.Undo, contentDescription = "Undo")
+                Icon(DoomIcons.Undo, contentDescription = stringResource(R.string.editor_undo))
             }
             IconButton(onClick = { state.redo() }, enabled = state.canRedo) {
-                Icon(DoomIcons.Redo, contentDescription = "Redo")
+                Icon(DoomIcons.Redo, contentDescription = stringResource(R.string.editor_redo))
             }
             IconButton(onClick = onTest, enabled = !state.isBusy) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "Test map")
+                Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.editor_test_map))
             }
             Box {
                 IconButton(onClick = { overflowOpen = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.editor_more))
                 }
                 DropdownMenu(expanded = overflowOpen, onDismissRequest = { overflowOpen = false }) {
                     DropdownMenuItem(
-                        text = { Text("Generate WAD") },
+                        text = { Text(stringResource(R.string.editor_generate_wad)) },
                         enabled = !state.isBusy,
                         onClick = { overflowOpen = false; onGenerate() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Share WAD…") },
+                        text = { Text(stringResource(R.string.editor_share_wad)) },
                         enabled = !state.isBusy,
                         onClick = { overflowOpen = false; onShare() },
                     )
                     DropdownMenuItem(
-                        text = { Text("Fit to screen") },
+                        text = { Text(stringResource(R.string.editor_fit_to_screen)) },
                         onClick = { overflowOpen = false; onFit() },
                     )
                 }
@@ -313,15 +342,15 @@ private fun EditorTopBar(
 
 // --------------------------------------------------------------------------------- tool rail
 
-/** The drawing tools, paired with their icons, in rail order. */
-private val TOOL_SPECS: List<Triple<EditorTool, ImageVector, String>> = listOf(
-    Triple(EditorTool.Brush, DoomIcons.Brush, "Brush"),
-    Triple(EditorTool.Eraser, DoomIcons.Eraser, "Erase"),
-    Triple(EditorTool.Bucket, DoomIcons.Fill, "Fill"),
-    Triple(EditorTool.Line, DoomIcons.Line, "Line"),
-    Triple(EditorTool.Rect, DoomIcons.Rect, "Rectangle"),
-    Triple(EditorTool.Eyedropper, DoomIcons.Colorize, "Pick"),
-    Triple(EditorTool.Pan, DoomIcons.Pan, "Pan"),
+/** The drawing tools, paired with their icons and a label string-res, in rail order. */
+private val TOOL_SPECS: List<Triple<EditorTool, ImageVector, Int>> = listOf(
+    Triple(EditorTool.Brush, DoomIcons.Brush, R.string.editor_tool_brush),
+    Triple(EditorTool.Eraser, DoomIcons.Eraser, R.string.editor_tool_erase),
+    Triple(EditorTool.Bucket, DoomIcons.Fill, R.string.editor_tool_fill),
+    Triple(EditorTool.Line, DoomIcons.Line, R.string.editor_tool_line),
+    Triple(EditorTool.Rect, DoomIcons.Rect, R.string.editor_tool_rect),
+    Triple(EditorTool.Eyedropper, DoomIcons.Colorize, R.string.editor_tool_pick),
+    Triple(EditorTool.Pan, DoomIcons.Pan, R.string.editor_tool_pan),
 )
 
 /**
@@ -340,13 +369,13 @@ private fun EditorToolRail(state: MapEditorState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        TOOL_SPECS.forEach { (tool, icon, label) ->
+        TOOL_SPECS.forEach { (tool, icon, labelRes) ->
             FilledIconToggleButton(
                 checked = state.activeTool == tool,
                 onCheckedChange = { state.activeTool = tool },
                 modifier = Modifier.size(48.dp),
             ) {
-                Icon(icon, contentDescription = label)
+                Icon(icon, contentDescription = stringResource(labelRes))
             }
         }
     }
@@ -388,19 +417,19 @@ private fun ModifiersBar(state: MapEditorState, wrap: Boolean = false) {
             FilterChip(
                 selected = state.rectFilled,
                 onClick = { state.rectFilled = !state.rectFilled },
-                label = { Text("Filled") },
+                label = { Text(stringResource(R.string.editor_filled)) },
             )
         }
         // Symmetry (cycles Off → mirror-LR → mirror-UD → 4-way) and brush tip size.
         FilterChip(
             selected = state.symmetry != MapGridOps.SymmetryMode.None,
             onClick = { state.symmetry = nextSymmetry(state.symmetry) },
-            label = { Text(symmetryLabel(state.symmetry)) },
+            label = { Text(stringResource(symmetryLabel(state.symmetry))) },
         )
         FilterChip(
             selected = state.brushSize > 1,
             onClick = { state.brushSize = if (state.brushSize >= 3) 1 else state.brushSize + 1 },
-            label = { Text("Tip ${state.brushSize}×") },
+            label = { Text(stringResource(R.string.editor_tip, state.brushSize)) },
         )
     }
     if (wrap) {
@@ -477,6 +506,7 @@ private fun EditorDrawer(
     onProjects: () -> Unit,
     onReplaceTile: () -> Unit,
     onTemplates: () -> Unit,
+    onClearMap: (TileType) -> Unit,
     onGenerate: () -> Unit,
     onShare: () -> Unit,
 ) {
@@ -488,11 +518,11 @@ private fun EditorDrawer(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 16.dp),
         ) {
-            Text("Map studio", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.editor_map_studio), style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
 
             // Test IWAD picker.
-            Text("Test IWAD", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.editor_test_iwad), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(4.dp))
             Box {
                 OutlinedButton(onClick = { iwadMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
@@ -500,7 +530,7 @@ private fun EditorDrawer(
                 }
                 DropdownMenu(expanded = iwadMenuOpen, onDismissRequest = { iwadMenuOpen = false }) {
                     if (state.availableIwads.isEmpty()) {
-                        DropdownMenuItem(text = { Text("No IWADs found") }, onClick = { iwadMenuOpen = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.editor_no_iwads)) }, onClick = { iwadMenuOpen = false })
                     }
                     state.availableIwads.forEach { wad: WadEntry ->
                         DropdownMenuItem(
@@ -512,27 +542,27 @@ private fun EditorDrawer(
             }
 
             Spacer(Modifier.height(12.dp))
-            DrawerItem("Grid size  ${state.gridWidth}×${state.gridHeight}", DoomIcons.Rect, onSize)
-            DrawerItem("Theme: ${state.theme.displayName}", DoomIcons.Palette, onTheme)
-            DrawerItem("Maps (${state.project.maps.size})", DoomIcons.Layers, onMaps)
-            DrawerItem("New from template…", Icons.Filled.Add, onTemplates)
-            DrawerItem("Generation tuning", DoomIcons.Tune, onTuning)
-            DrawerItem("Replace tile…", DoomIcons.Fill, onReplaceTile)
+            DrawerItem(stringResource(R.string.editor_grid_size_label, state.gridWidth, state.gridHeight), DoomIcons.Rect, onSize)
+            DrawerItem(stringResource(R.string.editor_theme_label, state.theme.displayName), DoomIcons.Palette, onTheme)
+            DrawerItem(stringResource(R.string.editor_maps_label, state.project.maps.size), DoomIcons.Layers, onMaps)
+            DrawerItem(stringResource(R.string.editor_new_from_template), Icons.Filled.Add, onTemplates)
+            DrawerItem(stringResource(R.string.editor_generation_tuning), DoomIcons.Tune, onTuning)
+            DrawerItem(stringResource(R.string.editor_replace_tile_menu), DoomIcons.Fill, onReplaceTile)
 
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            DrawerItem("Clear map (Room)", DoomIcons.Brush) { state.clearMap(TileType.Room) }
-            DrawerItem("Fill with walls", DoomIcons.Fill) { state.clearMap(TileType.Wall) }
+            DrawerItem(stringResource(R.string.editor_clear_map_room), DoomIcons.Brush) { onClearMap(TileType.Room) }
+            DrawerItem(stringResource(R.string.editor_fill_with_walls), DoomIcons.Fill) { onClearMap(TileType.Wall) }
 
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            DrawerItem("Projects…", DoomIcons.Folder, onProjects)
-            DrawerItem("Generate WAD", DoomIcons.Download, onGenerate)
-            DrawerItem("Share WAD…", Icons.Filled.Share, onShare)
+            DrawerItem(stringResource(R.string.editor_projects_menu), DoomIcons.Folder, onProjects)
+            DrawerItem(stringResource(R.string.editor_generate_wad), DoomIcons.Download, onGenerate)
+            DrawerItem(stringResource(R.string.editor_share_wad), Icons.Filled.Share, onShare)
         }
     }
 }
@@ -555,20 +585,20 @@ private fun RenameDialog(state: MapEditorState, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(state.project.name) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Level name") },
+        title = { Text(stringResource(R.string.editor_level_name)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.editor_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {
-            TextButton(onClick = { state.rename(name); onDismiss() }) { Text("Save") }
+            TextButton(onClick = { state.rename(name); onDismiss() }) { Text(stringResource(R.string.editor_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) } },
     )
 }
 
@@ -579,11 +609,12 @@ private fun nextSymmetry(m: MapGridOps.SymmetryMode): MapGridOps.SymmetryMode = 
     MapGridOps.SymmetryMode.Both -> MapGridOps.SymmetryMode.None
 }
 
-private fun symmetryLabel(m: MapGridOps.SymmetryMode): String = when (m) {
-    MapGridOps.SymmetryMode.None -> "Sym Off"
-    MapGridOps.SymmetryMode.Horizontal -> "Sym ↔"
-    MapGridOps.SymmetryMode.Vertical -> "Sym ↕"
-    MapGridOps.SymmetryMode.Both -> "Sym ✛"
+@StringRes
+private fun symmetryLabel(m: MapGridOps.SymmetryMode): Int = when (m) {
+    MapGridOps.SymmetryMode.None -> R.string.editor_sym_off
+    MapGridOps.SymmetryMode.Horizontal -> R.string.editor_sym_lr
+    MapGridOps.SymmetryMode.Vertical -> R.string.editor_sym_ud
+    MapGridOps.SymmetryMode.Both -> R.string.editor_sym_4way
 }
 
 /** A space-frugal text button for the cramped map-row actions (Dup / move / delete). */
@@ -612,10 +643,10 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Grid size") },
+        title = { Text(stringResource(R.string.editor_grid_size_title)) },
         text = {
             Column {
-                Text("Presets", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.editor_presets), style = MaterialTheme.typography.labelLarge)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(GRID_PRESETS) { p ->
                         FilterChip(
@@ -626,7 +657,7 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("Custom (W×H, $MIN_GRID–$MAX_GRID)", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.editor_custom_wh, MIN_GRID, MAX_GRID), style = MaterialTheme.typography.labelLarge)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -634,7 +665,7 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
                     OutlinedTextField(
                         value = customW,
                         onValueChange = { customW = it.filter(Char::isDigit).take(3) },
-                        label = { Text("W") },
+                        label = { Text(stringResource(R.string.editor_w)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -642,7 +673,7 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
                     OutlinedTextField(
                         value = customH,
                         onValueChange = { customH = it.filter(Char::isDigit).take(3) },
-                        label = { Text("H") },
+                        label = { Text(stringResource(R.string.editor_h)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -650,11 +681,11 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = keepContent, onClick = { keepContent = true })
-                    Text("Keep drawing (crop/pad)")
+                    Text(stringResource(R.string.editor_keep_drawing))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = !keepContent, onClick = { keepContent = false })
-                    Text("Clear")
+                    Text(stringResource(R.string.editor_clear))
                 }
             }
         },
@@ -663,9 +694,9 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
                 val w = customW.toIntOrNull() ?: state.gridWidth
                 val h = customH.toIntOrNull() ?: state.gridHeight
                 apply(w, h)
-            }) { Text("Apply") }
+            }) { Text(stringResource(R.string.editor_apply)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) } },
     )
 }
 
@@ -675,7 +706,7 @@ private fun SizeDialog(state: MapEditorState, onDismiss: () -> Unit) {
 private fun ThemeDialog(state: MapEditorState, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Theme") },
+        title = { Text(stringResource(R.string.editor_theme_title)) },
         text = {
             Column {
                 MapTheme.entries.forEach { t ->
@@ -695,7 +726,7 @@ private fun ThemeDialog(state: MapEditorState, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_close)) } },
     )
 }
 
@@ -706,9 +737,9 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
-            Text("Maps", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.editor_maps_title), style = MaterialTheme.typography.titleLarge)
             Text(
-                "Each map becomes MAP01, MAP02… in the WAD. Pick one to edit; set the test target.",
+                stringResource(R.string.editor_maps_help),
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
@@ -738,7 +769,7 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                     Spacer(Modifier.weight(1f))
                     // Test-target radio (compact; the label is the section help text above).
                     RadioButton(selected = state.project.testMapIndex == i, onClick = { state.setTestMap(i) })
-                    CompactAction("Dup") { state.duplicateMap(i) }
+                    CompactAction(stringResource(R.string.editor_dup)) { state.duplicateMap(i) }
                     CompactAction("↑", enabled = i > 0) { state.moveMap(i, i - 1) }
                     CompactAction("↓", enabled = i < state.project.maps.lastIndex) { state.moveMap(i, i + 1) }
                     CompactAction("✕", enabled = state.project.maps.size > 1) { state.deleteMap(i) }
@@ -749,7 +780,7 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
             FilledTonalButton(
                 onClick = { state.addMap() },
                 enabled = state.project.maps.size < com.msa.freedoom.ui.editor.model.MapProject.MAX_MAPS,
-            ) { Text("Add map") }
+            ) { Text(stringResource(R.string.editor_add_map)) }
         }
     }
 }
@@ -761,9 +792,9 @@ private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
-            Text("Generation tuning", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.editor_generation_tuning), style = MaterialTheme.typography.titleLarge)
             Text(
-                "Relative densities. The engine also scales by map area, so bigger maps get more.",
+                stringResource(R.string.editor_tuning_help),
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
@@ -774,31 +805,31 @@ private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
                     onCheckedChange = { state.setGenerateThings(it) },
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Auto-populate (monsters & items)")
+                Text(stringResource(R.string.editor_auto_populate))
             }
             Spacer(Modifier.height(8.dp))
 
-            DensitySlider("Monsters", state.project.tuning.monsterDensity) { state.setMonsterDensity(it) }
-            DensitySlider("Items", state.project.tuning.itemDensity) { state.setItemDensity(it) }
-            DensitySlider("Ammo", state.project.tuning.ammoDensity) { state.setAmmoDensity(it) }
+            DensitySlider(stringResource(R.string.editor_density_monsters), state.project.tuning.monsterDensity) { state.setMonsterDensity(it) }
+            DensitySlider(stringResource(R.string.editor_density_items), state.project.tuning.itemDensity) { state.setItemDensity(it) }
+            DensitySlider(stringResource(R.string.editor_density_ammo), state.project.tuning.ammoDensity) { state.setAmmoDensity(it) }
 
             Spacer(Modifier.height(12.dp))
-            Text("WAD format", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.editor_wad_format), style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = state.project.format == WadFormat.DOOM2,
                     onClick = { state.setFormat(WadFormat.DOOM2) },
-                    label = { Text("Doom II (MAP01)") },
+                    label = { Text(stringResource(R.string.editor_doom2_label)) },
                 )
                 FilterChip(
                     selected = state.project.format == WadFormat.DOOM1,
                     onClick = { state.setFormat(WadFormat.DOOM1) },
-                    label = { Text("Doom I (ExMy)") },
+                    label = { Text(stringResource(R.string.editor_doom1_label)) },
                 )
             }
 
             Spacer(Modifier.height(12.dp))
-            Text("Test skill", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.editor_test_skill), style = MaterialTheme.typography.labelLarge)
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -814,7 +845,7 @@ private fun TuningSheet(state: MapEditorState, onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(16.dp))
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_close)) }
         }
     }
 }
@@ -830,18 +861,19 @@ private fun DensitySlider(label: String, value: Float, onChange: (Float) -> Unit
 // ---------------------------------------------------------------------- projects sheet
 
 @Composable
-private fun ProjectsSheet(state: MapEditorState, onDismiss: () -> Unit) {
+private fun ProjectsSheet(state: MapEditorState, onMessage: (String) -> Unit, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val savedMsg = stringResource(R.string.editor_saved)
     var saveName by remember { mutableStateOf(state.project.name) }
     var projects by remember { mutableStateOf<List<ProjectSummary>>(emptyList()) }
+    var pendingDelete by remember { mutableStateOf<ProjectSummary?>(null) }
 
     LaunchedEffect(Unit) { projects = state.listProjects() }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
-            Text("Projects", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.editor_projects_title), style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -850,7 +882,7 @@ private fun ProjectsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                 OutlinedTextField(
                     value = saveName,
                     onValueChange = { saveName = it },
-                    label = { Text("Save as") },
+                    label = { Text(stringResource(R.string.editor_save_as)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -858,15 +890,15 @@ private fun ProjectsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                     scope.launch {
                         state.saveNamedAs(saveName)
                         projects = state.listProjects()
-                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+                        onMessage(savedMsg)
                     }
-                }) { Text("Save") }
+                }) { Text(stringResource(R.string.editor_save)) }
             }
 
             Spacer(Modifier.height(12.dp))
-            Text("Saved", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.editor_saved_header), style = MaterialTheme.typography.labelLarge)
             if (projects.isEmpty()) {
-                Text("No saved projects yet.", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.editor_no_saved_projects), style = MaterialTheme.typography.bodySmall)
             }
             projects.forEach { p ->
                 Row(
@@ -875,18 +907,33 @@ private fun ProjectsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(p.name)
-                        Text("${p.mapCount} map(s)", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.editor_map_count, p.mapCount), style = MaterialTheme.typography.labelSmall)
                     }
                     TextButton(onClick = {
                         scope.launch { state.openProject(p.file); onDismiss() }
-                    }) { Text("Open") }
-                    TextButton(onClick = {
-                        scope.launch { state.deleteProject(p.file); projects = state.listProjects() }
-                    }) { Text("Delete") }
+                    }) { Text(stringResource(R.string.editor_open)) }
+                    TextButton(onClick = { pendingDelete = p }) { Text(stringResource(R.string.editor_delete)) }
                 }
                 HorizontalDivider()
             }
         }
+    }
+
+    pendingDelete?.let { p ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.editor_confirm_delete_project_title)) },
+            text = { Text(stringResource(R.string.editor_confirm_delete_project_text, p.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDelete = null
+                    scope.launch { state.deleteProject(p.file); projects = state.listProjects() }
+                }) { Text(stringResource(R.string.editor_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.cancel_button)) }
+            },
+        )
     }
 }
 
@@ -901,20 +948,20 @@ private fun ReplaceTileDialog(state: MapEditorState, onDismiss: () -> Unit) {
     var to by remember { mutableStateOf(TileType.Door) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Replace tile") },
+        title = { Text(stringResource(R.string.editor_replace_tile_title)) },
         text = {
             Column {
-                Text("Replace every…", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.editor_replace_every), style = MaterialTheme.typography.labelLarge)
                 TileSwatchRow(selected = from) { from = it }
                 Spacer(Modifier.height(12.dp))
-                Text("…with", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.editor_replace_with), style = MaterialTheme.typography.labelLarge)
                 TileSwatchRow(selected = to) { to = it }
             }
         },
         confirmButton = {
-            TextButton(onClick = { state.replaceTile(from, to); onDismiss() }) { Text("Replace") }
+            TextButton(onClick = { state.replaceTile(from, to); onDismiss() }) { Text(stringResource(R.string.editor_replace)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) } },
     )
 }
 
@@ -946,10 +993,10 @@ private fun TileSwatchRow(selected: TileType, onPick: (TileType) -> Unit) {
 private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New from template") },
+        title = { Text(stringResource(R.string.editor_new_from_template_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text("Adds a new map from a starter layout.", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.editor_template_help), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 MapTemplates.all.forEach { tpl ->
                     val thumb = remember(tpl.name) { renderMapBitmap(tpl.build()).asImageBitmap() }
@@ -973,7 +1020,7 @@ private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_close)) } },
     )
 }
 
@@ -983,13 +1030,13 @@ private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
 private fun ValidationDialog(warnings: List<String>, onTestAnyway: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Heads up") },
+        title = { Text(stringResource(R.string.editor_heads_up)) },
         text = {
             Column {
-                warnings.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                warnings.forEach { Text("•  $it", style = MaterialTheme.typography.bodyMedium) }
             }
         },
-        confirmButton = { TextButton(onClick = onTestAnyway) { Text("Test anyway") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onTestAnyway) { Text(stringResource(R.string.editor_test_anyway)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_button)) } },
     )
 }
