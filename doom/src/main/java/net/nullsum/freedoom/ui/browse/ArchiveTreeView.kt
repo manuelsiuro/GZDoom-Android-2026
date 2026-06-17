@@ -87,15 +87,15 @@ fun ArchiveTreeView(
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (node.isDir) {
-                            Icon(
-                                DoomIcons.Folder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                            )
-                        } else {
-                            Spacer(Modifier.size(24.dp))
-                        }
+                        Icon(
+                            if (node.isDir) DoomIcons.Folder else DoomIcons.Extension,
+                            contentDescription = null,
+                            tint = if (node.isDir) {
+                                MaterialTheme.colorScheme.tertiary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
                         Spacer(Modifier.size(16.dp))
                         Column(Modifier.weight(1f)) {
                             Text(

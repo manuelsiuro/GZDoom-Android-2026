@@ -154,6 +154,13 @@
     <string name="browse_imported_hint">Imported — appears in Select game on the Freedoom tab</string>
     <string name="browse_mode_search">Search</string>
     <string name="browse_mode_archive">Archive</string>
+    <string name="browse_mode_installed">Installed</string>
+    <string name="browse_select_all">Select all</string>
+    <string name="browse_delete_selected">Delete (%1$d)</string>
+    <string name="browse_delete_all">Delete all</string>
+    <string name="browse_installed_empty">Nothing installed yet</string>
+    <string name="browse_bulk_delete_title">Delete %1$d WAD(s)?</string>
+    <string name="browse_bulk_delete_msg">The selected files will be removed from storage. You can download them again later.</string>
     <string name="browse_play_with">Play with a %1$s IWAD selected</string>
     <string name="browse_field_base">Base</string>
     <string name="browse_field_credits">Credits</string>

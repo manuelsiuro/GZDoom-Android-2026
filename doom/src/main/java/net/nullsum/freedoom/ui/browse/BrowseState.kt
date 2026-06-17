@@ -31,6 +31,7 @@ import net.nullsum.freedoom.idgames.IdgamesUri
 import net.nullsum.freedoom.idgames.WadDownloader
 import net.nullsum.freedoom.idgames.ZipInstaller
 import net.nullsum.freedoom.ui.launch.gameFolderName
+import net.nullsum.freedoom.ui.launch.scanIwads
 
 /** One row/sheet target, unifying API results, featured and classic-catalog entries. */
 data class BrowseEntry(
@@ -117,8 +118,20 @@ sealed interface DownloadStatus {
     data object Installed : DownloadStatus
 }
 
-/** Whether the Browse screen shows keyword search or the archive folder tree. */
-enum class BrowseMode { SEARCH, ARCHIVE }
+/** Which Browse view is showing: keyword search, the archive folder tree, or installed WADs. */
+enum class BrowseMode { SEARCH, ARCHIVE, INSTALLED }
+
+/** One installed WAD shown in the Installed view (an add-on under wads/, or a root IWAD). */
+data class InstalledItem(
+    val key: String,
+    val name: String,
+    /** Game-folder label for an add-on (e.g. "doom2"); null for a flat install or an IWAD. */
+    val game: String?,
+    val isIwad: Boolean,
+    /** wads/-relative path for an add-on, or the IWAD filename at the game-dir root. */
+    val relOrFile: String,
+    val size: Long,
+)
 
 /** Lazy load state of the rich per-entry detail (textfile, reviews, …) via the `get` action. */
 sealed interface DetailState {
@@ -172,6 +185,13 @@ class BrowseState(
     /** Per-game install paths ("doom2/scythe") so a nested install can be located for delete. */
     var installedRel by mutableStateOf(setOf<String>())
         private set
+
+    /** Flat list of everything installed, for the Installed view + bulk delete. */
+    var installedItems by mutableStateOf(listOf<InstalledItem>())
+        private set
+    var installedSelection by mutableStateOf(setOf<String>())
+        private set
+    var pendingBulkDelete by mutableStateOf<Set<String>?>(null)
 
     var mode by mutableStateOf(BrowseMode.SEARCH)
 
@@ -298,6 +318,8 @@ class BrowseState(
             archiveEntries = emptyList()
             try {
                 val nodes = api.listArchive(archivePath.joinToString("/"))
+                    // Only folders and downloadable .zip archives — hide .txt/.diz/etc.
+                    .filter { it.isDir || it.name.endsWith(".zip", ignoreCase = true) }
                 // Folders first, then files, each alphabetical — matches the mod picker idiom.
                 archiveEntries = nodes.sortedWith(
                     compareByDescending<ArchiveListingParser.Node> { it.isDir }
@@ -499,10 +521,49 @@ class BrowseState(
         }
     }
 
+    // --- Installed view: selection + bulk delete ---
+
+    fun toggleInstalled(key: String) {
+        installedSelection = if (key in installedSelection) {
+            installedSelection - key
+        } else {
+            installedSelection + key
+        }
+    }
+
+    fun selectAllInstalled() {
+        installedSelection = installedItems.map { it.key }.toSet()
+    }
+
+    fun clearInstalledSelection() {
+        installedSelection = emptySet()
+    }
+
+    /** Deletes the given installed items (add-on folders and/or root IWADs), then refreshes. */
+    fun deleteInstalled(keys: Set<String>) {
+        pendingBulkDelete = null
+        if (keys.isEmpty()) return
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                installedItems.filter { it.key in keys }.forEach { item ->
+                    if (item.isIwad) {
+                        File(baseDir, item.relOrFile).delete()
+                    } else {
+                        File(wadsDir, item.relOrFile).deleteRecursively()
+                        downloads.remove(item.name)
+                    }
+                }
+            }
+            installedSelection = emptySet()
+            refreshInstalled()
+        }
+    }
+
     suspend fun refreshInstalled() {
         withContext(Dispatchers.IO) {
             val names = mutableSetOf<String>()
             val rels = mutableSetOf<String>()
+            val items = mutableListOf<InstalledItem>()
             // Layout: wads/<game>/<installName>/. A directory that directly holds content
             // files is a leaf install; otherwise it's a game folder whose children are
             // installs. This keeps legacy flat wads/<installName>/ (incl. ones with their
@@ -512,15 +573,36 @@ class BrowseState(
                 .forEach { top ->
                     if (top.holdsContent()) {
                         names += top.name // legacy flat install
+                        items += InstalledItem(
+                            key = top.name, name = top.name, game = null,
+                            isIwad = false, relOrFile = top.name, size = top.dirSize(),
+                        )
                     } else {
                         top.listFiles().orEmpty().filter { it.isDirectory }.forEach { child ->
                             names += child.name
-                            rels += "${top.name}/${child.name}"
+                            val rel = "${top.name}/${child.name}"
+                            rels += rel
+                            items += InstalledItem(
+                                key = rel, name = child.name, game = top.name,
+                                isIwad = false, relOrFile = rel, size = child.dirSize(),
+                            )
                         }
                     }
                 }
+            // Selectable IWADs at the game-dir root (engine pk3s excluded by scanIwads).
+            scanIwads(baseDir).forEach { iwad ->
+                items += InstalledItem(
+                    key = "iwad:${iwad.file}", name = iwad.file, game = null,
+                    isIwad = true, relOrFile = iwad.file, size = iwad.sizeBytes,
+                )
+            }
             installed = names
             installedRel = rels
+            installedItems = items.sortedWith(
+                compareByDescending<InstalledItem> { it.isIwad }.thenBy { it.name.lowercase() },
+            )
+            // Drop selections whose items no longer exist.
+            installedSelection = installedSelection.intersect(items.map { it.key }.toSet())
             installedIwads = File(baseDir).listFiles().orEmpty()
                 .filter { !it.isDirectory }
                 .map { it.name.lowercase() }
@@ -543,3 +625,6 @@ class BrowseState(
 private fun File.holdsContent(): Boolean = listFiles().orEmpty().any {
     !it.isDirectory && it.extension.lowercase() in ZipInstaller.CONTENT_EXTENSIONS
 }
+
+/** Total size of a directory tree, for display in the Installed view. */
+private fun File.dirSize(): Long = walkTopDown().filter { it.isFile }.sumOf { it.length() }

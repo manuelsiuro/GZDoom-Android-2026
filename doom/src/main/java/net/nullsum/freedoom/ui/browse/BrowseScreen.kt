@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -63,6 +65,7 @@ fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
     }
     LaunchedEffect(state.mode) {
         if (state.mode == BrowseMode.ARCHIVE) state.ensureArchiveLoaded()
+        if (state.mode == BrowseMode.INSTALLED) state.refreshInstalled()
     }
     // Fetch the rich record whenever a detail sheet opens.
     LaunchedEffect(state.selectedEntry) {
@@ -86,6 +89,7 @@ fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
         when (state.mode) {
             BrowseMode.SEARCH -> SearchList(state, onImport, Modifier.weight(1f))
             BrowseMode.ARCHIVE -> ArchiveTreeView(state, onImport, Modifier.weight(1f))
+            BrowseMode.INSTALLED -> InstalledView(state, Modifier.weight(1f))
         }
     }
 
@@ -121,6 +125,24 @@ fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
             },
         )
     }
+
+    state.pendingBulkDelete?.let { keys ->
+        AlertDialog(
+            onDismissRequest = { state.pendingBulkDelete = null },
+            title = { Text(stringResource(R.string.browse_bulk_delete_title, keys.size)) },
+            text = { Text(stringResource(R.string.browse_bulk_delete_msg)) },
+            confirmButton = {
+                TextButton(onClick = { state.deleteInstalled(keys) }) {
+                    Text(stringResource(R.string.browse_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { state.pendingBulkDelete = null }) {
+                    Text(stringResource(R.string.browse_cancel_download))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -129,6 +151,7 @@ private fun ModeToggle(state: BrowseState, modifier: Modifier = Modifier) {
         val modes = listOf(
             BrowseMode.SEARCH to R.string.browse_mode_search,
             BrowseMode.ARCHIVE to R.string.browse_mode_archive,
+            BrowseMode.INSTALLED to R.string.browse_mode_installed,
         )
         modes.forEachIndexed { index, (m, labelRes) ->
             SegmentedButton(
@@ -315,6 +338,8 @@ private fun BrowseRow(state: BrowseState, entry: BrowseEntry, onImport: (BrowseE
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            LeadingIcon(entry)
+            Spacer(Modifier.size(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     entry.title,
@@ -349,6 +374,24 @@ private fun BrowseRow(state: BrowseState, entry: BrowseEntry, onImport: (BrowseE
             }
             Spacer(Modifier.size(12.dp))
             RowAction(state, entry, status, onImport)
+        }
+    }
+}
+
+@Composable
+private fun LeadingIcon(entry: BrowseEntry) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.size(40.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                if (entry.isIwad) DoomIcons.Gamepad else DoomIcons.Extension,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(22.dp),
+            )
         }
     }
 }
