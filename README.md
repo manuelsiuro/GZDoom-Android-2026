@@ -33,8 +33,20 @@ running, and **playable on modern 64-bit Android devices**.
   - A **Commercial games — bring your own copy** shelf: the still-sold games (Doom, Doom II, Final
     Doom, Heretic, Hexen, Strife) are *never* downloaded; instead you **import your own `.wad`**
     from a copy you bought via the Android file picker — the same model GZDoom uses on PC.
-  - **Delete** any downloaded/imported file from inside the app, and a **Reset** button on the
-    launch screen to clear a stuck game/mod selection.
+  - **Compatibility badges** on every entry — Doom/Doom II/Heretic/Hexen/Strife/Chex plus the
+    map-slot (ExMy vs MAPxx) — guessed up front from the archive path and confirmed from the
+    upload's text file, so you know which IWAD a WAD needs before downloading.
+  - A **rich detail sheet** (fetched via the idgames `get` API): full text file, base, credits,
+    editors, build time, known bugs, reviews/ratings, and a "play with" IWAD hint.
+  - An **Archive** mode that browses the idgames file tree by category (`levels/doom2/…`) straight
+    from the gamers.org mirror, in addition to keyword search.
+  - **`idgames://` deep links** — tapping an idgames link from a browser/forum opens the Browse
+    tab on that WAD's detail sheet, ready to download.
+  - **Per-game download folders:** add-ons are auto-sorted into `wads/doom2/`, `wads/heretic/`, …
+    based on detected compatibility, so the picker can group them by game.
+  - An **Installed** view listing everything you've installed (add-ons + IWADs) with multi-select
+    and **bulk delete** (selected or all). Individual **delete** also works from any entry, and a
+    **Reset** button on the launch screen clears a stuck game/mod selection.
 - **100% Kotlin.** All 38 Java sources converted to Kotlin (app code + the vendored libSDL and
   DragSortListView libraries), preserving the exact JNI contract with the native engine.
 - **Jetpack Compose Material 3 launcher.** The whole launcher UI was rewritten in Compose with a
@@ -42,7 +54,9 @@ running, and **playable on modern 64-bit Android devices**.
   - Two-pane launch screen: WAD cards with size and selected state, big Launch button.
   - Add-ons are first-class: a bottom-sheet picker browses `wads/`/`mods/` with checkboxes
     (folders included — no more long-press), selections show as removable chips, and `.deh`/`.bex`
-    patches map to `-deh` automatically.
+    patches map to `-deh` automatically. The picker shows the **selected game** in its title,
+    compatibility badges per add-on, an **"only compatible"** filter, and **favorites** — star any
+    WAD/mod or folder and filter to just your starred ones (persisted across sessions).
   - Command-line args field with history dropdown; Options tab with data-folder picker and
     resolution divider.
   - First-run unpacking now shows a progress indicator (the old 10-second activity-restart hack
@@ -52,7 +66,8 @@ running, and **playable on modern 64-bit Android devices**.
 - **Modern Android (compileSdk 36, minSdk 23).**
   - **Scoped storage** via app-specific external dirs (no `WRITE_EXTERNAL_STORAGE`).
   - `android:exported`, `WindowInsetsControllerCompat` immersive mode, `MODE_PRIVATE` prefs,
-    edge-to-edge launcher.
+    edge-to-edge launcher with **themed system bars** (white status-bar icons; the navigation
+    bar shares the bottom-navigation color).
 - **64-bit ready.** Native libraries build for **`arm64-v8a`** *and* `armeabi-v7a`, so the app
   runs on today's 64-bit-only phones and satisfies the Google Play 64-bit requirement.
 - **16 KB page support** (Android 15+): native `.so` are 16 KB `LOAD`-aligned and packaged
@@ -130,6 +145,9 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
 - [x] Integrate an idgames level browser/downloader (Browse tab)
 - [x] Add a WAD-download feature (idgames + classic shareware/freeware games)
 - [x] Import-your-own-copy flow for the commercial IWADs (Doom, Doom II, Final Doom, …)
+- [x] Compatibility badges + rich detail view, archive-tree browser, `idgames://` deep links,
+      per-game download folders, and an Installed view with bulk delete
+- [x] Favorites in the add-on picker (star WADs/mods/folders + filter)
 - [x] In-app PNG2WAD map editor (draw a grid → generate a playable map → launch it)
 - [x] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x (GZDoom 4.15, `mobile_4.15.x`)
 - [x] Swap the native engine to UZDoom 5.0.0-pre (`uz_5.0_pre`) — builds & runs on device
