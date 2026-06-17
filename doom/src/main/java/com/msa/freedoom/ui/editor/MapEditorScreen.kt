@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
 package com.msa.freedoom.ui.editor
 
@@ -10,10 +10,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,27 +33,39 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,11 +79,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import com.msa.freedoom.ui.DoomIcons
 import com.msa.freedoom.ui.editor.data.ProjectSummary
 import com.msa.freedoom.ui.editor.generate.renderMapBitmap
 import com.msa.freedoom.ui.editor.launch.shareWad
@@ -79,11 +98,16 @@ import com.msa.freedoom.ui.launch.WadEntry
  * The in-app map studio: a paint canvas plus tools, a tile palette, per-map management,
  * generation tuning, a test-IWAD picker and named projects. All durable state lives in the
  * hoisted [MapEditorState]; this is just the Material 3 shell.
+ *
+ * Mobile-first layout: a left tool rail of icon toggles + canvas + bottom palette in portrait;
+ * a side panel in landscape (≥600dp). Project/management actions live in a left navigation
+ * drawer; only Test stays a prominent top-bar action.
  */
 @Composable
 fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
 
     LaunchedEffect(Unit) {
         state.loadCurrentOrNew()
@@ -97,6 +121,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     var showProjects by remember { mutableStateOf(false) }
     var showReplace by remember { mutableStateOf(false) }
     var showTemplates by remember { mutableStateOf(false) }
+    var showRename by remember { mutableStateOf(false) }
     var testWarnings by remember { mutableStateOf<List<String>?>(null) }
 
     val startTest = {
@@ -112,58 +137,61 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
         val warnings = validateMap(map)
         if (warnings.isEmpty()) startTest() else testWarnings = warnings
     }
+    val onGenerate = {
+        scope.launch {
+            val r = state.generate()
+            val msg = if (r != null) "WAD generated: ${r.wadFile.name}" else "Failed to generate WAD"
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        }
+        Unit
+    }
+    val onShare = {
+        scope.launch {
+            val wad = state.generateForShare()
+            if (wad != null) shareWad(context, wad)
+            else Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
+        }
+        Unit
+    }
+    val closeDrawer = { scope.launch { drawerState.close() }; Unit }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        EditorHeader(
-            state = state,
-            onOpenProjects = { showProjects = true },
-            onReplaceTile = { showReplace = true },
-            onTemplates = { showTemplates = true },
-        )
-
-        // Canvas hero.
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            MapCanvas(state = state, modifier = Modifier.fillMaxSize())
-            // Fit-to-screen: resets zoom/pan so you can't get lost after navigating.
-            FilledTonalButton(
-                onClick = { state.resetView() },
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-            ) { Text("Fit") }
-            if (state.isBusy) {
-                Box(
-                    modifier = Modifier.fillMaxSize().background(Color(0xAA000000)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        state.genStatus?.let {
-                            Spacer(Modifier.height(8.dp))
-                            Text(it, color = Color.White)
-                        }
-                    }
-                }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            EditorDrawer(
+                state = state,
+                onSize = { closeDrawer(); showSize = true },
+                onTheme = { closeDrawer(); showTheme = true },
+                onMaps = { closeDrawer(); showMaps = true },
+                onTuning = { closeDrawer(); showTuning = true },
+                onProjects = { closeDrawer(); showProjects = true },
+                onReplaceTile = { closeDrawer(); showReplace = true },
+                onTemplates = { closeDrawer(); showTemplates = true },
+                onGenerate = { closeDrawer(); onGenerate() },
+                onShare = { closeDrawer(); onShare() },
+            )
+        },
+    ) {
+        Scaffold(
+            topBar = {
+                EditorTopBar(
+                    state = state,
+                    onMenu = { scope.launch { drawerState.open() } },
+                    onRename = { showRename = true },
+                    onTest = onTest,
+                    onGenerate = onGenerate,
+                    onShare = onShare,
+                    onFit = { state.resetView() },
+                )
+            },
+            // Host already insets this subtree; zero here to avoid double status-bar inset.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            modifier = modifier,
+        ) { innerPadding ->
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                if (maxWidth >= WIDE_BREAKPOINT) LandscapeBody(state) else PortraitBody(state)
             }
         }
-
-        TilePaletteRow(state)
-
-        EditorToolbar(
-            state = state,
-            onSize = { showSize = true },
-            onTheme = { showTheme = true },
-            onMaps = { showMaps = true },
-            onTuning = { showTuning = true },
-        )
-
-        ActionRow(
-            state = state,
-            onTest = onTest,
-            onResult = { ok, msg ->
-                if (!ok) Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                else if (msg.isNotEmpty()) Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-            },
-        )
     }
 
     if (showSize) SizeDialog(state) { showSize = false }
@@ -173,6 +201,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     if (showProjects) ProjectsSheet(state) { showProjects = false }
     if (showReplace) ReplaceTileDialog(state) { showReplace = false }
     if (showTemplates) TemplatesDialog(state) { showTemplates = false }
+    if (showRename) RenameDialog(state) { showRename = false }
     testWarnings?.let { warnings ->
         ValidationDialog(
             warnings = warnings,
@@ -182,188 +211,365 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     }
 }
 
-// ---------------------------------------------------------------------------- header
+/** Width at/above which the editor switches to the side-panel landscape layout. */
+private val WIDE_BREAKPOINT = 600.dp
+
+// -------------------------------------------------------------------------- responsive bodies
+
+/** Portrait / narrow: left tool rail, canvas fills, modifiers + palette stacked below. */
+@Composable
+private fun PortraitBody(state: MapEditorState) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        EditorToolRail(state)
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            CanvasArea(state, modifier = Modifier.weight(1f).fillMaxWidth())
+            ModifiersBar(state)
+            TilePaletteStrip(state)
+        }
+    }
+}
+
+/** Landscape / wide (≥600dp): tool rail, canvas fills, a right side panel holds modifiers + palette. */
+@Composable
+private fun LandscapeBody(state: MapEditorState) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        EditorToolRail(state)
+        CanvasArea(state, modifier = Modifier.weight(1f).fillMaxHeight())
+        Column(
+            modifier = Modifier
+                .width(220.dp)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ModifiersBar(state, wrap = true)
+            TilePaletteStrip(state, wrap = true)
+        }
+    }
+}
+
+// --------------------------------------------------------------------------------- top bar
 
 @Composable
-private fun EditorHeader(
+private fun EditorTopBar(
     state: MapEditorState,
-    onOpenProjects: () -> Unit,
-    onReplaceTile: () -> Unit,
-    onTemplates: () -> Unit,
+    onMenu: () -> Unit,
+    onRename: () -> Unit,
+    onTest: () -> Unit,
+    onGenerate: () -> Unit,
+    onShare: () -> Unit,
+    onFit: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-    var iwadMenuOpen by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = state.project.name,
-            onValueChange = { state.rename(it) },
-            label = { Text("Level name") },
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-        )
-
-        // Test IWAD picker.
-        Box {
-            OutlinedButton(onClick = { iwadMenuOpen = true }) {
-                Text(state.project.iwadFile.removeSuffix(".wad"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    var overflowOpen by remember { mutableStateOf(false) }
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onMenu) {
+                Icon(Icons.Filled.Menu, contentDescription = "Open menu")
             }
-            DropdownMenu(expanded = iwadMenuOpen, onDismissRequest = { iwadMenuOpen = false }) {
-                if (state.availableIwads.isEmpty()) {
-                    DropdownMenuItem(text = { Text("No IWADs found") }, onClick = { iwadMenuOpen = false })
+        },
+        title = {
+            Text(
+                state.project.name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clickable(onClick = onRename),
+            )
+        },
+        actions = {
+            IconButton(onClick = { state.undo() }, enabled = state.canUndo) {
+                Icon(DoomIcons.Undo, contentDescription = "Undo")
+            }
+            IconButton(onClick = { state.redo() }, enabled = state.canRedo) {
+                Icon(DoomIcons.Redo, contentDescription = "Redo")
+            }
+            IconButton(onClick = onTest, enabled = !state.isBusy) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Test map")
+            }
+            Box {
+                IconButton(onClick = { overflowOpen = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "More")
                 }
-                state.availableIwads.forEach { wad: WadEntry ->
+                DropdownMenu(expanded = overflowOpen, onDismissRequest = { overflowOpen = false }) {
                     DropdownMenuItem(
-                        text = { Text(wad.file) },
-                        onClick = { state.setIwad(wad.file); iwadMenuOpen = false },
+                        text = { Text("Generate WAD") },
+                        enabled = !state.isBusy,
+                        onClick = { overflowOpen = false; onGenerate() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Share WAD…") },
+                        enabled = !state.isBusy,
+                        onClick = { overflowOpen = false; onShare() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Fit to screen") },
+                        onClick = { overflowOpen = false; onFit() },
                     )
                 }
             }
-        }
+        },
+    )
+}
 
-        Box {
-            TextButton(onClick = { menuOpen = true }) { Text("⋮") }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text("Projects…") },
-                    onClick = { menuOpen = false; onOpenProjects() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Share WAD…") },
-                    onClick = {
-                        menuOpen = false
-                        scope.launch {
-                            val wad = state.generateForShare()
-                            if (wad != null) shareWad(context, wad)
-                            else Toast.makeText(context, "Failed to generate WAD", Toast.LENGTH_LONG).show()
-                        }
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("New from template…") },
-                    onClick = { menuOpen = false; onTemplates() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Replace tile…") },
-                    onClick = { menuOpen = false; onReplaceTile() },
-                )
-                DropdownMenuItem(
-                    text = { Text("Clear map (Room)") },
-                    onClick = { menuOpen = false; state.clearMap(TileType.Room) },
-                )
-                DropdownMenuItem(
-                    text = { Text("Fill with walls") },
-                    onClick = { menuOpen = false; state.clearMap(TileType.Wall) },
-                )
+// --------------------------------------------------------------------------------- tool rail
+
+/** The drawing tools, paired with their icons, in rail order. */
+private val TOOL_SPECS: List<Triple<EditorTool, ImageVector, String>> = listOf(
+    Triple(EditorTool.Brush, DoomIcons.Brush, "Brush"),
+    Triple(EditorTool.Eraser, DoomIcons.Eraser, "Erase"),
+    Triple(EditorTool.Bucket, DoomIcons.Fill, "Fill"),
+    Triple(EditorTool.Line, DoomIcons.Line, "Line"),
+    Triple(EditorTool.Rect, DoomIcons.Rect, "Rectangle"),
+    Triple(EditorTool.Eyedropper, DoomIcons.Colorize, "Pick"),
+    Triple(EditorTool.Pan, DoomIcons.Pan, "Pan"),
+)
+
+/**
+ * A persistent left rail of icon toggles for the drawing tools. A Row sibling of the canvas
+ * (never an overlay) so it shrinks — not covers — the canvas region; [MapCanvas]'s cell mapping
+ * divides by its own node size, which only stays correct if nothing floats over it.
+ */
+@Composable
+private fun EditorToolRail(state: MapEditorState) {
+    Column(
+        modifier = Modifier
+            .width(56.dp)
+            .fillMaxHeight()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TOOL_SPECS.forEach { (tool, icon, label) ->
+            FilledIconToggleButton(
+                checked = state.activeTool == tool,
+                onCheckedChange = { state.activeTool = tool },
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(icon, contentDescription = label)
             }
         }
+    }
+}
+
+// ------------------------------------------------------------------------------- canvas area
+
+@Composable
+private fun CanvasArea(state: MapEditorState, modifier: Modifier = Modifier) {
+    Box(modifier = modifier) {
+        MapCanvas(state = state, modifier = Modifier.fillMaxSize())
+        if (state.isBusy) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color(0xAA000000)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    state.genStatus?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------- modifiers bar
+
+/**
+ * Contextual drawing modifiers: symmetry, brush tip, and (Rect only) Filled. Scrolls horizontally
+ * in portrait; wraps in the landscape side panel.
+ */
+@Composable
+private fun ModifiersBar(state: MapEditorState, wrap: Boolean = false) {
+    val content: @Composable () -> Unit = {
+        if (state.activeTool == EditorTool.Rect) {
+            FilterChip(
+                selected = state.rectFilled,
+                onClick = { state.rectFilled = !state.rectFilled },
+                label = { Text("Filled") },
+            )
+        }
+        // Symmetry (cycles Off → mirror-LR → mirror-UD → 4-way) and brush tip size.
+        FilterChip(
+            selected = state.symmetry != MapGridOps.SymmetryMode.None,
+            onClick = { state.symmetry = nextSymmetry(state.symmetry) },
+            label = { Text(symmetryLabel(state.symmetry)) },
+        )
+        FilterChip(
+            selected = state.brushSize > 1,
+            onClick = { state.brushSize = if (state.brushSize >= 3) 1 else state.brushSize + 1 },
+            label = { Text("Tip ${state.brushSize}×") },
+        )
+    }
+    if (wrap) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) { content() }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) { content() }
     }
 }
 
 // ----------------------------------------------------------------------------- palette
 
 @Composable
-private fun TilePaletteRow(state: MapEditorState) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(TileType.entries.toList()) { tile ->
-            val selected = state.selectedTile == tile && state.activeTool != EditorTool.Eraser
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable {
-                        state.selectedTile = tile
-                        if (state.activeTool == EditorTool.Eraser || state.activeTool == EditorTool.Pan) {
-                            state.activeTool = EditorTool.Brush
-                        }
+private fun TilePaletteStrip(state: MapEditorState, wrap: Boolean = false) {
+    val swatch: @Composable (TileType) -> Unit = { tile ->
+        val selected = state.selectedTile == tile && state.activeTool != EditorTool.Eraser
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clickable {
+                    state.selectedTile = tile
+                    if (state.activeTool == EditorTool.Eraser || state.activeTool == EditorTool.Pan) {
+                        state.activeTool = EditorTool.Brush
                     }
-                    .padding(2.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(tile.composeColor, RoundedCornerShape(6.dp))
-                        .border(
-                            width = if (selected) 3.dp else 1.dp,
-                            color = if (selected) MaterialTheme.colorScheme.primary else Color(0xFF555555),
-                            shape = RoundedCornerShape(6.dp),
-                        ),
-                )
-                Text(tile.displayName, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-            }
+                }
+                .padding(2.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(tile.composeColor, RoundedCornerShape(6.dp))
+                    .border(
+                        width = if (selected) 3.dp else 1.dp,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(6.dp),
+                    ),
+            )
+            Text(tile.displayName, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        }
+    }
+    if (wrap) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) { TileType.entries.forEach { swatch(it) } }
+    } else {
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(TileType.entries.toList()) { swatch(it) }
         }
     }
 }
 
-// ----------------------------------------------------------------------------- toolbar
+// ----------------------------------------------------------------------------- drawer
 
 @Composable
-private fun EditorToolbar(
+private fun EditorDrawer(
     state: MapEditorState,
     onSize: () -> Unit,
     onTheme: () -> Unit,
     onMaps: () -> Unit,
     onTuning: () -> Unit,
+    onProjects: () -> Unit,
+    onReplaceTile: () -> Unit,
+    onTemplates: () -> Unit,
+    onGenerate: () -> Unit,
+    onShare: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    var iwadMenuOpen by remember { mutableStateOf(false) }
+    ModalDrawerSheet {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 16.dp),
         ) {
-            ToolChip("Brush", state.activeTool == EditorTool.Brush) { state.activeTool = EditorTool.Brush }
-            ToolChip("Erase", state.activeTool == EditorTool.Eraser) { state.activeTool = EditorTool.Eraser }
-            ToolChip("Fill", state.activeTool == EditorTool.Bucket) { state.activeTool = EditorTool.Bucket }
-            ToolChip("Line", state.activeTool == EditorTool.Line) { state.activeTool = EditorTool.Line }
-            ToolChip("Rect", state.activeTool == EditorTool.Rect) { state.activeTool = EditorTool.Rect }
-            ToolChip("Pick", state.activeTool == EditorTool.Eyedropper) { state.activeTool = EditorTool.Eyedropper }
-            ToolChip("Pan", state.activeTool == EditorTool.Pan) { state.activeTool = EditorTool.Pan }
-            if (state.activeTool == EditorTool.Rect) {
-                FilterChip(
-                    selected = state.rectFilled,
-                    onClick = { state.rectFilled = !state.rectFilled },
-                    label = { Text("Filled") },
-                )
+            Text("Map studio", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(12.dp))
+
+            // Test IWAD picker.
+            Text("Test IWAD", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(4.dp))
+            Box {
+                OutlinedButton(onClick = { iwadMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(state.project.iwadFile.removeSuffix(".wad"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                DropdownMenu(expanded = iwadMenuOpen, onDismissRequest = { iwadMenuOpen = false }) {
+                    if (state.availableIwads.isEmpty()) {
+                        DropdownMenuItem(text = { Text("No IWADs found") }, onClick = { iwadMenuOpen = false })
+                    }
+                    state.availableIwads.forEach { wad: WadEntry ->
+                        DropdownMenuItem(
+                            text = { Text(wad.file) },
+                            onClick = { state.setIwad(wad.file); iwadMenuOpen = false },
+                        )
+                    }
+                }
             }
-            // Symmetry (cycles Off → mirror-LR → mirror-UD → 4-way) and brush tip size.
-            FilterChip(
-                selected = state.symmetry != MapGridOps.SymmetryMode.None,
-                onClick = { state.symmetry = nextSymmetry(state.symmetry) },
-                label = { Text(symmetryLabel(state.symmetry)) },
-            )
-            FilterChip(
-                selected = state.brushSize > 1,
-                onClick = { state.brushSize = if (state.brushSize >= 3) 1 else state.brushSize + 1 },
-                label = { Text("Tip ${state.brushSize}×") },
-            )
-            Spacer(Modifier.width(8.dp))
-            TextButton(onClick = { state.undo() }, enabled = state.canUndo) { Text("Undo") }
-            TextButton(onClick = { state.redo() }, enabled = state.canRedo) { Text("Redo") }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AssistChip(onClick = onSize, label = { Text("Size ${state.gridWidth}×${state.gridHeight}") })
-            AssistChip(onClick = onTheme, label = { Text("Theme: ${state.theme.displayName}") })
-            AssistChip(onClick = onMaps, label = { Text("Maps (${state.project.maps.size})") })
-            AssistChip(onClick = onTuning, label = { Text("Tuning") })
+
+            Spacer(Modifier.height(12.dp))
+            DrawerItem("Grid size  ${state.gridWidth}×${state.gridHeight}", DoomIcons.Rect, onSize)
+            DrawerItem("Theme: ${state.theme.displayName}", DoomIcons.Palette, onTheme)
+            DrawerItem("Maps (${state.project.maps.size})", DoomIcons.Layers, onMaps)
+            DrawerItem("New from template…", Icons.Filled.Add, onTemplates)
+            DrawerItem("Generation tuning", DoomIcons.Tune, onTuning)
+            DrawerItem("Replace tile…", DoomIcons.Fill, onReplaceTile)
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+
+            DrawerItem("Clear map (Room)", DoomIcons.Brush) { state.clearMap(TileType.Room) }
+            DrawerItem("Fill with walls", DoomIcons.Fill) { state.clearMap(TileType.Wall) }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+
+            DrawerItem("Projects…", DoomIcons.Folder, onProjects)
+            DrawerItem("Generate WAD", DoomIcons.Download, onGenerate)
+            DrawerItem("Share WAD…", Icons.Filled.Share, onShare)
         }
     }
 }
 
 @Composable
-private fun ToolChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(selected = selected, onClick = onClick, label = { Text(label) })
+private fun DrawerItem(label: String, icon: ImageVector, onClick: () -> Unit) {
+    NavigationDrawerItem(
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        icon = { Icon(icon, contentDescription = null) },
+        selected = false,
+        onClick = onClick,
+        modifier = Modifier.padding(vertical = 2.dp),
+    )
+}
+
+// ----------------------------------------------------------------------------- rename dialog
+
+@Composable
+private fun RenameDialog(state: MapEditorState, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(state.project.name) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Level name") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { state.rename(name); onDismiss() }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 private fun nextSymmetry(m: MapGridOps.SymmetryMode): MapGridOps.SymmetryMode = when (m) {
@@ -389,38 +595,6 @@ private fun CompactAction(label: String, enabled: Boolean = true, onClick: () ->
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
         modifier = Modifier.widthIn(min = 36.dp),
     ) { Text(label) }
-}
-
-// ----------------------------------------------------------------------------- actions
-
-@Composable
-private fun ActionRow(state: MapEditorState, onTest: () -> Unit, onResult: (Boolean, String) -> Unit) {
-    val scope = rememberCoroutineScope()
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedButton(
-            onClick = {
-                scope.launch {
-                    val r = state.generate()
-                    onResult(r != null, if (r != null) "WAD generated: ${r.wadFile.name}" else "Failed to generate WAD")
-                }
-            },
-            enabled = !state.isBusy,
-            modifier = Modifier.weight(1f).height(48.dp),
-        ) { Text("Generate") }
-
-        Button(
-            onClick = onTest,
-            enabled = !state.isBusy,
-            modifier = Modifier.weight(1f).height(48.dp),
-        ) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-            Spacer(Modifier.width(4.dp))
-            Text("Test")
-        }
-    }
 }
 
 // ------------------------------------------------------------------------- size dialog

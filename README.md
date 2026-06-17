@@ -13,16 +13,20 @@ running, and **playable on modern 64-bit Android devices**.
 
 ## ✨ What's new in 2026
 
-- **In-app map editor (PNG2WAD).** A new **editor** tab lets you draw a level on a 16×16 colored
+- **In-app map editor (PNG2WAD).** A new **editor** tab lets you draw a level on a colored
   grid and generate a playable Doom map on-device — no PC tools. Pick a **theme**
   (`Tech`/`Cave`/`Hell`/`City`) and paint tiles (walls, rooms, doors, secrets, special floors/ceilings,
-  sky, player start, exit), then tap **Generate & Play** to boot straight into `MAP01`, or
-  **Generate only** to just write the WAD. Under the hood it renders the grid to a PNG and runs a
+  sky, player start, exit), then tap **Test** to boot straight into `MAP01`, or **Generate WAD** to
+  just write the file. Under the hood it renders the grid to a PNG and runs a
   bundled native converter (`libpng2wad.so`, built from the vendored
   [`png2wad-sdk/`](png2wad-sdk/) module) to emit a **nodeless
   Doom-format PWAD** into `<base>/mods/generated.wad`; GZDoom builds the nodes/blockmap on load.
-  See [`PNG2WAD_MAP_EDITOR.md`](PNG2WAD_MAP_EDITOR.md) for the tile palette, pipeline, and the
-  strict-lump-order fix that made generated WADs load on this 1.9-era engine.
+  The editor is **mobile-first**: a persistent left **tool rail** of icon buttons (brush, eraser,
+  fill, line, rect, eyedropper, pan), a compact top bar (undo/redo/test + overflow), a left
+  **drawer** for project/setup actions (size, theme, maps, templates, tuning, projects, share), and
+  a bottom tile palette — with an adaptive landscape layout (canvas + right-hand side panel) on
+  larger screens. See [`PNG2WAD_MAP_EDITOR.md`](PNG2WAD_MAP_EDITOR.md) for the tile palette, pipeline,
+  and the strict-lump-order fix that made generated WADs load on this 1.9-era engine.
 - **Built-in WAD browser & downloader.** A new **Browse** tab fetches add-ons straight from the
   Doomworld [/idgames archive](https://www.doomworld.com/idgames/) — search by title/filename/author,
   see ratings and sizes, and one-tap download (with mirror fail-over) that unzips into the add-on
