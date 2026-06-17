@@ -59,12 +59,15 @@ running, and **playable on modern 64-bit Android devices**.
   uncompressed/page-aligned.
 - **FMOD removed.** Audio now uses the open **OpenAL + FluidSynth** backend (this also unblocked
   arm64), so the project is fully open-source with no proprietary blobs.
-- **Native engine rebased onto GZDoom 4.15** — Emile Belanger's actively-maintained
-  `mobile_4.15.x` branch ([emileb/gzdoom](https://github.com/emileb/gzdoom)), the same engine
-  generation that ships in Delta Touch. That brings SDL2, the modern GLES3 renderer, ZMusic,
-  and **ZScript support** (most idgames releases of the last decade need GZDoom 4.x, so the
-  Browse tab's downloads actually run now). Builds with the current **NDK (r27)** — the dead
-  2017 submodule tree and the old `build.sh`/patch-overlay system are gone.
+- **Native engine on UZDoom 5.0.0-pre** — the engine was rebased onto GZDoom 4.15 and then
+  swapped to Emile Belanger's **UZDoom 5.0.0-pre** (`uz_5.0_pre`, a maintained GZDoom fork —
+  [emileb/gzdoom](https://github.com/emileb/gzdoom)), verified booting `doom2.wad` on an arm64
+  device ("UZDoom version 5.0.0-pre", base pk3s + IWAD load, OpenAL+EFX up). That brings SDL2,
+  the modern GLES3 renderer, ZMusic, and **ZScript support** (most idgames releases of the last
+  decade need GZDoom 4.x, so the Browse tab's downloads actually run now). The base data is
+  rebuilt from the engine's `wadsrc*` trees (`uzdoom.pk3` + `uzdoom_game_support.pk3`). Builds
+  for both ABIs with the current **NDK (r27)**, C++20 + abseil from the engine's own makefiles —
+  the dead 2017 submodule tree and the old `build.sh`/patch-overlay system are gone.
 - **AGP 9 / Gradle Kotlin DSL**, version catalog, AGP-9 built-in Kotlin — **zero build, lint, and
   manifest warnings.**
 
@@ -99,8 +102,8 @@ real hardware.
 
 ## Third-party components
 
-- **Engine:** [emileb/gzdoom](https://github.com/emileb/gzdoom) `mobile_4.15.x` — GZDoom 4.15
-  mobile port (vendored, built with NDK r27 for armeabi-v7a + arm64-v8a).
+- **Engine:** [emileb/gzdoom](https://github.com/emileb/gzdoom) `uz_5.0_pre` — UZDoom 5.0.0-pre,
+  a mobile GZDoom fork (vendored, built with NDK r27 for armeabi-v7a + arm64-v8a).
 - **Audio:** OpenAL + [FluidSynth](https://github.com/FluidSynth/fluidsynth)-lite, mpg123,
   libsndfile (Emile Belanger's `AudioLibs_OpenTouch`).
 - **Input:** [emileb/MobileTouchControls](https://github.com/emileb/MobileTouchControls).
@@ -129,6 +132,7 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
 - [x] Import-your-own-copy flow for the commercial IWADs (Doom, Doom II, Final Doom, …)
 - [x] In-app PNG2WAD map editor (draw a grid → generate a playable map → launch it)
 - [x] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x (GZDoom 4.15, `mobile_4.15.x`)
+- [x] Swap the native engine to UZDoom 5.0.0-pre (`uz_5.0_pre`) — builds & runs on device
 - [ ] Verify/fix rendering on a real device, then investigate the emulator black-screen present
 
 ## Links to the Freedoom community
