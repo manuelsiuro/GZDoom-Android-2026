@@ -131,15 +131,24 @@ private fun ThingSwatch(
     }
 }
 
+// Doom thing flag bits.
+private const val FLAG_EASY = 1   // skills 1-2
+private const val FLAG_MED = 2    // skill 3
+private const val FLAG_HARD = 4   // skills 4-5
+private const val FLAG_AMBUSH = 8 // deaf until it sees the player
+
 /**
  * Inspector for the currently-selected placed thing: its name, an angle slider (Doom degrees,
- * 45° steps) and a delete button. Shown only when a thing is selected.
+ * 45° steps), skill + ambush flag chips, and a delete button. Shown only when a thing is selected.
  */
 @Composable
 fun ThingInspector(state: MapEditorState, modifier: Modifier = Modifier) {
     val idx = state.selectedThingIndex ?: return
     val thing = state.currentMap.things.getOrNull(idx) ?: return
     val name = ThingCatalog.byId(thing.type)?.displayName ?: "Thing ${thing.type}"
+
+    fun toggle(bit: Int) = state.setSelectedThingFlags(thing.flags xor bit)
+
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(name, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), maxLines = 1)
@@ -155,6 +164,16 @@ fun ThingInspector(state: MapEditorState, modifier: Modifier = Modifier) {
                 steps = 7, // 0,45,…,315
                 modifier = Modifier.weight(1f),
             )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(thing.flags and FLAG_EASY != 0, { toggle(FLAG_EASY) }, label = { Text("Easy") })
+            FilterChip(thing.flags and FLAG_MED != 0, { toggle(FLAG_MED) }, label = { Text("Med") })
+            FilterChip(thing.flags and FLAG_HARD != 0, { toggle(FLAG_HARD) }, label = { Text("Hard") })
+            FilterChip(thing.flags and FLAG_AMBUSH != 0, { toggle(FLAG_AMBUSH) }, label = { Text("Ambush") })
         }
     }
 }

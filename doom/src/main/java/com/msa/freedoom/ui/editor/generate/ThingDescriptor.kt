@@ -28,3 +28,7 @@ fun validThings(map: MapDoc): List<MapThing> =
             t.cellY in 0 until map.height &&
             map.tileAt(t.cellX, t.cellY).acceptsThing
     }
+
+/** Things that fall within a [width]×[height] grid (used to drop strays when the grid shrinks). */
+fun thingsInBounds(things: List<MapThing>, width: Int, height: Int): List<MapThing> =
+    things.filter { it.cellX in 0 until width && it.cellY in 0 until height }

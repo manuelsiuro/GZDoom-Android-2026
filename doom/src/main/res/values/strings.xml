@@ -239,6 +239,9 @@
     <string name="editor_textures_menu">Textures…</string>
     <string name="editor_manual_things">Manual things only</string>
     <string name="editor_manual_things_help">Place every monster and item by hand; the random scatter is turned off (the Start tile still spawns the player).</string>
+    <string name="editor_clear_things">Clear placed things</string>
+    <string name="editor_thing_count">%1$d things</string>
+    <string name="editor_thing_needs_floor">Things can only go on open floor (not walls or doors)</string>
     <string name="editor_filled">Filled</string>
     <string name="editor_tip">Tip %1$d×</string>
     <string name="editor_sym_off">Sym Off</string>

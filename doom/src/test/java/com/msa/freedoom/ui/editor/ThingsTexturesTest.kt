@@ -2,6 +2,7 @@ package com.msa.freedoom.ui.editor
 
 import com.msa.freedoom.ui.editor.generate.buildPreferencesIni
 import com.msa.freedoom.ui.editor.generate.encodeThings
+import com.msa.freedoom.ui.editor.generate.thingsInBounds
 import com.msa.freedoom.ui.editor.generate.validThings
 import com.msa.freedoom.ui.editor.model.MapDoc
 import com.msa.freedoom.ui.editor.model.MapProject
@@ -34,6 +35,25 @@ class ThingsTexturesTest {
     @Test
     fun encodeThings_emptyWhenNoThings() {
         assertEquals("", encodeThings(emptyList()))
+    }
+
+    @Test
+    fun encodeThings_carriesSkillAndAmbushFlags() {
+        // flags 4 = hard-only; flags 12 = hard + ambush(8). The native side reads field 5.
+        assertEquals("3001,1,1,0,4", encodeThings(listOf(MapThing(3001, 1, 1, flags = 4))))
+        assertEquals("3001,1,1,0,12", encodeThings(listOf(MapThing(3001, 1, 1, flags = 12))))
+    }
+
+    @Test
+    fun thingsInBounds_dropsStraysAfterShrink() {
+        val things = listOf(
+            MapThing(1, 0, 0),
+            MapThing(1, 3, 3),  // inside 8x8, outside 2x2
+            MapThing(1, 1, 1),
+        )
+        val kept = thingsInBounds(things, 2, 2)
+        assertEquals(2, kept.size)
+        assertTrue(kept.all { it.cellX < 2 && it.cellY < 2 })
     }
 
     // ---- thing validity (open-floor cells only, in bounds) ----

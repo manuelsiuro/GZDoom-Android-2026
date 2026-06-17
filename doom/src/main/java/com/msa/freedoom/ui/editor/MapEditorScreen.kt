@@ -155,6 +155,16 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
         scope.launch { snackbarHostState.showSnackbar(msg) }
     }
 
+    // Feedback when a thing placement/move is rejected (cell isn't open floor).
+    val haptics = LocalHapticFeedback.current
+    val thingNeedsFloorMsg = stringResource(R.string.editor_thing_needs_floor)
+    LaunchedEffect(state.thingRejectTick) {
+        if (state.thingRejectTick > 0) {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            toast(thingNeedsFloorMsg)
+        }
+    }
+
     val startTest = {
         scope.launch {
             if (!state.generateAndLaunch()) {
@@ -202,6 +212,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
                 onTemplates = { closeDrawer(); showTemplates = true },
                 onTextures = { closeDrawer(); showTextures = true },
                 onClearMap = { closeDrawer(); pendingClear = it },
+                onClearThings = { closeDrawer(); state.clearAllThings() },
                 onGenerate = { closeDrawer(); onGenerate() },
                 onShare = { closeDrawer(); onShare() },
             )
@@ -548,6 +559,7 @@ private fun EditorDrawer(
     onTemplates: () -> Unit,
     onTextures: () -> Unit,
     onClearMap: (TileType) -> Unit,
+    onClearThings: () -> Unit,
     onGenerate: () -> Unit,
     onShare: () -> Unit,
 ) {
@@ -597,6 +609,7 @@ private fun EditorDrawer(
 
             DrawerItem(stringResource(R.string.editor_clear_map_room), DoomIcons.Brush) { onClearMap(TileType.Room) }
             DrawerItem(stringResource(R.string.editor_fill_with_walls), DoomIcons.Fill) { onClearMap(TileType.Wall) }
+            DrawerItem(stringResource(R.string.editor_clear_things), DoomIcons.Delete, onClearThings)
 
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
@@ -829,13 +842,21 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                 ) {
                     val isCurrent = i == state.currentMapIndex
                     MapThumb(key = mapDoc, size = 40.dp) { mapDoc }
-                    Text(
-                        "MAP%02d".format(i + 1),
-                        maxLines = 1,
-                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable { state.selectMap(i) },
-                    )
+                    Column(modifier = Modifier.clickable { state.selectMap(i) }) {
+                        Text(
+                            "MAP%02d".format(i + 1),
+                            maxLines = 1,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (mapDoc.things.isNotEmpty()) {
+                            Text(
+                                stringResource(R.string.editor_thing_count, mapDoc.things.size),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     Spacer(Modifier.weight(1f))
                     // Test-target radio (compact; the label is the section help text above).
                     RadioButton(selected = state.project.testMapIndex == i, onClick = { state.setTestMap(i) })

@@ -62,7 +62,10 @@ fun TextureBrowserSheet(state: MapEditorState, cache: TextureCache, onDismiss: (
     var query by remember { mutableStateOf("") }
 
     val available by produceState(initialValue = true, iwadPath) {
-        value = withContext(Dispatchers.IO) { cache.isAvailable(iwadPath) }
+        value = withContext(Dispatchers.IO) {
+            state.ensureIwadAvailable() // unpack a bundled IWAD if it isn't on disk yet
+            cache.isAvailable(iwadPath)
+        }
     }
     val names by produceState(initialValue = emptyList<String>(), iwadPath, role, available) {
         value = withContext(Dispatchers.IO) {

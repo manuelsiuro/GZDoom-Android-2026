@@ -203,6 +203,7 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
             @Suppress("UNUSED_EXPRESSION") state.strokeRevision
             @Suppress("UNUSED_EXPRESSION") state.shapePreview
             @Suppress("UNUSED_EXPRESSION") state.selectedThingIndex
+            @Suppress("UNUSED_EXPRESSION") state.activeTool
             drawGrid(state, size)
             drawThings(state, size)
         }
@@ -261,7 +262,9 @@ private fun DrawScope.drawThings(state: MapEditorState, size: Size) {
     val cell = min(size.width / map.width, size.height / map.height)
     if (cell <= 0f) return
     val r = cell * 0.34f
-    val selected = state.selectedThingIndex
+    // Only show the selection ring while a thing tool is active, so it doesn't linger over painting.
+    val thingToolActive = state.activeTool == EditorTool.Thing || state.activeTool == EditorTool.Select
+    val selected = if (thingToolActive) state.selectedThingIndex else null
     val ringStroke = (2f / state.scale).coerceAtLeast(0.75f)
 
     map.things.forEachIndexed { idx, t ->

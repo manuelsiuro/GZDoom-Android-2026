@@ -18,6 +18,7 @@ import com.msa.freedoom.AppSettings
 import com.msa.freedoom.ui.editor.data.ProjectStore
 import com.msa.freedoom.ui.editor.generate.GenerateResult
 import com.msa.freedoom.ui.editor.generate.generateWad
+import com.msa.freedoom.ui.editor.launch.ensureIwadUnpacked
 import com.msa.freedoom.ui.editor.launch.launchProject
 import com.msa.freedoom.ui.editor.model.MapDoc
 import com.msa.freedoom.ui.editor.model.MapProject
@@ -107,6 +108,10 @@ class MapEditorState(
 
     /** Index into the current map's [MapDoc.things] of the selected thing, or null. */
     var selectedThingIndex by mutableStateOf<Int?>(null)
+        private set
+
+    /** Bumped when a thing placement/move is rejected (cell isn't open floor); UI shows feedback. */
+    var thingRejectTick by mutableIntStateOf(0)
         private set
 
     /** The line/rectangle currently being dragged out, for the canvas to preview. */
@@ -299,7 +304,7 @@ class MapEditorState(
     fun placeThingAt(x: Int, y: Int): Boolean {
         val m = currentMap
         if (x !in 0 until m.width || y !in 0 until m.height) return false
-        if (!m.tileAt(x, y).acceptsThing) return false
+        if (!m.tileAt(x, y).acceptsThing) { thingRejectTick++; return false }
         val newThings = m.things + MapThing(type = selectedThingType.id, cellX = x, cellY = y)
         pushUndoAndCommit(m.copy(things = newThings))
         selectedThingIndex = newThings.lastIndex
@@ -311,13 +316,34 @@ class MapEditorState(
         val idx = selectedThingIndex ?: return false
         val m = currentMap
         if (x !in 0 until m.width || y !in 0 until m.height) return false
-        if (!m.tileAt(x, y).acceptsThing) return false
+        if (!m.tileAt(x, y).acceptsThing) { thingRejectTick++; return false }
         val t = m.things.getOrNull(idx) ?: return false
         if (t.cellX == x && t.cellY == y) return false
         val things = m.things.toMutableList().apply { this[idx] = t.copy(cellX = x, cellY = y) }
         pushUndoAndCommit(m.copy(things = things))
         return true
     }
+
+    /** Set the skill/option flags of the selected thing (bits: 1=easy,2=med,4=hard,8=ambush). */
+    fun setSelectedThingFlags(flags: Int) {
+        val idx = selectedThingIndex ?: return
+        val m = currentMap
+        val t = m.things.getOrNull(idx) ?: return
+        if (t.flags == flags) return
+        val things = m.things.toMutableList().apply { this[idx] = t.copy(flags = flags) }
+        pushUndoAndCommit(m.copy(things = things))
+    }
+
+    /** Remove all hand-placed things from the current map. One undo step. */
+    fun clearAllThings() {
+        val m = currentMap
+        if (m.things.isEmpty()) return
+        pushUndoAndCommit(m.copy(things = emptyList()))
+        selectedThingIndex = null
+    }
+
+    /** Ensure the project's IWAD is unpacked so the texture browser can read it. */
+    suspend fun ensureIwadAvailable() = ensureIwadUnpacked(activity, project.iwadFile)
 
     fun deleteSelectedThing() {
         val idx = selectedThingIndex ?: return
@@ -435,7 +461,10 @@ class MapEditorState(
         val m = currentMap
         if (w == m.width && h == m.height) return
         val resized = MapGridOps.resizeGrid(m.tiles, m.width, m.height, w, h, mode)
-        pushUndoAndCommit(m.copy(width = w, height = h, tiles = resized))
+        // Drop things stranded outside the new bounds (a shrink) so they don't linger in the model.
+        val keptThings = com.msa.freedoom.ui.editor.generate.thingsInBounds(m.things, w, h)
+        pushUndoAndCommit(m.copy(width = w, height = h, tiles = resized, things = keptThings))
+        selectedThingIndex = null
         // A different-sized grid invalidates the current pan/zoom.
         scale = 1f
         offset = Offset.Zero

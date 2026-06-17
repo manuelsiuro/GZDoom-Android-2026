@@ -21,16 +21,24 @@ import java.io.File
  * [buildLaunchArgs] assembly, just parameterized by the project's IWAD, WAD filename and
  * test-map lump.
  */
+/**
+ * Ensures the given IWAD is present on disk. The editor tab may be used before the launch tab
+ * has unpacked the bundled assets, so a missing Freedoom IWAD is unpacked from assets here.
+ * Reused by both the test-launch path and the texture browser (so textures load without
+ * needing a test-launch first).
+ */
+suspend fun ensureIwadUnpacked(activity: Activity, iwadFile: String) = withContext(Dispatchers.IO) {
+    AppSettings.createDirectories(activity)
+    val iwad = File(AppSettings.getQuakeFullDir(), iwadFile)
+    if (!iwad.exists() && iwadFile.lowercase().startsWith("freedoom")) {
+        Utils.copyFreedoomFilesToSD(activity)
+    }
+}
+
 suspend fun launchProject(activity: Activity, project: MapProject, result: GenerateResult) {
     val base = AppSettings.getQuakeFullDir()
+    ensureIwadUnpacked(activity, project.iwadFile)
     withContext(Dispatchers.IO) {
-        AppSettings.createDirectories(activity)
-        // The editor tab may be used before the launch tab has unpacked the bundled assets.
-        // If the chosen IWAD is a Freedoom one and missing, unpack; engine resources always.
-        val iwad = File(base, project.iwadFile)
-        if (!iwad.exists() && project.iwadFile.lowercase().startsWith("freedoom")) {
-            Utils.copyFreedoomFilesToSD(activity)
-        }
         // UZDoom 5.0 (__MOBILE__) loads its base data from ./res relative to the
         // game dir; keep this in sync with LaunchState.launchGame().
         Utils.copyAsset(activity, "uzdoom.pk3", "$base/res")
