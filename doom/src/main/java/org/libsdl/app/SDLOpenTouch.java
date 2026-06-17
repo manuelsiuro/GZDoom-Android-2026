@@ -16,8 +16,8 @@ import android.view.WindowManager;
 import com.beloko.touchcontrols.ControlInterpreter;
 import com.beloko.touchcontrols.TouchSettings;
 
-import net.nullsum.freedoom.AppSettings;
-import net.nullsum.freedoom.Utils;
+import com.msa.freedoom.AppSettings;
+import com.msa.freedoom.Utils;
 
 /**
  * Freedoom's minimal replacement for emileb's AndroidCore SDLOpenTouch.

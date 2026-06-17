@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "net.nullsum.freedoom"
+    namespace = "com.msa.freedoom"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "net.nullsum.freedoom"
+        applicationId = "com.msa.freedoom"
         minSdk = 33
         targetSdk = 36
         versionCode = 50
