@@ -73,6 +73,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -80,18 +81,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.DoomIcons
 import com.msa.freedoom.ui.editor.data.ProjectSummary
 import com.msa.freedoom.ui.editor.generate.renderMapBitmap
+import com.msa.freedoom.ui.editor.model.MapDoc
 import com.msa.freedoom.ui.editor.launch.shareWad
 import com.msa.freedoom.ui.editor.model.MapTheme
 import com.msa.freedoom.ui.editor.model.TileType
@@ -360,6 +370,7 @@ private val TOOL_SPECS: List<Triple<EditorTool, ImageVector, Int>> = listOf(
  */
 @Composable
 private fun EditorToolRail(state: MapEditorState) {
+    val haptics = LocalHapticFeedback.current
     Column(
         modifier = Modifier
             .width(56.dp)
@@ -372,7 +383,10 @@ private fun EditorToolRail(state: MapEditorState) {
         TOOL_SPECS.forEach { (tool, icon, labelRes) ->
             FilledIconToggleButton(
                 checked = state.activeTool == tool,
-                onCheckedChange = { state.activeTool = tool },
+                onCheckedChange = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    state.activeTool = tool
+                },
                 modifier = Modifier.size(48.dp),
             ) {
                 Icon(icon, contentDescription = stringResource(labelRes))
@@ -567,6 +581,25 @@ private fun EditorDrawer(
     }
 }
 
+/**
+ * A map preview thumbnail. [renderMapBitmap] is a CPU bitmap render; doing it off the main
+ * thread (via [produceState]) keeps the sheet/dialog open from stuttering when many maps or
+ * templates are listed. A flat placeholder shows until the bitmap is ready.
+ */
+@Composable
+private fun MapThumb(key: Any, size: Dp, build: () -> MapDoc) {
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, key) {
+        value = withContext(Dispatchers.Default) { renderMapBitmap(build()).asImageBitmap() }
+    }
+    val box = Modifier.size(size).border(1.dp, Color(0xFF555555))
+    val bmp = bitmap
+    if (bmp != null) {
+        Image(bitmap = bmp, contentDescription = null, filterQuality = FilterQuality.None, modifier = box)
+    } else {
+        Box(box.background(Color(0xFF1A1A1A)))
+    }
+}
+
 @Composable
 private fun DrawerItem(label: String, icon: ImageVector, onClick: () -> Unit) {
     NavigationDrawerItem(
@@ -617,14 +650,31 @@ private fun symmetryLabel(m: MapGridOps.SymmetryMode): Int = when (m) {
     MapGridOps.SymmetryMode.Both -> R.string.editor_sym_4way
 }
 
-/** A space-frugal text button for the cramped map-row actions (Dup / move / delete). */
+/**
+ * A space-frugal text button for the cramped map-row actions (Dup / move / delete). The
+ * glyph labels (↑ ↓ ✕) read poorly under TalkBack, so [contentDescription] supplies a spoken
+ * label; the TextButton already carries a ≥48dp interactive touch target.
+ */
 @Composable
-private fun CompactAction(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+private fun CompactAction(
+    label: String,
+    enabled: Boolean = true,
+    contentDescription: String? = null,
+    onClick: () -> Unit,
+) {
     TextButton(
         onClick = onClick,
         enabled = enabled,
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-        modifier = Modifier.widthIn(min = 36.dp),
+        modifier = Modifier
+            .widthIn(min = 36.dp)
+            .then(
+                if (contentDescription != null) {
+                    Modifier.semantics { this.contentDescription = contentDescription }
+                } else {
+                    Modifier
+                },
+            ),
     ) { Text(label) }
 }
 
@@ -750,15 +800,7 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     val isCurrent = i == state.currentMapIndex
-                    val thumb = remember(mapDoc) { renderMapBitmap(mapDoc).asImageBitmap() }
-                    Image(
-                        bitmap = thumb,
-                        contentDescription = null,
-                        filterQuality = FilterQuality.None,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .border(1.dp, Color(0xFF555555)),
-                    )
+                    MapThumb(key = mapDoc, size = 40.dp) { mapDoc }
                     Text(
                         "MAP%02d".format(i + 1),
                         maxLines = 1,
@@ -769,10 +811,25 @@ private fun MapsSheet(state: MapEditorState, onDismiss: () -> Unit) {
                     Spacer(Modifier.weight(1f))
                     // Test-target radio (compact; the label is the section help text above).
                     RadioButton(selected = state.project.testMapIndex == i, onClick = { state.setTestMap(i) })
-                    CompactAction(stringResource(R.string.editor_dup)) { state.duplicateMap(i) }
-                    CompactAction("↑", enabled = i > 0) { state.moveMap(i, i - 1) }
-                    CompactAction("↓", enabled = i < state.project.maps.lastIndex) { state.moveMap(i, i + 1) }
-                    CompactAction("✕", enabled = state.project.maps.size > 1) { state.deleteMap(i) }
+                    CompactAction(
+                        stringResource(R.string.editor_dup),
+                        contentDescription = stringResource(R.string.editor_duplicate_map),
+                    ) { state.duplicateMap(i) }
+                    CompactAction(
+                        "↑",
+                        enabled = i > 0,
+                        contentDescription = stringResource(R.string.editor_move_map_up),
+                    ) { state.moveMap(i, i - 1) }
+                    CompactAction(
+                        "↓",
+                        enabled = i < state.project.maps.lastIndex,
+                        contentDescription = stringResource(R.string.editor_move_map_down),
+                    ) { state.moveMap(i, i + 1) }
+                    CompactAction(
+                        "✕",
+                        enabled = state.project.maps.size > 1,
+                        contentDescription = stringResource(R.string.editor_delete_map),
+                    ) { state.deleteMap(i) }
                 }
                 HorizontalDivider()
             }
@@ -999,7 +1056,6 @@ private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
                 Text(stringResource(R.string.editor_template_help), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 MapTemplates.all.forEach { tpl ->
-                    val thumb = remember(tpl.name) { renderMapBitmap(tpl.build()).asImageBitmap() }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1008,12 +1064,7 @@ private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Image(
-                            bitmap = thumb,
-                            contentDescription = null,
-                            filterQuality = FilterQuality.None,
-                            modifier = Modifier.size(44.dp).border(1.dp, Color(0xFF555555)),
-                        )
+                        MapThumb(key = tpl.name, size = 44.dp) { tpl.build() }
                         Text(tpl.name)
                     }
                     HorizontalDivider()

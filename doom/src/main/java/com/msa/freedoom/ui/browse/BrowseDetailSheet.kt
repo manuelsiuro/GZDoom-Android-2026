@@ -1,5 +1,6 @@
 package com.msa.freedoom.ui.browse
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,8 +30,11 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,8 +42,11 @@ import androidx.compose.ui.unit.dp
 import com.msa.freedoom.R
 import com.msa.freedoom.idgames.IdgamesDirClassifier
 import com.msa.freedoom.idgames.IdgamesFile
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.msa.freedoom.idgames.TextfileParser
 import com.msa.freedoom.ui.DoomIcons
+import com.msa.freedoom.ui.formatFileSize
 import com.msa.freedoom.ui.launch.AddonInfo
 import com.msa.freedoom.ui.launch.CompatBadge
 import com.msa.freedoom.ui.launch.GameFamily
@@ -68,13 +75,21 @@ fun BrowseDetailSheet(
     val guess = remember(entry.dir, entry.filename) {
         IdgamesDirClassifier.classify(entry.dir, entry.filename)
     }
-    val (compat, likely) = remember(loaded) {
-        val fromTxt = loaded?.textfile
-            ?.let { TextfileParser.parse(it) }
-            ?.takeIf { it.family != GameFamily.UNKNOWN }
-            ?.let { AddonInfo(it.family, it.slot) }
-        if (fromTxt != null) fromTxt to false else guess to true
-    }
+    // Parsing the (potentially large) textfile is done off the main thread; until it resolves
+    // we show the dir guess, then refine to the text-file family when ready.
+    val (compat, likely) = produceState(initialValue = guess to true, loaded, guess) {
+        val txt = loaded?.textfile
+        value = if (txt == null) {
+            guess to true
+        } else {
+            val fromTxt = withContext(Dispatchers.Default) {
+                TextfileParser.parse(txt)
+                    .takeIf { it.family != GameFamily.UNKNOWN }
+                    ?.let { AddonInfo(it.family, it.slot) }
+            }
+            if (fromTxt != null) fromTxt to false else guess to true
+        }
+    }.value
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -92,7 +107,7 @@ fun BrowseDetailSheet(
                     (loaded?.author ?: entry.author)?.takeIf { it.isNotBlank() }
                         ?.let { stringResource(R.string.browse_by_author, it) },
                     loaded?.date ?: entry.date,
-                    formatSize(entry.size).takeIf { entry.size > 0 },
+                    formatFileSize(entry.size).takeIf { entry.size > 0 },
                     (loaded?.rating?.takeIf { loaded.votes > 0 } ?: entry.rating)?.let {
                         stringResource(R.string.browse_rating, it, loaded?.votes ?: entry.votes ?: 0)
                     },
@@ -242,27 +257,33 @@ private fun InfoField(label: String, value: String?, error: Boolean = false) {
 @Composable
 private fun TextfileSection(textfile: String) {
     var expanded by remember { mutableStateOf(false) }
-    Spacer(Modifier.height(12.dp))
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded }
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.browse_textfile),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.tertiary,
-        )
-        Icon(
-            if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-            contentDescription = null,
-        )
-    }
-    if (expanded) {
-        Text(textfile.trim(), style = monospaceBody())
+    val haptics = LocalHapticFeedback.current
+    Column(modifier = Modifier.animateContentSize()) {
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    expanded = !expanded
+                }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.browse_textfile),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            Icon(
+                if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+            )
+        }
+        if (expanded) {
+            Text(textfile.trim(), style = monospaceBody())
+        }
     }
 }
 

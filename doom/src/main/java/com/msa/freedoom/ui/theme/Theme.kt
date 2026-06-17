@@ -37,6 +37,7 @@ fun DoomTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DoomColorScheme,
         typography = DoomTypography,
+        shapes = DoomShapes,
         content = content,
     )
 }

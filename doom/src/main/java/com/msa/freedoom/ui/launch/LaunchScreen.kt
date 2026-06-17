@@ -1,5 +1,6 @@
 package com.msa.freedoom.ui.launch
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,12 +50,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import java.util.Locale
 import kotlinx.coroutines.launch
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.DoomIcons
+import com.msa.freedoom.ui.formatFileSize
 import com.msa.freedoom.ui.theme.monospaceBody
 
 // Below this width we stack into a single column with a pinned launch bar (portrait phones);
@@ -237,13 +240,16 @@ private fun GameListHeader(state: LaunchState) {
 
 @Composable
 private fun GameCard(game: WadEntry, selected: Boolean, onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        label = "gameCardColor",
+    )
     Card(
-        onClick = onClick,
+        onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onClick() },
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Row(
             modifier = Modifier
@@ -269,7 +275,7 @@ private fun GameCard(game: WadEntry, selected: Boolean, onClick: () -> Unit) {
             if (selected) {
                 Icon(
                     Icons.Default.Check,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_selected),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -349,6 +355,7 @@ private fun LaunchPane(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     Text(
         stringResource(R.string.addons_header),
         style = MaterialTheme.typography.titleMedium,
@@ -366,7 +373,10 @@ private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
             state.selectedMods.forEach { mod ->
                 InputChip(
                     selected = true,
-                    onClick = { state.selectedMods.remove(mod) },
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        state.selectedMods.remove(mod)
+                    },
                     label = { Text(mod.name) },
                     leadingIcon = if (mod.isFolder) {
                         { Icon(DoomIcons.Folder, contentDescription = null, Modifier.size(18.dp)) }
@@ -465,8 +475,3 @@ private fun ExtraArgsField(state: LaunchState) {
     )
 }
 
-private fun formatFileSize(bytes: Long): String = when {
-    bytes >= 1 shl 20 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
-    bytes >= 1 shl 10 -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
-    else -> "$bytes B"
-}

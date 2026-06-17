@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,11 +48,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import java.util.Locale
 import com.msa.freedoom.R
 import com.msa.freedoom.idgames.IdgamesApi
 import com.msa.freedoom.idgames.IdgamesDirClassifier
 import com.msa.freedoom.ui.DoomIcons
+import com.msa.freedoom.ui.formatFileSize
 import com.msa.freedoom.ui.launch.CompatBadge
 import com.msa.freedoom.ui.launch.Verdict
 import com.msa.freedoom.ui.launch.badgeText
@@ -262,7 +264,7 @@ private fun SearchControls(state: BrowseState) {
             keyboardActions = KeyboardActions(onSearch = { state.search() }),
             trailingIcon = {
                 IconButton(onClick = { state.search() }) {
-                    Icon(DoomIcons.Search, contentDescription = stringResource(R.string.browse_search_button))
+                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.browse_search_button))
                 }
             },
         )
@@ -351,7 +353,7 @@ private fun BrowseRow(state: BrowseState, entry: BrowseEntry, onImport: (BrowseE
                     listOfNotNull(
                         entry.author?.takeIf { it.isNotBlank() }
                             ?.let { stringResource(R.string.browse_by_author, it) },
-                        formatSize(entry.size).takeIf { entry.size > 0 },
+                        formatFileSize(entry.size).takeIf { entry.size > 0 },
                         entry.rating?.let { rating ->
                             stringResource(R.string.browse_rating, rating, entry.votes ?: 0)
                         },
@@ -454,10 +456,4 @@ fun DownloadProgressBar(status: DownloadStatus.Downloading, modifier: Modifier =
     } else {
         LinearProgressIndicator(modifier = modifier)
     }
-}
-
-fun formatSize(bytes: Long): String = when {
-    bytes >= 1 shl 20 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
-    bytes >= 1 shl 10 -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
-    else -> "$bytes B"
 }

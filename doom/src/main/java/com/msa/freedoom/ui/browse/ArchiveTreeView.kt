@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.DoomIcons
+import com.msa.freedoom.ui.formatFileSize
 import com.msa.freedoom.ui.theme.monospaceBody
 
 /**
@@ -107,7 +108,7 @@ fun ArchiveTreeView(
                             if (!node.isDir) {
                                 Text(
                                     listOfNotNull(
-                                        node.sizeBytes?.let { formatSize(it) },
+                                        node.sizeBytes?.let { formatFileSize(it) },
                                         node.lastModified,
                                     ).joinToString("  ·  "),
                                     style = MaterialTheme.typography.bodySmall,

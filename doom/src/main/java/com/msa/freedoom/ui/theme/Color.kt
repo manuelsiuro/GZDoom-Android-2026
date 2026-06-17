@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.Color
 
 // Doom-branded dark palette: near-black surfaces, blood-red primary, bone/amber accents.
 val BloodRed = Color(0xFFE53935)
-val BloodRedDim = Color(0xFF8E2C2C)
 val OnBloodRed = Color(0xFFFFFFFF)
 val BloodRedContainer = Color(0xFF5C1A1A)
 val OnBloodRedContainer = Color(0xFFFFDAD6)

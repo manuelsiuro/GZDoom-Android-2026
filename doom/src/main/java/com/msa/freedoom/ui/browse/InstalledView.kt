@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.DoomIcons
+import com.msa.freedoom.ui.formatFileSize
 
 /**
  * Lists every installed WAD (add-ons under wads/ plus root IWADs) with multi-select
@@ -148,7 +149,7 @@ private fun InstalledRow(item: InstalledItem, checked: Boolean, onToggle: () -> 
             Text(
                 listOfNotNull(
                     item.game,
-                    formatSize(item.size).takeIf { item.size > 0 },
+                    formatFileSize(item.size).takeIf { item.size > 0 },
                 ).joinToString("  ·  "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

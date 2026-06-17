@@ -35,6 +35,7 @@
     <string name="clear_args">Clear arguments</string>
     <string name="select_game_to_launch">Select a game to launch</string>
     <string name="launch_disabled_hint">Select a game on the left to launch.</string>
+    <string name="cd_selected">Selected</string>
     <string name="mod_picker_title">Select add-ons</string>
     <string name="mod_picker_title_for">Add-ons for %1$s</string>
     <string name="mod_picker_wads" translatable="false">WADs</string>
@@ -267,6 +268,10 @@
     <string name="editor_maps_title">Maps</string>
     <string name="editor_maps_help">Each map becomes MAP01, MAP02… in the WAD. Pick one to edit; set the test target.</string>
     <string name="editor_dup">Dup</string>
+    <string name="editor_duplicate_map">Duplicate map</string>
+    <string name="editor_move_map_up">Move map up</string>
+    <string name="editor_move_map_down">Move map down</string>
+    <string name="editor_delete_map">Delete map</string>
     <string name="editor_add_map">Add map</string>
     <string name="editor_tuning_help">Relative densities. The engine also scales by map area, so bigger maps get more.</string>
     <string name="editor_auto_populate">Auto-populate (monsters &amp; items)</string>
