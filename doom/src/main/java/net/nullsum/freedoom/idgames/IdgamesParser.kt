@@ -53,4 +53,29 @@ object IdgamesParser {
         is JsonObject -> listOf(idgamesJson.decodeFromJsonElement<IdgamesFile>(element))
         else -> emptyList()
     }
+
+    /**
+     * Parses the raw `reviews` value into typed reviews. The API nests them as
+     * `{ "review": [...] }` and (like `content.file`) returns a single review as a
+     * bare object; missing/null reviews yield an empty list. `vote` may arrive as a
+     * quoted number, so it is read defensively from the primitive content.
+     */
+    fun parseReviews(reviews: JsonElement?): List<IdgamesReview> {
+        val review = (reviews as? JsonObject)?.get("review")
+        val items = when (review) {
+            is JsonArray -> review.filterIsInstance<JsonObject>()
+            is JsonObject -> listOf(review)
+            else -> return emptyList()
+        }
+        return items.map { r ->
+            IdgamesReview(
+                text = r.string("text"),
+                vote = r.string("vote")?.toIntOrNull() ?: 0,
+                username = r.string("username"),
+            )
+        }
+    }
+
+    private fun JsonObject.string(key: String): String? =
+        this[key]?.takeUnless { it is JsonNull }?.jsonPrimitive?.content
 }

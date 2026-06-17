@@ -1,16 +1,25 @@
 package net.nullsum.freedoom
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.beloko.touchcontrols.GamePadFragment
 import net.nullsum.freedoom.ui.MainScreen
 import net.nullsum.freedoom.ui.theme.DoomTheme
 
 class EntryActivity : AppCompatActivity() {
+
+    // An inbound idgames:// VIEW intent, surfaced to Compose. The activity is
+    // singleInstance, so re-launches arrive via onNewIntent, not a fresh onCreate.
+    private var deeplink by mutableStateOf<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,11 +31,22 @@ class EntryActivity : AppCompatActivity() {
 
         GamePadFragment.gamepadActions = Utils.getGameGamepadConfig(resources)
 
+        deeplink = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data
+
         setContent {
             DoomTheme {
-                MainScreen()
+                MainScreen(
+                    deeplink = deeplink,
+                    onDeeplinkConsumed = { deeplink = null },
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == Intent.ACTION_VIEW) deeplink = intent.data
     }
 
 

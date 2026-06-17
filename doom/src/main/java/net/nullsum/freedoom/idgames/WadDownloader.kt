@@ -6,18 +6,25 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import net.nullsum.freedoom.ui.launch.GameFamily
+import net.nullsum.freedoom.ui.launch.detectAddon
+import net.nullsum.freedoom.ui.launch.gameFolderName
 import okhttp3.Request
 
 /**
- * Downloads an idgames zip from the first working mirror and unpacks it into
- * `wadsDir/<installName>/`. All blocking work runs on [Dispatchers.IO]; the
- * `.part` temp file and a partially-created install dir are always cleaned up
- * on failure or cancellation.
+ * Downloads an idgames zip from the first working mirror, unpacks it to a staging
+ * dir, detects which game it targets, and moves it into `wadsDir/<game>/<installName>/`
+ * (e.g. `wads/doom2/scythe/`). All blocking work runs on [Dispatchers.IO]; the `.part`
+ * temp file and the staging/install dirs are always cleaned up on failure or cancellation.
  */
 class WadDownloader(private val client: okhttp3.OkHttpClient = IdgamesApi.sharedClient) {
 
     sealed interface Result {
-        data class Installed(val contentFiles: List<String>) : Result
+        data class Installed(
+            val gameFolder: String,
+            val installName: String,
+            val contentFiles: List<String>,
+        ) : Result
         data class Failed(val reason: FailReason) : Result
     }
 
@@ -27,33 +34,41 @@ class WadDownloader(private val client: okhttp3.OkHttpClient = IdgamesApi.shared
         dir: String,
         filename: String,
         wadsDir: File,
+        gameGuess: String,
         onProgress: (bytesRead: Long, totalBytes: Long) -> Unit,
     ): Result = withContext(Dispatchers.IO) {
         val installName = filename.substringBeforeLast('.')
         val part = File(wadsDir, "$installName.zip.part")
-        val installDir = File(wadsDir, installName)
+        val staging = File(wadsDir, ".staging/$installName")
         wadsDir.mkdirs()
+        var installDir: File? = null
 
         try {
+            staging.deleteRecursively()
             if (!downloadToFile(dir, filename, part, onProgress)) {
                 return@withContext Result.Failed(FailReason.ALL_MIRRORS_FAILED)
             }
             val contentFiles = try {
-                ZipInstaller.install(part, installDir)
+                ZipInstaller.install(part, staging)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 emptyList()
             }
             if (contentFiles.isEmpty()) {
-                installDir.deleteRecursively()
+                staging.deleteRecursively()
                 return@withContext Result.Failed(FailReason.NO_USABLE_FILES)
             }
-            Result.Installed(contentFiles)
+            val gameFolder = routeFolder(staging, contentFiles, gameGuess)
+            installDir = File(wadsDir, "$gameFolder/$installName")
+            placeInstall(staging, installDir)
+            Result.Installed(gameFolder, installName, contentFiles)
         } catch (e: CancellationException) {
-            installDir.deleteRecursively()
+            staging.deleteRecursively()
+            installDir?.deleteRecursively()
             throw e
         } finally {
             part.delete()
+            if (staging.exists()) staging.deleteRecursively()
         }
     }
 
@@ -71,12 +86,35 @@ class WadDownloader(private val client: okhttp3.OkHttpClient = IdgamesApi.shared
         try {
             streamToFile(url, part, onProgress)
             if (!part.renameTo(destFile)) throw IOException("rename failed")
-            Result.Installed(listOf(destFile.name))
+            // IWADs live at the game-dir root, not under a wads/<game>/ folder.
+            Result.Installed("", destFile.nameWithoutExtension, listOf(destFile.name))
         } catch (e: IOException) {
             Result.Failed(FailReason.ALL_MIRRORS_FAILED)
         } finally {
             part.delete()
         }
+    }
+
+    /**
+     * Confirms the target game by lump-scanning the freshly-extracted content (the
+     * definitive signal), falling back to the pre-download [gameGuess] when detection
+     * is inconclusive. The primary file is the first .wad/.pk3; otherwise the dir itself.
+     */
+    internal fun routeFolder(staging: File, contentFiles: List<String>, gameGuess: String): String {
+        val primary = contentFiles
+            .firstOrNull { it.lowercase().let { n -> n.endsWith(".wad") || n.endsWith(".pk3") } }
+            ?.let { File(staging, it) } ?: staging
+        val detected = detectAddon(primary)
+        return if (detected.family == GameFamily.UNKNOWN) gameGuess else gameFolderName(detected)
+    }
+
+    /** Moves [staging] to [target], idempotently replacing any existing install. */
+    internal fun placeInstall(staging: File, target: File) {
+        target.parentFile?.mkdirs()
+        target.deleteRecursively()
+        if (staging.renameTo(target)) return
+        staging.copyRecursively(target, overwrite = true)
+        staging.deleteRecursively()
     }
 
     /** Tries each mirror in order; returns false if all fail. */

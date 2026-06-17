@@ -56,6 +56,13 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Community idgames:// deep links open the Browse tab on the matching WAD. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="idgames" />
+            </intent-filter>
         </activity>
         <!-- sensorLandscape: the GZDoom 4.15 GLES framebuffer is sized once at
              init and SDL owns the surface, so the surface must never change
