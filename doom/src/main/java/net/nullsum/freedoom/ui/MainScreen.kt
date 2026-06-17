@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package net.nullsum.freedoom.ui
 
 import androidx.activity.compose.LocalActivity
@@ -6,21 +8,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.compose.AndroidFragment
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.beloko.touchcontrols.GamePadFragment
-import kotlinx.coroutines.launch
 import net.nullsum.freedoom.R
 import net.nullsum.freedoom.ui.browse.BrowseScreen
 import net.nullsum.freedoom.ui.browse.BrowseState
@@ -29,72 +45,161 @@ import net.nullsum.freedoom.ui.editor.MapEditorState
 import net.nullsum.freedoom.ui.launch.LaunchScreen
 import net.nullsum.freedoom.ui.launch.LaunchState
 import net.nullsum.freedoom.ui.options.OptionsScreen
+import net.nullsum.freedoom.ui.settings.SettingsScreen
+
+private object Routes {
+    const val PLAY = "play"
+    const val BROWSE = "browse"
+    const val EDITOR = "editor"
+    const val SETTINGS = "settings"
+    const val SETTINGS_GAMEPAD = "settings/gamepad"
+    const val SETTINGS_OPTIONS = "settings/options"
+}
+
+private data class BottomDestination(
+    val route: String,
+    val icon: ImageVector,
+    val labelRes: Int,
+)
 
 @Composable
 fun MainScreen() {
     val activity = requireNotNull(LocalActivity.current)
     val launchState = remember { LaunchState(activity) }
-    val pagerState = rememberPagerState(pageCount = { 5 })
     val scope = rememberCoroutineScope()
-    // Hoisted here (with MainScreen's scope) so in-flight downloads survive tab swipes
-    // even when the pager disposes the browse page.
+    // Hoisted here (above the NavHost) so in-flight downloads survive navigating away from
+    // the browse destination, which the NavHost disposes when it leaves the screen.
     val browseState = remember { BrowseState(activity, scope) }
-    // Hoisted likewise so the in-progress drawing + project survive tab swipes (the pager
-    // disposes the editor page when it's >2 tabs away). Process-death recovery is handled by
-    // the screen's own disk restore.
+    // Hoisted likewise so the in-progress drawing + project survive leaving the editor
+    // destination. Process-death recovery is handled by the screen's own disk restore.
     val editorState = remember { MapEditorState(activity, scope) }
-    val titles = listOf(
-        stringResource(R.string.app_name),
-        stringResource(R.string.gamepad_tab),
-        stringResource(R.string.options_tab),
-        stringResource(R.string.browse_tab),
-        stringResource(R.string.editor_tab),
-    )
 
-    // Re-scan when returning to the launch tab (e.g. after the base dir changed in Options).
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage == 0 && launchState.initialized) {
+    val navController = rememberNavController()
+    val backStack by navController.currentBackStackEntryAsState()
+    val currentRoute = backStack?.destination?.route
+
+    // Re-scan when returning to the PLAY destination (e.g. after the base dir changed in
+    // Options). LaunchScreen's own one-shot initialize() won't re-run on a kept back-stack
+    // entry, so this MainScreen-level effect restores the legacy rescan-on-return behavior.
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == Routes.PLAY && launchState.initialized) {
             launchState.refreshGames()
         }
     }
+
+    val bottomDestinations = listOf(
+        BottomDestination(Routes.PLAY, Icons.Filled.PlayArrow, R.string.play_tab),
+        BottomDestination(Routes.BROWSE, Icons.Filled.Search, R.string.browse_tab),
+        BottomDestination(Routes.EDITOR, Icons.Filled.Edit, R.string.editor_tab),
+        BottomDestination(Routes.SETTINGS, Icons.Filled.Settings, R.string.settings_tab),
+    )
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing),
-        topBar = {
-            PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
-                titles.forEachIndexed { index, title ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(title) },
+        bottomBar = {
+            NavigationBar {
+                bottomDestinations.forEach { dest ->
+                    // The Settings tab stays selected while drilled into its sub-pages.
+                    val selected = currentRoute == dest.route ||
+                        (dest.route == Routes.SETTINGS && currentRoute?.startsWith(Routes.SETTINGS) == true)
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = {
+                            if (currentRoute != dest.route) {
+                                navController.navigate(dest.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = { Icon(dest.icon, contentDescription = null) },
+                        label = { Text(stringResource(dest.labelRes)) },
                     )
                 }
             }
         },
     ) { innerPadding ->
-        HorizontalPager(
-            state = pagerState,
+        NavHost(
+            navController = navController,
+            startDestination = Routes.PLAY,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            // Keep the gamepad fragment resident so input forwarding works from any tab:
-            // page 1 is at most 2 pages away from any of the 4 pages
-            // (replaces ViewPager2's offscreenPageLimit = 2).
-            beyondViewportPageCount = 2,
-        ) { page ->
-            when (page) {
-                0 -> LaunchScreen(
+        ) {
+            composable(Routes.PLAY) {
+                LaunchScreen(
                     state = launchState,
-                    onOpenOptions = { scope.launch { pagerState.animateScrollToPage(2) } },
+                    onOpenOptions = { navController.navigate(Routes.SETTINGS_OPTIONS) },
                     modifier = Modifier.fillMaxSize(),
                 )
-                1 -> AndroidFragment<GamePadFragment>(modifier = Modifier.fillMaxSize())
-                2 -> OptionsScreen(modifier = Modifier.fillMaxSize())
-                3 -> BrowseScreen(state = browseState, modifier = Modifier.fillMaxSize())
-                else -> MapEditorScreen(state = editorState, modifier = Modifier.fillMaxSize())
+            }
+            composable(Routes.BROWSE) {
+                BrowseScreen(state = browseState, modifier = Modifier.fillMaxSize())
+            }
+            composable(Routes.EDITOR) {
+                MapEditorScreen(state = editorState, modifier = Modifier.fillMaxSize())
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onOpenGamepad = { navController.navigate(Routes.SETTINGS_GAMEPAD) },
+                    onOpenOptions = { navController.navigate(Routes.SETTINGS_OPTIONS) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            composable(Routes.SETTINGS_GAMEPAD) {
+                SubPage(
+                    title = stringResource(R.string.gamepad_tab),
+                    onBack = { navController.popBackStack() },
+                ) { padding ->
+                    AndroidFragment<GamePadFragment>(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                    )
+                }
+            }
+            composable(Routes.SETTINGS_OPTIONS) {
+                SubPage(
+                    title = stringResource(R.string.options_tab),
+                    onBack = { navController.popBackStack() },
+                ) { padding ->
+                    OptionsScreen(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                    )
+                }
             }
         }
     }
+}
+
+/** Full-screen Settings sub-page chrome: a top bar with a back arrow over [content]. */
+@Composable
+private fun SubPage(
+    title: String,
+    onBack: () -> Unit,
+    content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
+            )
+        },
+        content = content,
+    )
 }

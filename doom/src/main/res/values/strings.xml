@@ -3,9 +3,12 @@
 
     <string name="dummy_string">REMOVEME ADDED TO KICK TRANSIFEX INTO PULLING ON COMMIT</string>
     <string name="file_permission_fail_toast">Oops! Freedoom needs file permissions to copy over levels to shared storage. Please re-launch app</string>
+    <string name="play_tab">PLAY</string>
+    <string name="settings_tab">Settings</string>
     <string name="gamepad_tab">gamepad</string>
     <string name="options_tab">options</string>
     <string name="editor_tab">editor</string>
+    <string name="back">Back</string>
     <string name="no_iwads_err">Please select an IWAD file. Copy IWAD files to: </string>
     <string name="ok_confirm">OK</string>
 
