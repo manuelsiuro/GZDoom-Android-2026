@@ -13,9 +13,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
 import com.beloko.touchcontrols.GamePadFragment
 import com.msa.freedoom.ui.MainScreen
 import com.msa.freedoom.ui.theme.DoomTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class EntryActivity : AppCompatActivity() {
 
@@ -35,7 +38,9 @@ class EntryActivity : AppCompatActivity() {
 
         AppSettings.reloadSettings(application)
         // App-specific external storage needs no runtime permission on modern Android.
-        AppSettings.createDirectories(this)
+        // Off the main thread so a slow/full SD card can't ANR cold start; the launch tab
+        // re-runs createDirectories on its own IO path before it needs the dirs.
+        lifecycleScope.launch(Dispatchers.IO) { AppSettings.createDirectories(application) }
 
         GamePadFragment.gamepadActions = Utils.getGameGamepadConfig(resources)
 

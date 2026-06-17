@@ -453,8 +453,12 @@ class MapEditorState(
     /** Generates then boots the engine on the chosen test map. Returns false on failure. */
     suspend fun generateAndLaunch(): Boolean {
         val result = generate() ?: return false
-        launchProject(activity, project, result)
-        return true
+        return try {
+            launchProject(activity, project, result)
+            true
+        } catch (e: java.io.IOException) {
+            false
+        }
     }
 
     /** Generates the WAD and returns its file for sharing, or null on failure. */

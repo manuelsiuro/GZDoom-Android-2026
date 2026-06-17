@@ -32,9 +32,19 @@ object ProjectStore {
     private fun writeAtomic(target: File, text: String) {
         val tmp = File(target.parentFile, target.name + ".part")
         tmp.writeText(text)
-        if (!tmp.renameTo(target)) {
-            target.delete()
-            tmp.renameTo(target)
+        // Fast path: POSIX rename-over-existing is atomic on local storage.
+        if (tmp.renameTo(target)) return
+        // Slow path: some filesystems (FAT/SD) refuse to rename over an existing file. Keep
+        // the old copy as a backup until the new one lands, so a crash never leaves the
+        // project missing — unlike a plain delete()-then-rename(), which has a lossy window.
+        val backup = File(target.parentFile, target.name + ".bak")
+        backup.delete()
+        val hadOld = target.exists() && target.renameTo(backup)
+        if (tmp.renameTo(target)) {
+            backup.delete()
+        } else if (hadOld) {
+            // New write failed: restore the old copy (both .part and .bak remain on disk).
+            backup.renameTo(target)
         }
     }
 

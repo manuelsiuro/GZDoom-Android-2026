@@ -251,6 +251,11 @@ class BrowseState(
             }
         } catch (e: IOException) {
             errorRes = R.string.browse_error_offline
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            errorRes = R.string.browse_error_api
+            errorDetail = e.message
         } finally {
             isSearching = false
         }
@@ -277,6 +282,12 @@ class BrowseState(
                 }
             } catch (e: IOException) {
                 errorRes = R.string.browse_error_offline
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Non-IO failures (e.g. malformed JSON) used to crash the scope.
+                errorRes = R.string.browse_error_api
+                errorDetail = e.message
             } finally {
                 isSearching = false
             }
@@ -328,6 +339,11 @@ class BrowseState(
                 if (nodes.isEmpty()) archiveErrorRes = R.string.browse_no_results
             } catch (e: IOException) {
                 archiveErrorRes = R.string.browse_error_offline
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Directory-index HTML changed shape / failed to parse — don't crash the scope.
+                archiveErrorRes = R.string.browse_error_generic
             } finally {
                 archiveLoading = false
             }
@@ -368,6 +384,10 @@ class BrowseState(
                 }
             } catch (e: IOException) {
                 detailState = DetailState.Error(R.string.browse_error_offline)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                detailState = DetailState.Error(R.string.browse_error_generic)
             }
         }
     }
@@ -418,6 +438,11 @@ class BrowseState(
                 }
             } catch (e: IOException) {
                 errorRes = R.string.browse_error_offline
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorRes = R.string.browse_deeplink_failed
+                errorDetail = uri.toString()
             }
         }
     }
@@ -463,6 +488,10 @@ class BrowseState(
             } catch (e: CancellationException) {
                 downloads.remove(name)
                 throw e
+            } catch (e: Exception) {
+                // Any other failure (disk full mid-unzip, rename failure, zip-slip rejection)
+                // would otherwise leave the row stuck in Downloading and crash the scope.
+                downloads[name] = DownloadStatus.Failed(R.string.browse_error_mirrors)
             }
         }
     }
@@ -487,7 +516,7 @@ class BrowseState(
                     val input = context.contentResolver.openInputStream(uri)
                         ?: return@withContext false
                     input.use { src -> part.outputStream().use { src.copyTo(it) } }
-                    part.renameTo(dest)
+                    part.renameTo(dest).also { renamed -> if (!renamed) part.delete() }
                 } catch (e: Exception) {
                     part.delete()
                     false

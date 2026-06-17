@@ -1,20 +1,13 @@
-@file:Suppress("DEPRECATION", "PARAMETER_NAME_CHANGED_ON_OVERRIDE")
+@file:Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
 
 package com.msa.freedoom
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
 import android.content.res.Resources
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.View
-import android.view.ViewGroup.LayoutParams
-import android.view.animation.Animation
-import android.view.animation.Transformation
 import android.widget.Toast
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -22,24 +15,27 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.beloko.touchcontrols.ActionInput
 import com.beloko.touchcontrols.ControlConfig
 import com.beloko.touchcontrols.ControlConfig.Type
-import java.io.BufferedReader
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.OutputStream
 import java.util.ArrayList
-import kotlin.math.roundToInt
 
 object Utils {
-    private const val BUFFER_SIZE = 1024
+    private const val BUFFER_SIZE = 8192
     private const val LOG = "Utils"
 
+    /**
+     * Unpacks the bundled Freedoom IWADs and selectable add-on WADs into the base dir.
+     * Throws [IOException] on the first failed copy so callers can surface a real error
+     * instead of letting the engine boot into a native crash with missing data.
+     */
     @JvmStatic
+    @Throws(IOException::class)
     fun copyFreedoomFilesToSD(responsibleActivity: Activity) {
         val fullBaseDir = AppSettings.getQuakeFullDir()
         val fullWadDir = "$fullBaseDir/wads"
@@ -66,69 +62,40 @@ object Utils {
         // GZDoom 4.15 also autoloads the copies placed in the base dir).
         val fullModDir = "$fullBaseDir/mods"
 
-        var tester = File("$fullModDir/brightmaps.pk3")
-        if (!tester.exists()) {
+        if (!File("$fullModDir/brightmaps.pk3").exists()) {
             copyAsset(responsibleActivity, "brightmaps.pk3", fullModDir)
         }
-
-        tester = File("$fullModDir/lights.pk3")
-        if (!tester.exists()) {
+        if (!File("$fullModDir/lights.pk3").exists()) {
             copyAsset(responsibleActivity, "lights.pk3", fullModDir)
         }
     }
 
     @Throws(IOException::class)
     private fun copyFile(input: InputStream, out: OutputStream) {
-        val buffer = ByteArray(1024)
+        val buffer = ByteArray(BUFFER_SIZE)
         var read: Int
         while (input.read(buffer).also { read = it } != -1) {
             out.write(buffer, 0, read)
         }
-        out.close()
     }
 
+    /**
+     * Copies a single bundled asset into [destdir]. Streams are always closed (even on
+     * failure) and the underlying [IOException] is propagated to the caller.
+     */
     @JvmStatic
-    fun showDownloadDialog(act: Activity, title: String, KEY: String, directory: String, file: String) {
-        val builder = AlertDialog.Builder(act)
-        builder.setMessage(title)
-            .setCancelable(true)
-            .setPositiveButton("OK") { _, _ -> }
-        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
-        builder.create().show()
-    }
-
-    @JvmStatic
-    fun checkFiles(basePath: String, filesToCheck: Array<String>): String? {
-        var files = File(basePath).listFiles()
-
-        val filesNotFound = StringBuilder()
-
-        if (files == null) files = arrayOf()
-
-        for (f in files) {
-            Log.d(LOG, "FILES: $f")
-        }
-
-        for (e in filesToCheck) {
-            var found = false
-            for (f in files) {
-                if (f.toString().lowercase().endsWith(e.lowercase())) {
-                    found = true
-                }
-            }
-            if (!found) {
-                Log.d(LOG, "Didnt find $e")
-                filesNotFound.append(e).append("\n")
+    @Throws(IOException::class)
+    fun copyAsset(ctx: Context, file: String, destdir: String) {
+        File(destdir).mkdirs()
+        ctx.assets.open(file).use { input ->
+            FileOutputStream("$destdir/$file").use { out ->
+                copyFile(input, out)
             }
         }
-
-        return if (filesNotFound.toString().contentEquals("")) null else filesNotFound.toString()
     }
 
     @JvmStatic
     fun copyPNGAssets(ctx: Context, dir: String) {
-        val prefix = ""
-
         val d = File(dir)
         if (!d.exists()) d.mkdirs()
 
@@ -136,20 +103,21 @@ object Utils {
         val files: Array<String> = try {
             assetManager.list("") ?: emptyArray()
         } catch (e: IOException) {
-            Log.e("tag", "Failed to get asset file list.", e)
+            Log.e(LOG, "Failed to get asset file list.", e)
             emptyArray()
         }
+        // Best-effort: touch-control art is non-fatal, so a single failed glyph is logged
+        // and skipped rather than aborting the engine-setup path that calls this.
         for (filename in files) {
             if (filename.endsWith("png")) {
                 try {
-                    val input = assetManager.open(filename)
-                    val out = FileOutputStream(dir + "/" + filename.substring(prefix.length))
-                    copyFile(input, out)
-                    input.close()
-                    out.flush()
-                    out.close()
+                    assetManager.open(filename).use { input ->
+                        FileOutputStream("$dir/$filename").use { out ->
+                            copyFile(input, out)
+                        }
+                    }
                 } catch (e: IOException) {
-                    Log.e("tag", "Failed to copy asset file: $filename", e)
+                    Log.e(LOG, "Failed to copy asset file: $filename", e)
                 }
             }
         }
@@ -160,140 +128,16 @@ object Utils {
         appArgs.split(" ").filter { it.isNotEmpty() }.toTypedArray()
 
     @JvmStatic
-    fun expand(v: View) {
-        v.measure(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT)
-        val targetHeight = v.measuredHeight
-
-        v.layoutParams.height = 0
-        v.visibility = View.VISIBLE
-        val a: Animation = object : Animation() {
-            override fun applyTransformation(interpolatedTime: Float, t: Transformation) {
-                v.layoutParams.height = if (interpolatedTime == 1f) {
-                    LayoutParams.WRAP_CONTENT
-                } else {
-                    (targetHeight * interpolatedTime).toInt()
-                }
-                v.requestLayout()
-            }
-
-            override fun willChangeBounds(): Boolean = true
-        }
-
-        // 1dp/ms
-        a.duration = (targetHeight / v.context.resources.displayMetrics.density).toLong()
-        v.startAnimation(a)
-    }
-
-    @JvmStatic
-    fun collapse(v: View) {
-        val initialHeight = v.measuredHeight
-
-        val a: Animation = object : Animation() {
-            override fun applyTransformation(interpolatedTime: Float, t: Transformation) {
-                if (interpolatedTime == 1f) {
-                    v.visibility = View.GONE
-                } else {
-                    v.layoutParams.height = initialHeight - (initialHeight * interpolatedTime).toInt()
-                    v.requestLayout()
-                }
-            }
-
-            override fun willChangeBounds(): Boolean = true
-        }
-
-        // 1dp/ms
-        a.duration = (initialHeight / v.context.resources.displayMetrics.density).toLong()
-        v.startAnimation(a)
-    }
-
-    @JvmStatic
-    fun getLogCat(): String? {
-        val logcatArgs = arrayOf("logcat", "-d", "-v", "time")
-
-        val logcatProc = try {
-            Runtime.getRuntime().exec(logcatArgs)
-        } catch (e: IOException) {
-            return null
-        }
-
-        var reader: BufferedReader? = null
-        var response: String? = null
-        try {
-            val separator = System.getProperty("line.separator")
-            val sb = StringBuilder()
-            reader = BufferedReader(InputStreamReader(logcatProc.inputStream), BUFFER_SIZE)
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                sb.append(line)
-                sb.append(separator)
-            }
-            response = sb.toString()
-        } catch (ignored: IOException) {
-        } finally {
-            try {
-                reader?.close()
-            } catch (ignored: IOException) {
-            }
-        }
-
-        return response
-    }
-
-    @JvmStatic
-    fun copyAsset(ctx: Context, file: String, destdir: String) {
-        val assetManager = ctx.assets
-
-        try {
-            File(destdir).mkdirs()
-            val input = assetManager.open(file)
-            val out = FileOutputStream("$destdir/$file")
-            copyFile(input, out)
-            input.close()
-            out.flush()
-            out.close()
-        } catch (e: IOException) {
-            Log.e("tag", "Failed to copy asset file: $file")
-            e.printStackTrace()
-        }
-    }
-
-    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
-        val height = options.outHeight
-        val width = options.outWidth
-        var inSampleSize = 1
-
-        if (height > reqHeight || width > reqWidth) {
-            val heightRatio = (height.toFloat() / reqHeight.toFloat()).roundToInt()
-            val widthRatio = (width.toFloat() / reqWidth.toFloat()).roundToInt()
-            inSampleSize = if (heightRatio < widthRatio) heightRatio else widthRatio
-        }
-
-        return inSampleSize
-    }
-
-    @JvmStatic
-    fun decodeSampledBitmapFromResource(res: Resources, resId: Int, reqWidth: Int, reqHeight: Int): Bitmap {
-        val options = BitmapFactory.Options()
-        options.inJustDecodeBounds = true
-        BitmapFactory.decodeResource(res, resId, options)
-
-        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
-
-        options.inJustDecodeBounds = false
-        return BitmapFactory.decodeResource(res, resId, options)
-    }
-
-    @JvmStatic
     fun loadArgs(ctx: Context, args: ArrayList<String>) {
         val cacheDir = ctx.filesDir
 
         try {
-            val input = ObjectInputStream(FileInputStream(File(cacheDir, "args_hist.dat")))
-            @Suppress("UNCHECKED_CAST")
-            val argsHistory = input.readObject() as ArrayList<String>
-            args.clear()
-            args.addAll(argsHistory)
-            input.close()
+            ObjectInputStream(FileInputStream(File(cacheDir, "args_hist.dat"))).use { input ->
+                @Suppress("UNCHECKED_CAST")
+                val argsHistory = input.readObject() as ArrayList<String>
+                args.clear()
+                args.addAll(argsHistory)
+            }
             return
         } catch (ignored: IOException) {
         } catch (ignored: ClassNotFoundException) {
@@ -309,9 +153,9 @@ object Utils {
         if (!cacheDir.exists()) cacheDir.mkdirs()
 
         try {
-            val out = ObjectOutputStream(FileOutputStream(File(cacheDir, "args_hist.dat")))
-            out.writeObject(args)
-            out.close()
+            ObjectOutputStream(FileOutputStream(File(cacheDir, "args_hist.dat"))).use { out ->
+                out.writeObject(args)
+            }
         } catch (ex: IOException) {
             Toast.makeText(ctx, "Error saving args History list: $ex", Toast.LENGTH_LONG).show()
         }

@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +36,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.msa.freedoom.AppSettings
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.theme.monospaceBody
@@ -62,21 +66,26 @@ private fun validateBaseDir(context: Context, dir: String): String? {
 @Composable
 fun OptionsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var basePath by remember { mutableStateOf(AppSettings.freedoomBaseDir.orEmpty()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showDirPicker by remember { mutableStateOf(false) }
     var sdCardPathPendingConfirm by remember { mutableStateOf<String?>(null) }
 
     fun updateBaseDir(dir: String) {
-        val error = validateBaseDir(context, dir)
-        if (error != null) {
-            errorMessage = error
-            return
+        // validateBaseDir test-writes to the candidate dir and createDirectories does mkdirs;
+        // both touch the filesystem, so keep them off the main thread (ANR on slow SD cards).
+        scope.launch {
+            val error = withContext(Dispatchers.IO) { validateBaseDir(context, dir) }
+            if (error != null) {
+                errorMessage = error
+                return@launch
+            }
+            AppSettings.freedoomBaseDir = dir
+            AppSettings.setStringOption(context, "base_path", dir)
+            withContext(Dispatchers.IO) { AppSettings.createDirectories(context) }
+            basePath = dir
         }
-        AppSettings.freedoomBaseDir = dir
-        AppSettings.setStringOption(context, "base_path", dir)
-        AppSettings.createDirectories(context)
-        basePath = dir
     }
 
     Column(

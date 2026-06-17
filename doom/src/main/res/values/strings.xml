@@ -24,6 +24,9 @@
     <string name="refresh_button">Refresh</string>
     <string name="open_options_button">Open options</string>
     <string name="preparing_game_data">Preparing game data…</string>
+    <string name="launching_game">Preparing to launch…</string>
+    <string name="prepare_failed">Couldn\'t unpack game data: %1$s</string>
+    <string name="launch_failed">Couldn\'t prepare game files: %1$s</string>
     <string name="addons_header">Add-ons</string>
     <string name="add_mods_button">Add mods</string>
     <string name="no_mods_selected">No add-ons selected</string>
@@ -141,6 +144,7 @@
     <string name="browse_unzipping">Unpacking…</string>
     <string name="browse_error_offline">Can\'t reach the idgames archive. Check your connection.</string>
     <string name="browse_error_api">Archive error: %1$s</string>
+    <string name="browse_error_generic">Couldn\'t load — try again</string>
     <string name="browse_error_mirrors">Download failed on all mirrors</string>
     <string name="browse_error_no_files">Archive contained no usable WAD/PK3 files</string>
     <string name="browse_retry">Retry</string>

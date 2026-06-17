@@ -126,6 +126,12 @@ class IdgamesApi(private val client: OkHttpClient = sharedClient) {
 
         val sharedClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
+                // Without explicit timeouts a stalled mirror hangs the download coroutine
+                // until the user manually cancels. readTimeout fires on per-read inactivity,
+                // so it kills a stalled connection without capping a steady large download —
+                // hence no callTimeout (which is absolute wall-clock and would abort big WADs).
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .addInterceptor { chain ->
                     chain.proceed(
                         chain.request().newBuilder().header("User-Agent", USER_AGENT).build(),

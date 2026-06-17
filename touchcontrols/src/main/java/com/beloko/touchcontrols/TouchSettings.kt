@@ -9,8 +9,10 @@ import java.io.InputStream
 import java.io.OutputStream
 
 object TouchSettings {
+    // Verbose touch-control logging; off by default so it doesn't ship enabled. Flip to true
+    // (or set from the host app's BuildConfig.DEBUG) when debugging the control layer.
     @JvmField
-    var DEBUG = true
+    var DEBUG = false
 
     @JvmField
     var gamePadControlsFile: String? = null

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -103,6 +104,18 @@ fun LaunchScreen(
             onConfirm = { mods ->
                 state.selectedMods.clear()
                 state.selectedMods.addAll(mods)
+            },
+        )
+    }
+
+    state.errorMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { state.dismissError() },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { state.dismissError() }) {
+                    Text(stringResource(R.string.ok_confirm))
+                }
             },
         )
     }
@@ -379,14 +392,24 @@ private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
 private fun LaunchButton(state: LaunchState, onLaunch: () -> Unit) {
     Button(
         onClick = onLaunch,
-        enabled = state.selectedGame != null,
+        enabled = state.selectedGame != null && !state.isLaunching,
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
     ) {
-        Icon(Icons.Default.PlayArrow, contentDescription = null)
-        Spacer(Modifier.size(8.dp))
-        Text(stringResource(R.string.start_full), style = MaterialTheme.typography.titleMedium)
+        if (state.isLaunching) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+            Spacer(Modifier.size(8.dp))
+            Text(stringResource(R.string.launching_game), style = MaterialTheme.typography.titleMedium)
+        } else {
+            Icon(Icons.Default.PlayArrow, contentDescription = null)
+            Spacer(Modifier.size(8.dp))
+            Text(stringResource(R.string.start_full), style = MaterialTheme.typography.titleMedium)
+        }
     }
     if (state.selectedGame == null) {
         Spacer(Modifier.height(4.dp))

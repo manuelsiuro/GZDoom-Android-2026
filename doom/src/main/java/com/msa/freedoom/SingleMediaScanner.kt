@@ -11,7 +11,7 @@ import java.io.File
  */
 class SingleMediaScanner(context: Context, path: Boolean, file: String) {
     init {
-        Log.d("SingleMediaScanner", "path = $path, f = $file")
+        if (BuildConfig.DEBUG) Log.d("SingleMediaScanner", "path = $path, f = $file")
 
         val paths: Array<String> = if (path) {
             File(file).listFiles()?.map { it.absolutePath }?.toTypedArray() ?: emptyArray()
