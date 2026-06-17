@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -113,9 +112,10 @@ fun MainScreen(
     )
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+        // Edge-to-edge: content respects the safe area, but the NavigationBar paints its
+        // surface behind the system navigation bar so the two share one color.
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             NavigationBar {
                 bottomDestinations.forEach { dest ->
@@ -205,6 +205,9 @@ private fun SubPage(
     content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
 ) {
     Scaffold(
+        // The parent Scaffold already insets this for the status bar via its innerPadding,
+        // so this nested Scaffold must not add it again.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(title) },

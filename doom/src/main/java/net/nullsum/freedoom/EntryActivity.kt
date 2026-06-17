@@ -1,10 +1,12 @@
 package net.nullsum.freedoom
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -23,7 +25,13 @@ class EntryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Transparent system bars with light (white) icons — the app is always dark-themed.
+        // The bottom NavigationBar paints its own surface behind the navigation bar so the
+        // two read as one (see MainScreen's Scaffold).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
 
         AppSettings.reloadSettings(application)
         // App-specific external storage needs no runtime permission on modern Android.
