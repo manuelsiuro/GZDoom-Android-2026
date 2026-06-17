@@ -38,11 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import net.nullsum.freedoom.AppSettings
 import net.nullsum.freedoom.R
 import net.nullsum.freedoom.ui.DoomIcons
 import net.nullsum.freedoom.ui.theme.monospaceBody
@@ -72,21 +74,30 @@ fun ModPickerSheet(
     onDismiss: () -> Unit,
     onConfirm: (List<ModEntry>) -> Unit,
 ) {
+    val context = LocalContext.current
     val iwad = remember(selectedGame) { selectedGame?.let { iwadProfile(it.file) } }
     var currentDir by remember { mutableStateOf("wads") }
     var entries by remember { mutableStateOf<List<FsEntry>>(emptyList()) }
     var onlyCompatible by remember { mutableStateOf(false) }
+    var onlyFavorites by remember { mutableStateOf(false) }
+    var favorites by remember { mutableStateOf(AppSettings.getFavoriteMods(context)) }
     val selected = remember { mutableStateOf(initialSelection) }
 
     LaunchedEffect(currentDir, iwad) {
         entries = withContext(Dispatchers.IO) { listDir(baseDir, currentDir, iwad) }
     }
 
-    // Hide cross-game (INCOMPATIBLE) entries only; folders, compatible, soft and unknown stay.
-    val visible = if (onlyCompatible) {
-        entries.filter { it.isDir || it.verdict != Verdict.INCOMPATIBLE }
-    } else {
-        entries
+    // Files are hidden when they fail an active filter (cross-game INCOMPATIBLE, or non-favorite).
+    // Folders ignore the compatibility filter; under the favorites filter a folder stays if it is
+    // itself favorited or contains a favorite below it, so nested favorites remain reachable.
+    val visible = entries.filter { entry ->
+        if (entry.isDir) {
+            !onlyFavorites || entry.relPath in favorites ||
+                favorites.any { it.startsWith(entry.relPath + "/") }
+        } else {
+            (!onlyCompatible || entry.verdict != Verdict.INCOMPATIBLE) &&
+                (!onlyFavorites || entry.relPath in favorites)
+        }
     }
 
     fun toggle(relPath: String) {
@@ -95,6 +106,11 @@ fun ModPickerSheet(
         } else {
             selected.value + ModEntry(relPath)
         }
+    }
+
+    fun toggleFavorite(relPath: String) {
+        favorites = if (relPath in favorites) favorites - relPath else favorites + relPath
+        AppSettings.setFavoriteMods(context, favorites)
     }
 
     ModalBottomSheet(
@@ -112,8 +128,13 @@ fun ModPickerSheet(
                 .padding(horizontal = 16.dp)
                 .navigationBarsPadding(),
         ) {
+            val gameName = selectedGame?.file?.substringBeforeLast('.')
             Text(
-                stringResource(R.string.mod_picker_title),
+                if (gameName != null) {
+                    stringResource(R.string.mod_picker_title_for, gameName)
+                } else {
+                    stringResource(R.string.mod_picker_title)
+                },
                 style = MaterialTheme.typography.titleLarge,
             )
             Spacer(Modifier.height(12.dp))
@@ -143,6 +164,23 @@ fun ModPickerSheet(
                     )
                 }
                 Text("/$currentDir", Modifier.weight(1f), style = monospaceBody())
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = onlyFavorites,
+                    onClick = { onlyFavorites = !onlyFavorites },
+                    label = { Text(stringResource(R.string.only_favorites_filter)) },
+                    leadingIcon = {
+                        Icon(
+                            if (onlyFavorites) DoomIcons.Star else DoomIcons.StarOutline,
+                            contentDescription = null,
+                            Modifier.size(18.dp),
+                        )
+                    },
+                )
                 // Compatibility filtering needs a selected game to compare against.
                 if (iwad != null) {
                     FilterChip(
@@ -177,15 +215,15 @@ fun ModPickerSheet(
                             .alpha(if (dim) 0.55f else 1f),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (entry.isDir) {
-                            Icon(
-                                DoomIcons.Folder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                            )
-                        } else {
-                            Spacer(Modifier.size(24.dp))
-                        }
+                        Icon(
+                            if (entry.isDir) DoomIcons.Folder else DoomIcons.Extension,
+                            contentDescription = null,
+                            tint = if (entry.isDir) {
+                                MaterialTheme.colorScheme.tertiary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
                         Spacer(Modifier.size(16.dp))
                         Column(Modifier.weight(1f)) {
                             Text(entry.name, style = MaterialTheme.typography.bodyLarge)
@@ -196,6 +234,20 @@ fun ModPickerSheet(
                                     color = verdictColor(entry.verdict),
                                 )
                             }
+                        }
+                        val fav = entry.relPath in favorites
+                        IconButton(onClick = { toggleFavorite(entry.relPath) }) {
+                            Icon(
+                                if (fav) DoomIcons.Star else DoomIcons.StarOutline,
+                                contentDescription = stringResource(
+                                    if (fav) R.string.favorite_remove else R.string.favorite_add,
+                                ),
+                                tint = if (fav) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
                         }
                         Checkbox(
                             checked = isChecked,
@@ -236,6 +288,8 @@ private fun listDir(baseDir: String, dir: String, iwad: IwadProfile?): List<FsEn
     File("$baseDir/$dir").listFiles().orEmpty()
         .mapNotNull { f ->
             val isDir = f.isDirectory
+            // Hide the downloader's hidden staging dir.
+            if (isDir && f.name == ".staging") return@mapNotNull null
             if (!isDir && MOD_EXTENSIONS.none { f.name.lowercase().endsWith(it) }) return@mapNotNull null
             val info = detectAddon(f)
             val v = iwad?.let { verdict(it, info) } ?: Verdict.UNKNOWN

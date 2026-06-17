@@ -138,4 +138,17 @@ object AppSettings {
     fun setStringOption(ctx: Context, name: String, value: String) {
         ctx.getSharedPreferences("OPTIONS", Context.MODE_PRIVATE).edit().putString(name, value).apply()
     }
+
+    /** baseDir-relative paths the user starred in the add-on picker (e.g. "wads/doom2/scythe.wad"). */
+    @JvmStatic
+    fun getFavoriteMods(ctx: Context): Set<String> =
+        // Copy: the Set returned by SharedPreferences must not be mutated or stored.
+        ctx.getSharedPreferences("OPTIONS", Context.MODE_PRIVATE)
+            .getStringSet("mod_favorites", emptySet()).orEmpty().toSet()
+
+    @JvmStatic
+    fun setFavoriteMods(ctx: Context, value: Set<String>) {
+        ctx.getSharedPreferences("OPTIONS", Context.MODE_PRIVATE)
+            .edit().putStringSet("mod_favorites", value).apply()
+    }
 }

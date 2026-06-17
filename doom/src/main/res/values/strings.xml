@@ -32,11 +32,15 @@
     <string name="select_game_to_launch">Select a game to launch</string>
     <string name="launch_disabled_hint">Select a game on the left to launch.</string>
     <string name="mod_picker_title">Select add-ons</string>
+    <string name="mod_picker_title_for">Add-ons for %1$s</string>
     <string name="mod_picker_wads" translatable="false">WADs</string>
     <string name="mod_picker_mods" translatable="false">Mods</string>
     <string name="mod_picker_empty">Copy add-on WADs or mods to:\n%1$s</string>
     <string name="selected_count">%1$d selected</string>
     <string name="only_compatible_filter">Only compatible</string>
+    <string name="only_favorites_filter">Favorites</string>
+    <string name="favorite_add">Add to favorites</string>
+    <string name="favorite_remove">Remove from favorites</string>
     <string name="compat_compatible">Compatible</string>
     <string name="compat_minor">Loads (may need warp)</string>
     <string name="compat_wrong_game">Wrong game</string>
