@@ -53,11 +53,43 @@ class IdgamesApi(private val client: OkHttpClient = sharedClient) {
         return IdgamesParser.parseSingle(body)
     }
 
+    /** `get` by archive file path (e.g. "levels/doom2/megawads/scythe.zip"). */
+    suspend fun get(filePath: String): IdgamesResult<IdgamesFile?> {
+        val body = fetch {
+            addQueryParameter("action", "get")
+            addQueryParameter("file", filePath)
+        }
+        return IdgamesParser.parseSingle(body)
+    }
+
+    /** Resolves a parsed idgames:// reference to its full file record. */
+    suspend fun resolve(ref: IdgamesUri.Ref): IdgamesResult<IdgamesFile?> = when (ref) {
+        is IdgamesUri.Ref.ById -> get(ref.id)
+        is IdgamesUri.Ref.ByPath -> get(ref.filePath)
+    }
+
+    /**
+     * Lists a directory of the idgames archive file tree (gamers.org mirror) by
+     * parsing its Apache HTML index. [path] is relative to the archive root, e.g.
+     * "levels/doom2". A missing directory parses to an empty list.
+     */
+    suspend fun listArchive(path: String): List<ArchiveListingParser.Node> {
+        val url = ARCHIVE_BASE.toHttpUrl().newBuilder().apply {
+            path.split('/').filter { it.isNotBlank() }.forEach { addPathSegment(it) }
+            addPathSegment("") // trailing slash so Apache serves the directory index
+        }.build()
+        return ArchiveListingParser.parse(fetchUrl(url))
+    }
+
     private suspend fun fetch(params: okhttp3.HttpUrl.Builder.() -> Unit): String {
         val url = API_BASE.toHttpUrl().newBuilder()
             .apply(params)
             .addQueryParameter("out", "json")
             .build()
+        return fetchUrl(url)
+    }
+
+    private suspend fun fetchUrl(url: okhttp3.HttpUrl): String {
         val call = client.newCall(Request.Builder().url(url).build())
         return suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation { call.cancel() }
@@ -84,6 +116,9 @@ class IdgamesApi(private val client: OkHttpClient = sharedClient) {
 
     companion object {
         const val API_BASE = "https://www.doomworld.com/idgames/api/api.php"
+
+        // File-tree mirror used for the archive-tree browser (HTML directory index).
+        const val ARCHIVE_BASE = "https://www.gamers.org/pub/idgames/"
 
         // The API host asks clients to identify themselves with a descriptive UA.
         val USER_AGENT =

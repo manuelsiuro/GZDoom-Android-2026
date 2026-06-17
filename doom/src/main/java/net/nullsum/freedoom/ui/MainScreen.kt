@@ -38,6 +38,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.beloko.touchcontrols.GamePadFragment
 import net.nullsum.freedoom.R
+import net.nullsum.freedoom.ui.browse.BrowseMode
 import net.nullsum.freedoom.ui.browse.BrowseScreen
 import net.nullsum.freedoom.ui.browse.BrowseState
 import net.nullsum.freedoom.ui.editor.MapEditorScreen
@@ -63,7 +64,10 @@ private data class BottomDestination(
 )
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    deeplink: android.net.Uri? = null,
+    onDeeplinkConsumed: () -> Unit = {},
+) {
     val activity = requireNotNull(LocalActivity.current)
     val launchState = remember { LaunchState(activity) }
     val scope = rememberCoroutineScope()
@@ -85,6 +89,20 @@ fun MainScreen() {
         if (currentRoute == Routes.PLAY && launchState.initialized) {
             launchState.refreshGames()
         }
+    }
+
+    // An inbound idgames:// link: hand it to BrowseState and switch to the Browse tab.
+    // BrowseScreen resolves it once its catalogs/API are ready and opens the detail sheet.
+    LaunchedEffect(deeplink) {
+        val uri = deeplink ?: return@LaunchedEffect
+        browseState.onDeeplink(uri)
+        browseState.mode = BrowseMode.SEARCH
+        navController.navigate(Routes.BROWSE) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+        onDeeplinkConsumed()
     }
 
     val bottomDestinations = listOf(

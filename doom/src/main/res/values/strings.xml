@@ -152,6 +152,17 @@
     <string name="browse_import">Import WAD</string>
     <string name="browse_import_failed">Couldn\'t import that file</string>
     <string name="browse_imported_hint">Imported — appears in Select game on the Freedoom tab</string>
+    <string name="browse_mode_search">Search</string>
+    <string name="browse_mode_archive">Archive</string>
+    <string name="browse_play_with">Play with a %1$s IWAD selected</string>
+    <string name="browse_field_base">Base</string>
+    <string name="browse_field_credits">Credits</string>
+    <string name="browse_field_buildtime">Build time</string>
+    <string name="browse_field_editors">Editors</string>
+    <string name="browse_field_bugs">Known bugs</string>
+    <string name="browse_textfile">Text file</string>
+    <string name="browse_reviews_header">Reviews</string>
+    <string name="browse_deeplink_failed">Couldn\'t open that idgames link</string>
 
     <string-array name="double_tap_actions">
         <item>None</item>

@@ -47,12 +47,27 @@ import androidx.compose.foundation.text.KeyboardOptions
 import java.util.Locale
 import net.nullsum.freedoom.R
 import net.nullsum.freedoom.idgames.IdgamesApi
+import net.nullsum.freedoom.idgames.IdgamesDirClassifier
 import net.nullsum.freedoom.ui.DoomIcons
+import net.nullsum.freedoom.ui.launch.CompatBadge
+import net.nullsum.freedoom.ui.launch.Verdict
+import net.nullsum.freedoom.ui.launch.badgeText
 
 /** The browse tab: search/browse the idgames archive and download WADs. */
 @Composable
 fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { state.initialize() }
+    // Resolve a parked idgames:// deep link once the catalogs/API are ready.
+    LaunchedEffect(state.initialized, state.pendingDeeplink) {
+        if (state.initialized && state.pendingDeeplink != null) state.resolveDeeplink()
+    }
+    LaunchedEffect(state.mode) {
+        if (state.mode == BrowseMode.ARCHIVE) state.ensureArchiveLoaded()
+    }
+    // Fetch the rich record whenever a detail sheet opens.
+    LaunchedEffect(state.selectedEntry) {
+        state.selectedEntry?.let { state.loadDetail(it) }
+    }
 
     var importTarget by remember { mutableStateOf<BrowseEntry?>(null) }
     val importLauncher = rememberLauncherForActivityResult(
@@ -66,6 +81,73 @@ fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
         importLauncher.launch(arrayOf("*/*"))
     }
 
+    Column(modifier) {
+        ModeToggle(state, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        when (state.mode) {
+            BrowseMode.SEARCH -> SearchList(state, onImport, Modifier.weight(1f))
+            BrowseMode.ARCHIVE -> ArchiveTreeView(state, onImport, Modifier.weight(1f))
+        }
+    }
+
+    state.selectedEntry?.let { entry ->
+        BrowseDetailSheet(
+            entry = entry,
+            detail = state.detailState,
+            status = state.downloads[entry.downloadKey],
+            isInstalled = state.isInstalled(entry),
+            onDownload = { state.startDownload(entry) },
+            onImport = { onImport(entry) },
+            onCancel = { state.cancelDownload(entry.downloadKey) },
+            onDelete = { state.pendingDelete = entry },
+            onRetryDetail = { state.retryDetail() },
+            onDismiss = { state.clearDetail() },
+        )
+    }
+
+    state.pendingDelete?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { state.pendingDelete = null },
+            title = { Text(stringResource(R.string.browse_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.browse_delete_confirm_msg, entry.title)) },
+            confirmButton = {
+                TextButton(onClick = { state.delete(entry) }) {
+                    Text(stringResource(R.string.browse_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { state.pendingDelete = null }) {
+                    Text(stringResource(R.string.browse_cancel_download))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ModeToggle(state: BrowseState, modifier: Modifier = Modifier) {
+    SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
+        val modes = listOf(
+            BrowseMode.SEARCH to R.string.browse_mode_search,
+            BrowseMode.ARCHIVE to R.string.browse_mode_archive,
+        )
+        modes.forEachIndexed { index, (m, labelRes) ->
+            SegmentedButton(
+                selected = state.mode == m,
+                onClick = { state.mode = m },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
+            ) {
+                Text(stringResource(labelRes))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchList(
+    state: BrowseState,
+    onImport: (BrowseEntry) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier = modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -141,37 +223,6 @@ fun BrowseScreen(state: BrowseState, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-
-    state.selectedEntry?.let { entry ->
-        BrowseDetailSheet(
-            entry = entry,
-            status = state.downloads[entry.downloadKey],
-            isInstalled = state.isInstalled(entry),
-            onDownload = { state.startDownload(entry) },
-            onImport = { onImport(entry) },
-            onCancel = { state.cancelDownload(entry.downloadKey) },
-            onDelete = { state.pendingDelete = entry },
-            onDismiss = { state.selectedEntry = null },
-        )
-    }
-
-    state.pendingDelete?.let { entry ->
-        AlertDialog(
-            onDismissRequest = { state.pendingDelete = null },
-            title = { Text(stringResource(R.string.browse_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.browse_delete_confirm_msg, entry.title)) },
-            confirmButton = {
-                TextButton(onClick = { state.delete(entry) }) {
-                    Text(stringResource(R.string.browse_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { state.pendingDelete = null }) {
-                    Text(stringResource(R.string.browse_cancel_download))
-                }
-            },
-        )
     }
 }
 
@@ -285,6 +336,16 @@ private fun BrowseRow(state: BrowseState, entry: BrowseEntry, onImport: (BrowseE
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // Descriptive (no IWAD selected here), so a neutral "likely" pre-download badge.
+                if (!entry.isIwad) {
+                    val badge = remember(entry.dir, entry.filename) {
+                        badgeText(IdgamesDirClassifier.classify(entry.dir, entry.filename))
+                    }
+                    if (badge.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        CompatBadge(text = badge, verdict = Verdict.UNKNOWN, likely = true)
+                    }
+                }
             }
             Spacer(Modifier.size(12.dp))
             RowAction(state, entry, status, onImport)

@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import java.io.File
@@ -248,36 +247,3 @@ private fun listDir(baseDir: String, dir: String, iwad: IwadProfile?): List<FsEn
                 .thenBy { verdictRank(it.verdict) }
                 .thenBy { it.name.lowercase() },
         )
-
-private fun verdictRank(v: Verdict): Int = when (v) {
-    Verdict.COMPATIBLE -> 0
-    Verdict.MINOR -> 1
-    Verdict.UNKNOWN -> 2
-    Verdict.INCOMPATIBLE -> 3
-}
-
-/** Short human descriptor, e.g. "Doom · MAPxx" or "Heretic"; empty when the family is unknown. */
-private fun badgeText(info: AddonInfo): String {
-    val family = when (info.family) {
-        GameFamily.DOOM -> "Doom"
-        GameFamily.HERETIC -> "Heretic"
-        GameFamily.HEXEN -> "Hexen"
-        GameFamily.STRIFE -> "Strife"
-        GameFamily.CHEX -> "Chex"
-        GameFamily.UNKNOWN -> return ""
-    }
-    val slot = when (info.slot) {
-        MapSlot.EPISODIC -> "ExMy"
-        MapSlot.MAPXX -> "MAPxx"
-        MapSlot.BOTH -> "ExMy+MAPxx"
-        MapSlot.NONE -> ""
-    }
-    return if (slot.isEmpty()) family else "$family · $slot"
-}
-
-@Composable
-private fun verdictColor(v: Verdict): Color = when (v) {
-    Verdict.COMPATIBLE -> MaterialTheme.colorScheme.tertiary
-    Verdict.INCOMPATIBLE -> MaterialTheme.colorScheme.error
-    Verdict.MINOR, Verdict.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-}

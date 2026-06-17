@@ -92,4 +92,39 @@ class IdgamesParserTest {
         val result = IdgamesParser.parseSingle(json) as IdgamesResult.Success
         assertEquals("Icarus: Alien Vanguard", result.value?.title)
     }
+
+    @Test
+    fun `parseSingle reads the rich fields and reviews array`() {
+        val json = """
+            {"content": {"id": 11944, "title": "Scythe", "dir": "levels/doom2/megawads/",
+             "filename": "scythe.zip", "base": "New from scratch", "editors": "DETH, WadAuthor",
+             "textfile": "Game : DOOM2", "idgamesurl": "idgames://11944",
+             "reviews": {"review": [
+                {"text": "Masterpiece", "vote": "5", "username": "user1"},
+                {"text": "Hard but fair", "vote": 4, "username": null}
+             ]}}, "meta": {"version": 3}}
+        """.trimIndent()
+        val file = (IdgamesParser.parseSingle(json) as IdgamesResult.Success).value!!
+        assertEquals("New from scratch", file.base)
+        assertEquals("DETH, WadAuthor", file.editors)
+        assertEquals("idgames://11944", file.idgamesurl)
+        val reviews = file.reviewList
+        assertEquals(2, reviews.size)
+        assertEquals(5, reviews[0].vote)
+        assertEquals("user1", reviews[0].username)
+        assertEquals(4, reviews[1].vote)
+        assertNull(reviews[1].username)
+    }
+
+    @Test
+    fun `parseReviews handles a single bare review object and absence`() {
+        val single = idgamesJson.parseToJsonElement(
+            """{"review": {"text": "Solo", "vote": 3, "username": "u"}}""",
+        )
+        val one = IdgamesParser.parseReviews(single)
+        assertEquals(1, one.size)
+        assertEquals("Solo", one[0].text)
+
+        assertEquals(emptyList<IdgamesReview>(), IdgamesParser.parseReviews(null))
+    }
 }
