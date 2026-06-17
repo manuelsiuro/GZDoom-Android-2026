@@ -13,20 +13,31 @@ running, and **playable on modern 64-bit Android devices**.
 
 ## ✨ What's new in 2026
 
-- **In-app map editor (PNG2WAD).** A new **editor** tab lets you draw a level on a colored
-  grid and generate a playable Doom map on-device — no PC tools. Pick a **theme**
-  (`Tech`/`Cave`/`Hell`/`City`) and paint tiles (walls, rooms, doors, secrets, special floors/ceilings,
-  sky, player start, exit), then tap **Test** to boot straight into `MAP01`, or **Generate WAD** to
-  just write the file. Under the hood it renders the grid to a PNG and runs a
-  bundled native converter (`libpng2wad.so`, built from the vendored
-  [`png2wad-sdk/`](png2wad-sdk/) module) to emit a **nodeless
-  Doom-format PWAD** into `<base>/mods/generated.wad`; GZDoom builds the nodes/blockmap on load.
-  The editor is **mobile-first**: a persistent left **tool rail** of icon buttons (brush, eraser,
-  fill, line, rect, eyedropper, pan), a compact top bar (undo/redo/test + overflow), a left
-  **drawer** for project/setup actions (size, theme, maps, templates, tuning, projects, share), and
-  a bottom tile palette — with an adaptive landscape layout (canvas + right-hand side panel) on
-  larger screens. See [`PNG2WAD_MAP_EDITOR.md`](PNG2WAD_MAP_EDITOR.md) for the tile palette, pipeline,
-  and the strict-lump-order fix that made generated WADs load on this 1.9-era engine.
+- **In-app map editor.** A full **Editor** tab builds playable Doom levels entirely on-device —
+  no PC tools. Paint a level on a colored grid (walls, rooms, doors, secrets, special
+  floors/ceilings, sky, player start, exit) and pick a **theme** (`Tech`/`Cave`/`Hell`/`City`), then
+  tap **Test** to boot straight into it or **Generate WAD** to just write the file.
+  - **Real textures.** A texture browser reads the chosen IWAD itself (palette, `PNAMES`,
+    `TEXTURE1/2` and flats, decoded to live thumbnails by a small native reader) so you can assign
+    real Doom textures per surface — walls, floors, ceilings, doors, outdoor and special surfaces —
+    instead of just the theme defaults.
+  - **Hand-placed things.** A **Thing** tool drops monsters, keys, weapons, items, ammo and
+    player/co-op/deathmatch starts from a palette (with real sprite previews pulled from the IWAD);
+    a **Select** tool moves, rotates, retypes or deletes any placed thing; and each thing carries
+    **skill** (Easy/Med/Hard) and **Ambush** flags. Leave it on auto-populate (density sliders) for
+    a quick map, or switch to manual-things for a fully hand-built one.
+  - **Mobile-first.** A persistent left **tool rail** (brush, eraser, fill, line, rect, eyedropper,
+    pan, place-thing, select) with brush sizes and 4-way symmetry, a compact top bar
+    (undo/redo/test + overflow), a left **drawer** (size, theme, maps, templates, textures, tuning,
+    projects, share), a bottom palette, and an adaptive landscape layout. Multi-map projects
+    (`MAP01…MAP32`), starter templates, named projects with crash-safe autosave, undo/redo, and
+    pre-launch validation are all built in.
+
+  Under the hood the grid renders to a PNG and a bundled native converter (`libpng2wad.so`, from
+  the vendored [`png2wad-sdk/`](png2wad-sdk/) module) emits a **nodeless Doom-format PWAD** — now
+  also injecting your hand-placed things and texture choices — into `<base>/mods/`; GZDoom builds
+  the nodes/blockmap on load. See [`PNG2WAD_MAP_EDITOR.md`](PNG2WAD_MAP_EDITOR.md) for the tile
+  palette, pipeline, and the strict-lump-order fix that makes generated WADs load on this engine.
 - **Built-in WAD browser & downloader.** A new **Browse** tab fetches add-ons straight from the
   Doomworld [/idgames archive](https://www.doomworld.com/idgames/) — search by title/filename/author,
   see ratings and sizes, and one-tap download (with mirror fail-over) that unzips into the add-on
@@ -130,7 +141,8 @@ real hardware.
   Clibs_OpenTouch glue, ZMusic, glslang, ZWidget.
 - **Map editor:** **png2wad** PNG→WAD converter (originally a C# tool by
   [@akaAgar](https://github.com/akaAgar/png2wad), ported to C/C++ here), built as `libpng2wad.so`
-  via the `:png2wad-sdk` module.
+  via the `:png2wad-sdk` module — extended here with hand-placed-thing injection and a native
+  IWAD texture/flat/sprite reader for the editor's texture browser.
 
 ## Why Freedoom?
 While the Doom engine and its many spin-offs are open-sourced, most of Doom's "assets" such as
@@ -153,8 +165,11 @@ vast library of fan-made "WADs" (i.e. game levels) as indexed in the idgames arc
       per-game download folders, and an Installed view with bulk delete
 - [x] Favorites in the add-on picker (star WADs/mods/folders + filter)
 - [x] In-app PNG2WAD map editor (draw a grid → generate a playable map → launch it)
+- [x] Editor: real IWAD textures (browse + assign per surface) and hand-placed things
+      (monsters, keys, items, starts) with a Thing/Select tool and per-thing skill/ambush flags
 - [x] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x (GZDoom 4.15, `mobile_4.15.x`)
 - [x] Swap the native engine to UZDoom 5.0.0-pre (`uz_5.0_pre`) — builds & runs on device
+- [ ] Vector map editor — open & edit existing WAD maps as vertices/linedefs/sectors
 - [ ] Verify/fix rendering on a real device, then investigate the emulator black-screen present
 
 ## Links to the Freedoom community
