@@ -14,18 +14,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.DoomIcons
 import com.msa.freedoom.ui.formatFileSize
@@ -35,10 +43,13 @@ import com.msa.freedoom.ui.formatFileSize
  * and bulk delete (selected or all). State lives in [BrowseState] so a delete in flight
  * and the current selection survive tab switches.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InstalledView(state: BrowseState, modifier: Modifier = Modifier) {
     val items = state.installedItems
     val selection = state.installedSelection
+    val scope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
 
     Column(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
@@ -102,13 +113,22 @@ fun InstalledView(state: BrowseState, modifier: Modifier = Modifier) {
                 )
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(items, key = { it.key }) { item ->
-                    InstalledRow(
-                        item = item,
-                        checked = item.key in selection,
-                        onToggle = { state.toggleInstalled(item.key) },
-                    )
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = {
+                    refreshing = true
+                    scope.launch { state.refreshInstalled(); refreshing = false }
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    items(items, key = { it.key }) { item ->
+                        InstalledRow(
+                            item = item,
+                            checked = item.key in selection,
+                            onToggle = { state.toggleInstalled(item.key) },
+                        )
+                    }
                 }
             }
         }
