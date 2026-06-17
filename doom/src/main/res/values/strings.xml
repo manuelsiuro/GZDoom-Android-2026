@@ -8,6 +8,7 @@
     <string name="gamepad_tab">gamepad</string>
     <string name="options_tab">options</string>
     <string name="editor_tab">editor</string>
+    <string name="about_tab">about</string>
     <string name="back">Back</string>
     <string name="no_iwads_err">Please select an IWAD file. Copy IWAD files to: </string>
     <string name="ok_confirm">OK</string>
@@ -165,6 +166,22 @@
     <string name="browse_installed_empty">Nothing installed yet</string>
     <string name="browse_bulk_delete_title">Delete %1$d WAD(s)?</string>
     <string name="browse_bulk_delete_msg">The selected files will be removed from storage. You can download them again later.</string>
+
+    <!-- About screen -->
+    <string name="about_app_subtitle">for Android</string>
+    <string name="about_version">Version</string>
+    <string name="about_version_value" translatable="false">%1$s (%2$d)</string>
+    <string name="about_section_app">App</string>
+    <string name="about_section_developer">Developer</string>
+    <string name="about_section_credits">Credits</string>
+    <string name="about_engine">Engine</string>
+    <string name="about_engine_version" translatable="false">UZDoom 5.0.0-pre</string>
+    <string name="about_engine_credit_sub">emileb/gzdoom — a mobile GZDoom fork</string>
+    <string name="about_developer_name" translatable="false">Manuel Siuro</string>
+    <string name="about_github_profile">GitHub profile</string>
+    <string name="about_project_repo">Project repository</string>
+    <string name="about_freedoom">Freedoom assets</string>
+    <string name="about_freedoom_sub">Open game assets from freedoom.github.io</string>
     <string name="browse_play_with">Play with a %1$s IWAD selected</string>
     <string name="browse_field_base">Base</string>
     <string name="browse_field_credits">Credits</string>

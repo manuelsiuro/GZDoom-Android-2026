@@ -10,25 +10,13 @@ android {
 
     defaultConfig {
         applicationId = "net.nullsum.freedoom"
-        minSdk = 23
-        targetSdk = 34
-        versionCode = 19
-        versionName = "0.4.3"
+        minSdk = 33
+        targetSdk = 36
+        versionCode = 50
+        versionName = "0.50.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
-    /*
-    signingConfigs {
-        create("release") {
-            // Replace with your actual keystore information
-            keyAlias = "key0"
-            keyPassword = ""
-            storeFile = file("C:/Users/matth/Dropbox/Keystore/mkrupczak3.jks")
-            storePassword = ""
-        }
-    }
-    */
 
     buildTypes {
         release {

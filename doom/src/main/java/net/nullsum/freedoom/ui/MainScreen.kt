@@ -45,6 +45,7 @@ import net.nullsum.freedoom.ui.editor.MapEditorState
 import net.nullsum.freedoom.ui.launch.LaunchScreen
 import net.nullsum.freedoom.ui.launch.LaunchState
 import net.nullsum.freedoom.ui.options.OptionsScreen
+import net.nullsum.freedoom.ui.settings.AboutScreen
 import net.nullsum.freedoom.ui.settings.SettingsScreen
 
 private object Routes {
@@ -54,6 +55,7 @@ private object Routes {
     const val SETTINGS = "settings"
     const val SETTINGS_GAMEPAD = "settings/gamepad"
     const val SETTINGS_OPTIONS = "settings/options"
+    const val SETTINGS_ABOUT = "settings/about"
 }
 
 private data class BottomDestination(
@@ -166,6 +168,7 @@ fun MainScreen(
                 SettingsScreen(
                     onOpenGamepad = { navController.navigate(Routes.SETTINGS_GAMEPAD) },
                     onOpenOptions = { navController.navigate(Routes.SETTINGS_OPTIONS) },
+                    onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -187,6 +190,18 @@ fun MainScreen(
                     onBack = { navController.popBackStack() },
                 ) { padding ->
                     OptionsScreen(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                    )
+                }
+            }
+            composable(Routes.SETTINGS_ABOUT) {
+                SubPage(
+                    title = stringResource(R.string.about_tab),
+                    onBack = { navController.popBackStack() },
+                ) { padding ->
+                    AboutScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),

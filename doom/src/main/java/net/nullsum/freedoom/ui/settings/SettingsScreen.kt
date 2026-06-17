@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +29,7 @@ import net.nullsum.freedoom.ui.DoomIcons
 fun SettingsScreen(
     onOpenGamepad: () -> Unit,
     onOpenOptions: () -> Unit,
+    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -45,6 +47,12 @@ fun SettingsScreen(
             icon = Icons.Filled.Settings,
             title = stringResource(R.string.options_tab),
             onClick = onOpenOptions,
+        )
+        HorizontalDivider()
+        SettingsRow(
+            icon = Icons.Filled.Info,
+            title = stringResource(R.string.about_tab),
+            onClick = onOpenAbout,
         )
         HorizontalDivider()
     }
