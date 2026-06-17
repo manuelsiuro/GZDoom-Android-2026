@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import java.io.File
@@ -45,7 +48,13 @@ import net.nullsum.freedoom.R
 import net.nullsum.freedoom.ui.DoomIcons
 import net.nullsum.freedoom.ui.theme.monospaceBody
 
-private data class FsEntry(val name: String, val isDir: Boolean, val relPath: String)
+private data class FsEntry(
+    val name: String,
+    val isDir: Boolean,
+    val relPath: String,
+    val verdict: Verdict,
+    val badge: String,
+)
 
 // Same add-on extensions as the legacy ModSelectDialog, plus .bex (it was accepted by
 // getResult() but never listed — a legacy bug).
@@ -60,15 +69,25 @@ private val MOD_EXTENSIONS = listOf(".wad", ".pk3", ".pk7", ".deh", ".bex")
 fun ModPickerSheet(
     baseDir: String,
     initialSelection: List<ModEntry>,
+    selectedGame: WadEntry?,
     onDismiss: () -> Unit,
     onConfirm: (List<ModEntry>) -> Unit,
 ) {
+    val iwad = remember(selectedGame) { selectedGame?.let { iwadProfile(it.file) } }
     var currentDir by remember { mutableStateOf("wads") }
     var entries by remember { mutableStateOf<List<FsEntry>>(emptyList()) }
+    var onlyCompatible by remember { mutableStateOf(false) }
     val selected = remember { mutableStateOf(initialSelection) }
 
-    LaunchedEffect(currentDir) {
-        entries = withContext(Dispatchers.IO) { listDir(baseDir, currentDir) }
+    LaunchedEffect(currentDir, iwad) {
+        entries = withContext(Dispatchers.IO) { listDir(baseDir, currentDir, iwad) }
+    }
+
+    // Hide cross-game (INCOMPATIBLE) entries only; folders, compatible, soft and unknown stay.
+    val visible = if (onlyCompatible) {
+        entries.filter { it.isDir || it.verdict != Verdict.INCOMPATIBLE }
+    } else {
+        entries
     }
 
     fun toggle(relPath: String) {
@@ -124,11 +143,19 @@ fun ModPickerSheet(
                         contentDescription = stringResource(R.string.up_one_level),
                     )
                 }
-                Text("/$currentDir", style = monospaceBody())
+                Text("/$currentDir", Modifier.weight(1f), style = monospaceBody())
+                // Compatibility filtering needs a selected game to compare against.
+                if (iwad != null) {
+                    FilterChip(
+                        selected = onlyCompatible,
+                        onClick = { onlyCompatible = !onlyCompatible },
+                        label = { Text(stringResource(R.string.only_compatible_filter)) },
+                    )
+                }
             }
 
             LazyColumn(Modifier.weight(1f)) {
-                if (entries.isEmpty()) {
+                if (visible.isEmpty()) {
                     item {
                         Text(
                             stringResource(R.string.mod_picker_empty, "$baseDir/$currentDir"),
@@ -138,15 +165,17 @@ fun ModPickerSheet(
                         )
                     }
                 }
-                items(entries, key = { it.relPath }) { entry ->
+                items(visible, key = { it.relPath }) { entry ->
                     val isChecked = selected.value.any { it.relPath == entry.relPath }
+                    val dim = entry.verdict == Verdict.INCOMPATIBLE
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
                                 if (entry.isDir) currentDir = entry.relPath else toggle(entry.relPath)
                             }
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 4.dp)
+                            .alpha(if (dim) 0.55f else 1f),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (entry.isDir) {
@@ -159,7 +188,16 @@ fun ModPickerSheet(
                             Spacer(Modifier.size(24.dp))
                         }
                         Spacer(Modifier.size(16.dp))
-                        Text(entry.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                        Column(Modifier.weight(1f)) {
+                            Text(entry.name, style = MaterialTheme.typography.bodyLarge)
+                            if (entry.badge.isNotEmpty()) {
+                                Text(
+                                    entry.badge,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = verdictColor(entry.verdict),
+                                )
+                            }
+                        }
                         Checkbox(
                             checked = isChecked,
                             onCheckedChange = { toggle(entry.relPath) },
@@ -195,14 +233,51 @@ fun ModPickerSheet(
     }
 }
 
-private fun listDir(baseDir: String, dir: String): List<FsEntry> =
+private fun listDir(baseDir: String, dir: String, iwad: IwadProfile?): List<FsEntry> =
     File("$baseDir/$dir").listFiles().orEmpty()
         .mapNotNull { f ->
-            when {
-                f.isDirectory -> FsEntry(f.name, true, "$dir/${f.name}")
-                MOD_EXTENSIONS.any { f.name.lowercase().endsWith(it) } ->
-                    FsEntry(f.name, false, "$dir/${f.name}")
-                else -> null
-            }
+            val isDir = f.isDirectory
+            if (!isDir && MOD_EXTENSIONS.none { f.name.lowercase().endsWith(it) }) return@mapNotNull null
+            val info = detectAddon(f)
+            val v = iwad?.let { verdict(it, info) } ?: Verdict.UNKNOWN
+            FsEntry(f.name, isDir, "$dir/${f.name}", v, badgeText(info))
         }
-        .sortedWith(compareByDescending<FsEntry> { it.isDir }.thenBy { it.name.lowercase() })
+        // Folders first (navigation), then most-compatible first, then by name.
+        .sortedWith(
+            compareByDescending<FsEntry> { it.isDir }
+                .thenBy { verdictRank(it.verdict) }
+                .thenBy { it.name.lowercase() },
+        )
+
+private fun verdictRank(v: Verdict): Int = when (v) {
+    Verdict.COMPATIBLE -> 0
+    Verdict.MINOR -> 1
+    Verdict.UNKNOWN -> 2
+    Verdict.INCOMPATIBLE -> 3
+}
+
+/** Short human descriptor, e.g. "Doom · MAPxx" or "Heretic"; empty when the family is unknown. */
+private fun badgeText(info: AddonInfo): String {
+    val family = when (info.family) {
+        GameFamily.DOOM -> "Doom"
+        GameFamily.HERETIC -> "Heretic"
+        GameFamily.HEXEN -> "Hexen"
+        GameFamily.STRIFE -> "Strife"
+        GameFamily.CHEX -> "Chex"
+        GameFamily.UNKNOWN -> return ""
+    }
+    val slot = when (info.slot) {
+        MapSlot.EPISODIC -> "ExMy"
+        MapSlot.MAPXX -> "MAPxx"
+        MapSlot.BOTH -> "ExMy+MAPxx"
+        MapSlot.NONE -> ""
+    }
+    return if (slot.isEmpty()) family else "$family · $slot"
+}
+
+@Composable
+private fun verdictColor(v: Verdict): Color = when (v) {
+    Verdict.COMPATIBLE -> MaterialTheme.colorScheme.tertiary
+    Verdict.INCOMPATIBLE -> MaterialTheme.colorScheme.error
+    Verdict.MINOR, Verdict.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+}

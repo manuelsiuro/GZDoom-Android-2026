@@ -2,6 +2,7 @@ package net.nullsum.freedoom.ui.launch
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -48,13 +49,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 import kotlinx.coroutines.launch
 import net.nullsum.freedoom.R
 import net.nullsum.freedoom.ui.DoomIcons
 import net.nullsum.freedoom.ui.theme.monospaceBody
+
+// Below this width we stack into a single column with a pinned launch bar (portrait phones);
+// at or above it we use the side-by-side two-pane layout (landscape / tablets).
+private val WIDE_BREAKPOINT = 600.dp
 
 @Composable
 fun LaunchScreen(
@@ -78,31 +82,23 @@ fun LaunchScreen(
         return
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .imePadding(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        GameListPane(
-            state = state,
-            onRefresh = { scope.launch { state.refreshGames() } },
-            onOpenOptions = onOpenOptions,
-            modifier = Modifier.weight(0.55f),
-        )
-        LaunchPane(
-            state = state,
-            onAddMods = { showModPicker = true },
-            onLaunch = { scope.launch { state.launchGame() } },
-            modifier = Modifier.weight(0.45f),
-        )
+    val onRefresh = { scope.launch { state.refreshGames() }; Unit }
+    val onLaunch = { scope.launch { state.launchGame() }; Unit }
+    val onAddMods = { showModPicker = true }
+
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        if (maxWidth >= WIDE_BREAKPOINT) {
+            WideLayout(state, onAddMods, onLaunch, onRefresh, onOpenOptions)
+        } else {
+            CompactLayout(state, onAddMods, onLaunch, onRefresh, onOpenOptions)
+        }
     }
 
     if (showModPicker) {
         ModPickerSheet(
             baseDir = state.baseDir,
             initialSelection = state.selectedMods.toList(),
+            selectedGame = state.selectedGame,
             onDismiss = { showModPicker = false },
             onConfirm = { mods ->
                 state.selectedMods.clear()
@@ -112,42 +108,116 @@ fun LaunchScreen(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Layouts
+// ---------------------------------------------------------------------------
+
 @Composable
-private fun GameListPane(
+private fun WideLayout(
     state: LaunchState,
+    onAddMods: () -> Unit,
+    onLaunch: () -> Unit,
     onRefresh: () -> Unit,
     onOpenOptions: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Column(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(R.string.select_game_header),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.tertiary,
-            )
-            Spacer(Modifier.weight(1f))
-            TextButton(
-                onClick = { state.clearSelection() },
-                enabled = state.selectedGame != null || state.selectedMods.isNotEmpty(),
-            ) {
-                Text(stringResource(R.string.reset_button_text))
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .imePadding(),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        Column(Modifier.weight(0.5f)) {
+            GameListHeader(state)
+            Spacer(Modifier.height(4.dp))
+            if (state.games.isEmpty()) {
+                EmptyGamesState(state.baseDir, onRefresh, onOpenOptions)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(state.games, key = { it.file }) { game ->
+                        GameCard(game, game == state.selectedGame) { state.selectGame(game) }
+                    }
+                }
             }
         }
+        LaunchPane(
+            state = state,
+            onAddMods = onAddMods,
+            onLaunch = onLaunch,
+            modifier = Modifier.weight(0.5f),
+        )
+    }
+}
+
+@Composable
+private fun CompactLayout(
+    state: LaunchState,
+    onAddMods: () -> Unit,
+    onLaunch: () -> Unit,
+    onRefresh: () -> Unit,
+    onOpenOptions: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .imePadding(),
+    ) {
+        GameListHeader(state)
         Spacer(Modifier.height(4.dp))
 
         if (state.games.isEmpty()) {
-            EmptyGamesState(state.baseDir, onRefresh, onOpenOptions)
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.games, key = { it.file }) { game ->
-                    GameCard(
-                        game = game,
-                        selected = game == state.selectedGame,
-                        onClick = { state.selectGame(game) },
-                    )
-                }
+            Box(Modifier.weight(1f)) {
+                EmptyGamesState(state.baseDir, onRefresh, onOpenOptions)
             }
+            return@Column
+        }
+
+        // One scroll container for cards + the launch panel; PLAY is pinned below it.
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(state.games, key = { it.file }) { game ->
+                GameCard(game, game == state.selectedGame) { state.selectGame(game) }
+            }
+            item {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    state.selectedGame?.file ?: stringResource(R.string.select_game_to_launch),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = if (state.selectedGame != null) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                AddonsSection(state, onAddMods)
+                Spacer(Modifier.height(16.dp))
+                ExtraArgsField(state)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        LaunchButton(state, onLaunch)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared pieces
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun GameListHeader(state: LaunchState) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.select_game_header),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.tertiary,
+        )
+        Spacer(Modifier.weight(1f))
+        TextButton(
+            onClick = { state.clearSelection() },
+            enabled = state.selectedGame != null || state.selectedMods.isNotEmpty(),
+        ) {
+            Text(stringResource(R.string.reset_button_text))
         }
     }
 }
@@ -233,7 +303,6 @@ private fun EmptyGamesState(baseDir: String, onRefresh: () -> Unit, onOpenOption
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LaunchPane(
     state: LaunchState,
@@ -254,69 +323,78 @@ private fun LaunchPane(
                 else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(20.dp))
-
-            Text(
-                stringResource(R.string.addons_header),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.tertiary,
-            )
-            Spacer(Modifier.height(8.dp))
-            if (state.selectedMods.isEmpty()) {
-                Text(
-                    stringResource(R.string.no_mods_selected),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.selectedMods.forEach { mod ->
-                        InputChip(
-                            selected = true,
-                            onClick = { state.selectedMods.remove(mod) },
-                            label = { Text(mod.name) },
-                            leadingIcon = if (mod.isFolder) {
-                                { Icon(DoomIcons.Folder, contentDescription = null, Modifier.size(18.dp)) }
-                            } else null,
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.remove_mod),
-                                    Modifier.size(18.dp),
-                                )
-                            },
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onAddMods) {
-                Text(stringResource(R.string.add_mods_button))
-            }
+            AddonsSection(state, onAddMods)
             Spacer(Modifier.height(20.dp))
-
             ExtraArgsField(state)
         }
 
         Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = onLaunch,
-            enabled = state.selectedGame != null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-        ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null)
-            Spacer(Modifier.size(8.dp))
-            Text(stringResource(R.string.start_full), style = MaterialTheme.typography.titleMedium)
+        LaunchButton(state, onLaunch)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
+    Text(
+        stringResource(R.string.addons_header),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.tertiary,
+    )
+    Spacer(Modifier.height(8.dp))
+    if (state.selectedMods.isEmpty()) {
+        Text(
+            stringResource(R.string.no_mods_selected),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.selectedMods.forEach { mod ->
+                InputChip(
+                    selected = true,
+                    onClick = { state.selectedMods.remove(mod) },
+                    label = { Text(mod.name) },
+                    leadingIcon = if (mod.isFolder) {
+                        { Icon(DoomIcons.Folder, contentDescription = null, Modifier.size(18.dp)) }
+                    } else null,
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.remove_mod),
+                            Modifier.size(18.dp),
+                        )
+                    },
+                )
+            }
         }
-        if (state.selectedGame == null) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.launch_disabled_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(onClick = onAddMods) {
+        Text(stringResource(R.string.add_mods_button))
+    }
+}
+
+@Composable
+private fun LaunchButton(state: LaunchState, onLaunch: () -> Unit) {
+    Button(
+        onClick = onLaunch,
+        enabled = state.selectedGame != null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+    ) {
+        Icon(Icons.Default.PlayArrow, contentDescription = null)
+        Spacer(Modifier.size(8.dp))
+        Text(stringResource(R.string.start_full), style = MaterialTheme.typography.titleMedium)
+    }
+    if (state.selectedGame == null) {
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.launch_disabled_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -329,7 +407,7 @@ private fun ExtraArgsField(state: LaunchState) {
         onValueChange = { state.extraArgs = it },
         modifier = Modifier.fillMaxWidth(),
         label = { Text(stringResource(R.string.extra_args_label)) },
-        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+        textStyle = monospaceBody(),
         singleLine = true,
         trailingIcon = {
             Row {
