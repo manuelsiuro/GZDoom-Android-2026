@@ -68,6 +68,10 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                     var thinging = false
                     var thingHadHit = false
                     var thingFinalCell: IntOffset? = null
+                    // Prefab tool: like Thing, the stamp is deferred to release; the hovered cell
+                    // drives the canvas footprint preview during the press.
+                    var prefabbing = false
+                    var prefabFinalCell: IntOffset? = null
                     // The initial down is acted on lazily, on the first follow-up event, so we
                     // can still tell a tap/drag (1 finger) from a pinch (2 fingers) and avoid a
                     // stray dot when the user starts a two-finger zoom. `seeded` guards it.
@@ -103,6 +107,11 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                     }
                                 }
                             }
+                            EditorTool.Prefabs -> {
+                                prefabbing = true
+                                prefabFinalCell = cell
+                                state.prefabHover = cell
+                            }
                             else -> { // Brush / Eraser
                                 state.beginStroke()
                                 painting = true
@@ -121,6 +130,8 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                             if (painting) { state.endStroke(); painting = false }
                             if (shaping) { state.cancelShape(); shaping = false }
                             thinging = false
+                            prefabbing = false
+                            state.prefabHover = null
                             seeded = true
                             transforming = true
                             applyTransform(
@@ -165,6 +176,11 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                     ?.let { thingFinalCell = it }
                                 change.consume()
                             }
+                            tool == EditorTool.Prefabs -> {
+                                screenToCell(state, change.position, size.width, size.height)
+                                    ?.let { prefabFinalCell = it; state.prefabHover = it }
+                                change.consume()
+                            }
                             else -> { // Brush / Eraser: paint each dragged-over cell
                                 screenToCell(state, change.position, size.width, size.height)
                                     ?.let { state.paintAt(it.x, it.y) }
@@ -182,6 +198,10 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
                                 tool == EditorTool.Thing -> state.placeThingAt(end.x, end.y)
                             }
                         }
+                    }
+                    if (prefabbing) {
+                        prefabFinalCell?.let { state.stampPrefabAt(it.x, it.y) }
+                        state.prefabHover = null
                     }
                 }
             },
@@ -204,6 +224,7 @@ fun MapCanvas(state: MapEditorState, modifier: Modifier = Modifier) {
             @Suppress("UNUSED_EXPRESSION") state.shapePreview
             @Suppress("UNUSED_EXPRESSION") state.selectedThingIndex
             @Suppress("UNUSED_EXPRESSION") state.activeTool
+            @Suppress("UNUSED_EXPRESSION") state.prefabHover
             drawGrid(state, size)
             drawThings(state, size)
         }
@@ -251,6 +272,26 @@ private fun DrawScope.drawGrid(state: MapEditorState, size: Size) {
             val cx = idx % gw
             val cy = idx / gw
             drawRect(color, Offset(cx * cell, cy * cell), Size(cell, cell))
+        }
+    }
+
+    // Translucent footprint of the armed prefab under the finger while stamping.
+    if (state.activeTool == EditorTool.Prefabs) {
+        val hover = state.prefabHover
+        val p = state.armedPrefab
+        if (hover != null && p != null) {
+            val ox = hover.x - p.width / 2
+            val oy = hover.y - p.height / 2
+            for (sy in 0 until p.height) {
+                for (sx in 0 until p.width) {
+                    val dx = ox + sx
+                    val dy = oy + sy
+                    if (dx in 0 until gw && dy in 0 until gh) {
+                        val tile = TileType.fromOrdinal(p.cells[sy * p.width + sx])
+                        drawRect(tile.composeColor.copy(alpha = 0.6f), Offset(dx * cell, dy * cell), Size(cell, cell))
+                    }
+                }
+            }
         }
     }
 }

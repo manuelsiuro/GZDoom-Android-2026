@@ -236,6 +236,10 @@
     <string name="editor_tool_pan">Pan</string>
     <string name="editor_tool_thing">Things</string>
     <string name="editor_tool_select">Select</string>
+    <string name="editor_tool_prefabs">Prefabs</string>
+    <string name="editor_prefab_rotate_left">Rotate ↺</string>
+    <string name="editor_prefab_rotate_right">Rotate ↻</string>
+    <string name="editor_prefab_mirror">Mirror</string>
     <string name="editor_textures_menu">Textures…</string>
     <string name="editor_manual_things">Manual things only</string>
     <string name="editor_manual_things_help">Place every monster and item by hand; the random scatter is turned off (the Start tile still spawns the player).</string>

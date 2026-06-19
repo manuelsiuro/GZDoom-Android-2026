@@ -22,12 +22,16 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +45,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -248,7 +253,7 @@ fun MapEditorScreen(state: MapEditorState, modifier: Modifier = Modifier) {
     if (showTuning) TuningSheet(state) { showTuning = false }
     if (showProjects) ProjectsSheet(state, onMessage = ::toast) { showProjects = false }
     if (showReplace) ReplaceTileDialog(state) { showReplace = false }
-    if (showTemplates) TemplatesDialog(state) { showTemplates = false }
+    if (showTemplates) TemplatesSheet(state) { showTemplates = false }
     if (showRename) RenameDialog(state) { showRename = false }
     if (showTextures) TextureBrowserSheet(state, textureCache) { showTextures = false }
     testWarnings?.let { warnings ->
@@ -287,12 +292,19 @@ private fun PortraitBody(state: MapEditorState, textureCache: TextureCache) {
         EditorToolRail(state)
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             CanvasArea(state, modifier = Modifier.weight(1f).fillMaxWidth())
-            if (state.activeTool == EditorTool.Thing || state.activeTool == EditorTool.Select) {
-                ThingInspector(state)
-                ThingPaletteStrip(state, textureCache)
-            } else {
-                ModifiersBar(state)
-                TilePaletteStrip(state)
+            when (state.activeTool) {
+                EditorTool.Thing, EditorTool.Select -> {
+                    ThingInspector(state)
+                    ThingPaletteStrip(state, textureCache)
+                }
+                EditorTool.Prefabs -> {
+                    PrefabControlsBar(state)
+                    PrefabPaletteStrip(state)
+                }
+                else -> {
+                    ModifiersBar(state)
+                    TilePaletteStrip(state)
+                }
             }
         }
     }
@@ -312,12 +324,19 @@ private fun LandscapeBody(state: MapEditorState, textureCache: TextureCache) {
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (state.activeTool == EditorTool.Thing || state.activeTool == EditorTool.Select) {
-                ThingInspector(state)
-                ThingPaletteStrip(state, textureCache)
-            } else {
-                ModifiersBar(state, wrap = true)
-                TilePaletteStrip(state, wrap = true)
+            when (state.activeTool) {
+                EditorTool.Thing, EditorTool.Select -> {
+                    ThingInspector(state)
+                    ThingPaletteStrip(state, textureCache)
+                }
+                EditorTool.Prefabs -> {
+                    PrefabControlsBar(state, wrap = true)
+                    PrefabPaletteStrip(state)
+                }
+                else -> {
+                    ModifiersBar(state, wrap = true)
+                    TilePaletteStrip(state, wrap = true)
+                }
             }
         }
     }
@@ -398,6 +417,7 @@ private val TOOL_SPECS: List<Triple<EditorTool, ImageVector, Int>> = listOf(
     Triple(EditorTool.Pan, DoomIcons.Pan, R.string.editor_tool_pan),
     Triple(EditorTool.Thing, Icons.Filled.Place, R.string.editor_tool_thing),
     Triple(EditorTool.Select, Icons.Filled.Edit, R.string.editor_tool_select),
+    Triple(EditorTool.Prefabs, DoomIcons.Extension, R.string.editor_tool_prefabs),
 )
 
 /**
@@ -541,6 +561,102 @@ private fun TilePaletteStrip(state: MapEditorState, wrap: Boolean = false) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(TileType.entries.toList()) { swatch(it) }
+        }
+    }
+}
+
+// --------------------------------------------------------------------------- prefab palette
+
+/** Rotate/mirror controls + the armed prefab's name, shown while the Prefabs tool is active. */
+@Composable
+private fun PrefabControlsBar(state: MapEditorState, wrap: Boolean = false) {
+    val content: @Composable () -> Unit = {
+        AssistChip(
+            onClick = { state.rotatePrefab(-1) },
+            label = { Text(stringResource(R.string.editor_prefab_rotate_left)) },
+        )
+        AssistChip(
+            onClick = { state.rotatePrefab(1) },
+            label = { Text(stringResource(R.string.editor_prefab_rotate_right)) },
+        )
+        FilterChip(
+            selected = state.prefabMirror,
+            onClick = { state.toggleMirrorPrefab() },
+            label = { Text(stringResource(R.string.editor_prefab_mirror)) },
+        )
+        state.selectedPrefab?.let {
+            Text(
+                it.name,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+    if (wrap) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) { content() }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) { content() }
+    }
+}
+
+/** Category chips + a row of stampable prefab thumbnails; tapping one arms it for the canvas. */
+@Composable
+private fun PrefabPaletteStrip(state: MapEditorState) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            items(PrefabCategory.entries.toList()) { cat ->
+                FilterChip(
+                    selected = state.prefabCategory == cat,
+                    onClick = { state.prefabCategory = cat },
+                    label = { Text(cat.displayName) },
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        val prefabs = MapPrefabs.byCategory[state.prefabCategory].orEmpty()
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(prefabs, key = { it.name }) { p ->
+                val selected = state.selectedPrefab?.name == p.name
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(60.dp).clickable { state.selectPrefab(p) }.padding(2.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .border(
+                                width = if (selected) 3.dp else 1.dp,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                shape = RoundedCornerShape(6.dp),
+                            )
+                            .padding(2.dp),
+                    ) {
+                        MapThumb(key = p.name, size = 44.dp) { MapDoc(p.width, p.height, p.cells, state.theme) }
+                    }
+                    Text(
+                        p.name,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
     }
 }
@@ -1112,32 +1228,57 @@ private fun TileSwatchRow(selected: TileType, onPick: (TileType) -> Unit) {
 // ----------------------------------------------------------------------- templates dialog
 
 @Composable
-private fun TemplatesDialog(state: MapEditorState, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.editor_new_from_template_title)) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text(stringResource(R.string.editor_template_help), style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                MapTemplates.all.forEach { tpl ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { state.addMapFromDoc(tpl.build()); onDismiss() }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        MapThumb(key = tpl.name, size = 44.dp) { tpl.build() }
-                        Text(tpl.name)
-                    }
-                    HorizontalDivider()
+private fun TemplatesSheet(state: MapEditorState, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var category by remember { mutableStateOf(TemplateCategory.Starter) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Text(stringResource(R.string.editor_new_from_template_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.editor_template_help), style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                TemplateCategory.entries.forEach { c ->
+                    FilterChip(
+                        selected = category == c,
+                        onClick = { category = c },
+                        label = { Text(c.displayName) },
+                    )
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_close)) } },
-    )
+            Spacer(Modifier.height(8.dp))
+            val templates = MapTemplates.byCategory[category].orEmpty()
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(104.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                gridItems(templates, key = { it.name }) { tpl ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { state.addMapFromDoc(tpl.build()); onDismiss() }
+                            .padding(4.dp),
+                    ) {
+                        MapThumb(key = tpl.name, size = 92.dp) { tpl.build() }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            tpl.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_close)) }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
 }
 
 // ---------------------------------------------------------------------- validation dialog

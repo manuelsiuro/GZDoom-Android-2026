@@ -180,4 +180,70 @@ object MapGridOps {
         for (i in out.indices) if (out[i] == fromOrdinal) out[i] = toOrdinal
         return out
     }
+
+    /**
+     * Stamps [src] (a [srcW]×[srcH] tile-ordinal grid) onto a copy of [dst] with its top-left
+     * corner at ([originX],[originY]), overwriting every covered cell and clipping anything that
+     * falls outside the [dstW]×[dstH] destination. Returns the new array (the prefab "paste").
+     */
+    fun blitCells(
+        dst: IntArray,
+        dstW: Int,
+        dstH: Int,
+        src: IntArray,
+        srcW: Int,
+        srcH: Int,
+        originX: Int,
+        originY: Int,
+    ): IntArray {
+        val out = dst.copyOf()
+        for (sy in 0 until srcH) {
+            val dy = originY + sy
+            if (dy !in 0 until dstH) continue
+            for (sx in 0 until srcW) {
+                val dx = originX + sx
+                if (dx !in 0 until dstW) continue
+                out[dy * dstW + dx] = src[sy * srcW + sx]
+            }
+        }
+        return out
+    }
+
+    /**
+     * Returns [cells] rotated clockwise by [quarterTurns]×90°. For an odd number of turns the
+     * result's dimensions are swapped (a [w]×[h] grid becomes h×w), so callers must swap
+     * width/height to match. [quarterTurns] is normalised, so negative and >3 values are fine.
+     */
+    fun rotateCells(cells: IntArray, w: Int, h: Int, quarterTurns: Int): IntArray {
+        val turns = ((quarterTurns % 4) + 4) % 4
+        var cur = cells.copyOf()
+        var curW = w
+        var curH = h
+        repeat(turns) {
+            val newW = curH
+            val newH = curW
+            val out = IntArray(newW * newH)
+            for (y in 0 until curH) {
+                for (x in 0 until curW) {
+                    // Clockwise: src (x,y) → dst (curH-1-y, x).
+                    out[x * newW + (curH - 1 - y)] = cur[y * curW + x]
+                }
+            }
+            cur = out
+            curW = newW
+            curH = newH
+        }
+        return cur
+    }
+
+    /** Returns [cells] mirrored left↔right (a [w]×[h] grid); dimensions are unchanged. */
+    fun mirrorCells(cells: IntArray, w: Int, h: Int): IntArray {
+        val out = IntArray(w * h)
+        for (y in 0 until h) {
+            for (x in 0 until w) {
+                out[y * w + x] = cells[y * w + (w - 1 - x)]
+            }
+        }
+        return out
+    }
 }

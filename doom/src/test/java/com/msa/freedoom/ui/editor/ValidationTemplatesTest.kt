@@ -36,14 +36,24 @@ class ValidationTemplatesTest {
 
     @Test
     fun templates_allBuildPlayableMaps() {
-        assertEquals(5, MapTemplates.all.size)
+        assertTrue("expected a richer library", MapTemplates.all.size >= 12)
         for (tpl in MapTemplates.all) {
             val doc = tpl.build()
-            assertEquals("${tpl.name} width", 24, doc.width)
-            assertEquals("${tpl.name} height", 24, doc.height)
-            assertEquals("${tpl.name} tile count", 24 * 24, doc.tiles.size)
-            assertTrue("${tpl.name} has a Start", doc.tiles.any { it == TileType.Start.ordinal })
-            assertTrue("${tpl.name} has an Exit", doc.tiles.any { it == TileType.Exit.ordinal })
+            assertEquals("${tpl.name} tile count", doc.width * doc.height, doc.tiles.size)
+            assertTrue(
+                "${tpl.name} ordinals in range",
+                doc.tiles.all { it in 0..TileType.entries.lastIndex },
+            )
+            // Playable = no advisory warnings: has a Start, an Exit, open floor, no stranded things.
+            assertTrue(
+                "${tpl.name} should have no warnings but got ${validateMap(doc)}",
+                validateMap(doc).isEmpty(),
+            )
         }
+    }
+
+    @Test
+    fun templates_groupingCoversEverything() {
+        assertEquals(MapTemplates.all.size, MapTemplates.byCategory.values.sumOf { it.size })
     }
 }

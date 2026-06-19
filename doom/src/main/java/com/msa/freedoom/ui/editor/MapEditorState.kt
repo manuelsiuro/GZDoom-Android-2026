@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -39,9 +40,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * The active editing tool. Pan lets a one-finger drag move the view (two fingers always
  * transform). Thing places the active [ThingType] (tap empty cell), while Select only edits
  * already-placed things (tap to select, drag to move, palette to retype, inspector to delete)
- * and never drops new ones.
+ * and never drops new ones. Prefabs stamps the armed [MapPrefab] onto the map (tap a cell).
  */
-enum class EditorTool { Brush, Eraser, Bucket, Line, Rect, Eyedropper, Pan, Thing, Select }
+enum class EditorTool { Brush, Eraser, Bucket, Line, Rect, Eyedropper, Pan, Thing, Select, Prefabs }
 
 /**
  * An in-progress line/rectangle the user is dragging out. Held in state so the canvas can draw a
@@ -113,6 +114,27 @@ class MapEditorState(
     /** Bumped when a thing placement/move is rejected (cell isn't open floor); UI shows feedback. */
     var thingRejectTick by mutableIntStateOf(0)
         private set
+
+    /** The prefab the Prefabs tool stamps. Defaults to the first library entry. */
+    var selectedPrefab by mutableStateOf<MapPrefab?>(MapPrefabs.all.firstOrNull())
+        private set
+
+    /** The prefab library category currently shown (kept here so it survives tool toggles). */
+    var prefabCategory by mutableStateOf(selectedPrefab?.category ?: PrefabCategory.Rooms)
+
+    /** Clockwise rotation applied to the armed prefab, in 90° steps (0..3). */
+    var prefabRotation by mutableIntStateOf(0)
+        private set
+
+    /** Whether the armed prefab is mirrored left↔right. */
+    var prefabMirror by mutableStateOf(false)
+        private set
+
+    /** The cell under the finger while stamping, for the canvas footprint preview (null = none). */
+    var prefabHover by mutableStateOf<IntOffset?>(null)
+
+    /** The selected prefab with the current rotation/mirror applied — what actually gets stamped. */
+    val armedPrefab: MapPrefab? get() = selectedPrefab?.transformed(prefabRotation, prefabMirror)
 
     /** The line/rectangle currently being dragged out, for the canvas to preview. */
     var shapePreview by mutableStateOf<ShapePreview?>(null)
@@ -371,6 +393,49 @@ class MapEditorState(
         if (t.angle == a) return
         val things = m.things.toMutableList().apply { this[idx] = t.copy(angle = a) }
         pushUndoAndCommit(m.copy(things = things))
+    }
+
+    // ---- prefabs (stamp building blocks) ----
+
+    /** Arm a prefab for stamping (resets orientation to the as-authored layout). */
+    fun selectPrefab(prefab: MapPrefab) {
+        selectedPrefab = prefab
+        prefabRotation = 0
+        prefabMirror = false
+    }
+
+    /** Rotate the armed prefab by [dir] quarter-turns (clockwise for +1), wrapping 0..3. */
+    fun rotatePrefab(dir: Int) {
+        prefabRotation = ((prefabRotation + dir) % 4 + 4) % 4
+    }
+
+    /** Flip the armed prefab left↔right. */
+    fun toggleMirrorPrefab() {
+        prefabMirror = !prefabMirror
+    }
+
+    /**
+     * Stamp the armed prefab centred on cell ([x],[y]): its tiles overwrite the covered cells
+     * (clipped to the grid) and its things are translated onto the map, keeping any that land
+     * in-bounds on an open-floor tile. Existing things are preserved. One undo step; returns
+     * false if nothing is armed or the stamp falls entirely off-grid.
+     */
+    fun stampPrefabAt(x: Int, y: Int): Boolean {
+        val p = armedPrefab ?: return false
+        val m = currentMap
+        val ox = x - p.width / 2
+        val oy = y - p.height / 2
+        val newTiles = MapGridOps.blitCells(m.tiles, m.width, m.height, p.cells, p.width, p.height, ox, oy)
+        if (newTiles.contentEquals(m.tiles) && p.things.isEmpty()) return false
+        val stamped = m.copy(tiles = newTiles)
+        val keptThings = p.things
+            .map { it.copy(cellX = ox + it.cellX, cellY = oy + it.cellY) }
+            .filter { t ->
+                t.cellX in 0 until stamped.width && t.cellY in 0 until stamped.height &&
+                    stamped.tileAt(t.cellX, t.cellY).acceptsThing
+            }
+        pushUndoAndCommit(stamped.copy(things = m.things + keptThings))
+        return true
     }
 
     // ---- textures / manual-things toggles ----

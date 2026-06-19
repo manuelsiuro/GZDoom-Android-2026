@@ -93,4 +93,68 @@ class MapGridOpsTest {
         MapGridOps.floodFill(g, 2, 2, 0, 0, TileType.Wall)
         assertArrayEquals(IntArray(4) { R }, g)
     }
+
+    @Test
+    fun blit_fullyInBoundsOverwrites() {
+        val dst = IntArray(9) { R } // 3x3 room
+        val src = intArrayOf(W, W, W, W) // 2x2 wall
+        val out = MapGridOps.blitCells(dst, 3, 3, src, 2, 2, 0, 0)
+        val expected = intArrayOf(
+            W, W, R,
+            W, W, R,
+            R, R, R,
+        )
+        assertArrayEquals(expected, out)
+    }
+
+    @Test
+    fun blit_clipsOutsideDestination() {
+        val dst = IntArray(9) { R }
+        val src = intArrayOf(W, W, W, W) // 2x2
+        // Origin (2,2): only src(0,0) lands at dst(2,2); the rest is clipped away.
+        val out = MapGridOps.blitCells(dst, 3, 3, src, 2, 2, 2, 2)
+        assertEquals(W, out[8]) // (2,2)
+        assertEquals(R, out[0])
+        assertEquals(9, out.size)
+    }
+
+    @Test
+    fun blit_doesNotMutateInput() {
+        val dst = IntArray(4) { R }
+        MapGridOps.blitCells(dst, 2, 2, intArrayOf(W), 1, 1, 0, 0)
+        assertArrayEquals(IntArray(4) { R }, dst)
+    }
+
+    @Test
+    fun rotate_ninetyClockwiseSwapsDims() {
+        // 3 wide x 2 tall:
+        // 1 2 3
+        // 4 5 6
+        val src = intArrayOf(1, 2, 3, 4, 5, 6)
+        val out = MapGridOps.rotateCells(src, 3, 2, 1)
+        // Clockwise → 2 wide x 3 tall:
+        // 4 1
+        // 5 2
+        // 6 3
+        assertArrayEquals(intArrayOf(4, 1, 5, 2, 6, 3), out)
+    }
+
+    @Test
+    fun rotate_fourTurnsIsIdentity() {
+        // Four single CW turns (dims swap each turn) return to the original layout.
+        val src = intArrayOf(1, 2, 3, 4, 5, 6)
+        val once = MapGridOps.rotateCells(src, 3, 2, 1)
+        val twice = MapGridOps.rotateCells(once, 2, 3, 1)
+        val thrice = MapGridOps.rotateCells(twice, 3, 2, 1)
+        val back = MapGridOps.rotateCells(thrice, 2, 3, 1)
+        assertArrayEquals(src, back)
+    }
+
+    @Test
+    fun mirror_isInvolution() {
+        val src = intArrayOf(1, 2, 3, 4, 5, 6) // 3x2
+        val once = MapGridOps.mirrorCells(src, 3, 2)
+        assertArrayEquals(intArrayOf(3, 2, 1, 6, 5, 4), once)
+        assertArrayEquals(src, MapGridOps.mirrorCells(once, 3, 2))
+    }
 }
