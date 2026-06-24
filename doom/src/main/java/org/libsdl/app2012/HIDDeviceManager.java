@@ -568,7 +568,10 @@ public class HIDDeviceManager {
         if (usbDevice != null && !mUsbManager.hasPermission(usbDevice)) {
             HIDDeviceOpenPending(deviceID);
             try {
-                mUsbManager.requestPermission(usbDevice, PendingIntent.getBroadcast(mContext, 0, new Intent(HIDDeviceManager.ACTION_USB_PERMISSION), 0));
+                // Android 12+ (S) requires an explicit mutability flag on PendingIntents.
+                int pendingIntentFlags = (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                        ? PendingIntent.FLAG_IMMUTABLE : 0;
+                mUsbManager.requestPermission(usbDevice, PendingIntent.getBroadcast(mContext, 0, new Intent(HIDDeviceManager.ACTION_USB_PERMISSION), pendingIntentFlags));
             } catch (Exception e) {
                 Log.v(TAG, "Couldn't request permission for USB device " + usbDevice);
                 HIDDeviceOpenResult(deviceID, false);

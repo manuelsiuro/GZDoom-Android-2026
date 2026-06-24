@@ -116,6 +116,9 @@ class ControlInterpreter(
         }
     }
 
+    // event is kept for call-site compatibility (SDLOpenTouch/EntryActivity pass it);
+    // unbound keys now fall through to SDL, so the unicode char is no longer read here.
+    @Suppress("UNUSED_PARAMETER")
     fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         var used = false
         if (gamePadEnabled) {
@@ -130,15 +133,16 @@ class ControlInterpreter(
 
         if (used) return true
 
-        return if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            false
-        } else {
-            val uc = event?.unicodeChar ?: 0
-            quakeIf.keyPress_if(1, quakeIf.mapKey(keyCode, uc), uc)
-            true
-        }
+        // Not a bound gamepad action: don't consume it. Returning false lets
+        // SDLSurface.onKey fall through to SDL's native keyboard path
+        // (SDLActivity.onNativeKeyDown), which is how the SDL2-based engine
+        // actually reads the keyboard. The old keyPress_if/NativeLib.keypress
+        // route has no native implementation in this engine glue and crashed
+        // with UnsatisfiedLinkError on any unbound hardware key.
+        return false
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         var used = false
         if (gamePadEnabled) {
@@ -152,13 +156,9 @@ class ControlInterpreter(
 
         if (used) return true
 
-        return if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            false
-        } else {
-            val uc = event?.unicodeChar ?: 0
-            quakeIf.keyPress_if(0, quakeIf.mapKey(keyCode, uc), uc)
-            true
-        }
+        // See onKeyDown: unbound keys fall through to SDL's native keyboard path
+        // rather than the unimplemented keyPress_if/keypress native.
+        return false
     }
 
     private fun analogCalibrate(v: Float): Float {

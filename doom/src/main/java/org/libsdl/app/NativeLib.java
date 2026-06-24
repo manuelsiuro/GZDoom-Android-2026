@@ -62,7 +62,12 @@ public class NativeLib implements ControlInterface {
 
     @Override
     public void keyPress_if(int down, int qkey, int unicode) {
-        keypress(down, qkey, unicode);
+        // No-op: hardware keyboard keys are delivered to the SDL2-based engine
+        // through SDL's own native path (SDLActivity.onNativeKeyDown), reached
+        // when ControlInterpreter declines to consume an unbound key. The native
+        // `keypress` symbol below is NOT exported by this engine glue
+        // (Clibs_OpenTouch/android_jni_inc.cpp), so calling it threw
+        // UnsatisfiedLinkError and crashed the game on any unbound key press.
     }
 
     @Override
