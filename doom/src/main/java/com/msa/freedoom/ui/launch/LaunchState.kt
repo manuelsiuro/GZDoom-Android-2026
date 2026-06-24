@@ -124,6 +124,10 @@ class LaunchState(private val activity: Activity) {
                 // Autoload extras are searched via $PROGDIR (= the game dir).
                 Utils.copyAsset(activity, "lights.pk3", base)
                 Utils.copyAsset(activity, "brightmaps.pk3", base)
+                // Optional blood/particles add-on. The engine only autoloads the three
+                // hardcoded pk3 names above, so this one is inert unless we pass it with
+                // -file (done below when the toggle is on).
+                Utils.copyAsset(activity, "extras_gore.pk3", base)
                 // fluid_patchset gzdoom.sf2 resolves against the game dir; also
                 // expose it in soundfonts/ for the engine's sound-font menu.
                 Utils.copyAsset(activity, "gzdoom.sf2", base)
@@ -146,13 +150,20 @@ class LaunchState(private val activity: Activity) {
 
         AppSettings.setStringOption(activity, "last_tab", "Freedoom")
 
+        // Optional add-on: append the bundled gore/particles pk3 via -file when enabled.
+        // Composed here (not in buildLaunchArgs) so the byte-identical legacy command-line
+        // contract and its golden test stay untouched. extras_gore.pk3 ships its own
+        // CVAR defaults + options menu, so no +set cvars are forced.
+        val goreArgs = if (AppSettings.getBoolOption(activity, "enable_gore_mod", false))
+            "-file extras_gore.pk3 " else ""
+
         val intent = Intent(activity, Game::class.java).apply {
             action = Intent.ACTION_MAIN
             addCategory(Intent.CATEGORY_LAUNCHER)
             putExtra("res_div", AppSettings.getIntOption(activity, "gzdoom_res_div", 1))
             putExtra("game_path", base)
             putExtra("game", "com.msa.freedoom")
-            putExtra("args", buildLaunchArgs(game.iwadArgs, buildModArgs(selectedMods), extraArgs, base))
+            putExtra("args", buildLaunchArgs(game.iwadArgs, buildModArgs(selectedMods) + goreArgs, extraArgs, base))
         }
         activity.startActivity(intent)
     }

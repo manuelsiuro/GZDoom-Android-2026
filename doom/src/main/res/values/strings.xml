@@ -55,6 +55,8 @@
     <string name="remove_mod">Remove</string>
     <string name="up_one_level">Up one level</string>
     <string name="performance_header">Performance</string>
+    <string name="enable_gore_mod_prompt">Enhanced blood &amp; gore</string>
+    <string name="enable_gore_mod_summary">Adds procedural blood splashes, drips, pools and particles (Droplets by Josh771). Tune it in the in-game Options menu.</string>
     <string name="cancel_button">Cancel</string>
     <string name="sdcard_warning_title">Warning</string>
     <string name="sdcard_warning_message">This will use the special location on the external SD card which can be written to by this app. Android will DELETE this area when you uninstall the app and you will LOSE YOUR SAVEGAMES and game data!</string>

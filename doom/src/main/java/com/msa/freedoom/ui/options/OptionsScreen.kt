@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +24,7 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -149,6 +152,18 @@ fun OptionsScreen(modifier: Modifier = Modifier) {
                 ResolutionDividerDropdown()
             }
         }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    stringResource(R.string.addons_header),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+                Spacer(Modifier.height(12.dp))
+                GoreModToggle()
+            }
+        }
     }
 
     if (showDirPicker) {
@@ -197,6 +212,44 @@ fun OptionsScreen(modifier: Modifier = Modifier) {
                 TextButton(onClick = { errorMessage = null }) {
                     Text(stringResource(R.string.ok_confirm))
                 }
+            },
+        )
+    }
+}
+
+/**
+ * Toggles the bundled Droplets blood/particles add-on (extras_gore.pk3). When on,
+ * LaunchState appends `-file extras_gore.pk3` to the engine command line; the PK3
+ * carries its own in-game options menu and CVAR defaults.
+ */
+@Composable
+private fun GoreModToggle() {
+    val context = LocalContext.current
+    var enabled by remember {
+        mutableStateOf(AppSettings.getBoolOption(context, "enable_gore_mod", false))
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.enable_gore_mod_prompt),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                stringResource(R.string.enable_gore_mod_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = enabled,
+            onCheckedChange = {
+                enabled = it
+                AppSettings.setBoolOption(context, "enable_gore_mod", it)
             },
         )
     }
