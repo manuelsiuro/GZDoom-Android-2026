@@ -216,13 +216,18 @@ source for the engine and its dependencies is vendored under `doom/src/main/jni/
 
 See [`CLAUDE.md`](CLAUDE.md) for the architecture and full build details.
 
-### Known limitation: rendering on the Android Emulator
+### Rendering: confirmed on real hardware ✅
 
-On the Android Emulator the engine boots, plays sound, and accepts input, but the game framebuffer
-presents **black** (the native touch-control overlay and the engine's own UI windows are visible).
-This reproduces on both emulator GPU modes (SwiftShader and host-GPU translation), which both run GL
-through a translation layer; the previous engine generation had similar emulator-only artifacts that
-did not occur on real devices. Verify rendering on real hardware.
+Rendering is **verified working on a real device** (Samsung Galaxy S24 / SM-S921B, Xclipse 940 GPU
+via ANGLE-on-Vulkan, OpenGL ES 3.2): the launcher, the engine (UZDoom 5.0.0-pre boot, OpenAL + EFX
+audio), and the full **3D game world + HUD + weapon sprites + touch controls** all render correctly,
+with no crashes.
+
+**Emulator-only limitation:** on the Android Emulator the engine boots, plays sound, and accepts
+input, but the game framebuffer presents **black** (the native touch-control overlay and the engine's
+own UI windows are still visible). This reproduces on both emulator GPU modes (SwiftShader and
+host-GPU translation), which both run GL through a translation layer — it does **not** occur on real
+hardware. Investigating the emulator present path is a low-priority follow-up.
 
 ## 🧩 Third-party components
 
@@ -258,11 +263,14 @@ did not occur on real devices. Verify rendering on real hardware.
 - [x] Compose touch-control settings; saveable per-game mod profiles with explicit load order
 - [x] Light / system / Material You themes; first-run onboarding wizard
 - [x] Backup & restore (savegames + settings) via the Storage Access Framework; local play stats
+- [x] **Rendering verified on a real device** (Galaxy S24) — 3D world, HUD, audio and touch controls all working
+- [x] Fix hardware-key crash (unbound keyboard / gamepad-Enter) — keys now route through SDL's native path
 
 ### Planned 🔜
 
 - [ ] Vector map editor — open & edit existing WAD maps as vertices/linedefs/sectors
-- [ ] Verify/fix rendering on a real device, then investigate the emulator black-screen present
+- [ ] Release signing keystore + config (for Play Store upload)
+- [ ] Investigate the emulator-only black-screen present (low priority — real hardware is unaffected)
 
 ## ❓ Why Freedoom?
 
