@@ -24,8 +24,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -36,25 +38,31 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.beloko.touchcontrols.GamePadFragment
+import com.msa.freedoom.AppSettings
 import com.msa.freedoom.R
 import com.msa.freedoom.ui.browse.BrowseMode
 import com.msa.freedoom.ui.browse.BrowseScreen
 import com.msa.freedoom.ui.browse.BrowseState
+import com.msa.freedoom.ui.controls.TouchControlsScreen
 import com.msa.freedoom.ui.editor.MapEditorScreen
 import com.msa.freedoom.ui.editor.MapEditorState
 import com.msa.freedoom.ui.launch.LaunchScreen
 import com.msa.freedoom.ui.launch.LaunchState
+import com.msa.freedoom.ui.onboarding.OnboardingScreen
 import com.msa.freedoom.ui.options.OptionsScreen
 import com.msa.freedoom.ui.settings.AboutScreen
 import com.msa.freedoom.ui.settings.SettingsScreen
+import com.msa.freedoom.ui.stats.StatsScreen
 
 private object Routes {
     const val PLAY = "play"
     const val BROWSE = "browse"
     const val EDITOR = "editor"
     const val SETTINGS = "settings"
+    const val SETTINGS_TOUCH = "settings/touch"
     const val SETTINGS_GAMEPAD = "settings/gamepad"
     const val SETTINGS_OPTIONS = "settings/options"
+    const val SETTINGS_STATS = "settings/stats"
     const val SETTINGS_ABOUT = "settings/about"
 }
 
@@ -70,6 +78,22 @@ fun MainScreen(
     onDeeplinkConsumed: () -> Unit = {},
 ) {
     val activity = requireNotNull(LocalActivity.current)
+
+    // First-run wizard: shown once, before the main UI. The "browse add-ons" CTA finishes
+    // onboarding and routes straight to the Browse tab (handled via startDestination below).
+    var showOnboarding by remember {
+        mutableStateOf(!AppSettings.getBoolOption(activity, "onboarding_done", false))
+    }
+    var startOnBrowse by remember { mutableStateOf(false) }
+    if (showOnboarding) {
+        OnboardingScreen(onFinish = { browse ->
+            AppSettings.setBoolOption(activity, "onboarding_done", true)
+            startOnBrowse = browse
+            showOnboarding = false
+        })
+        return
+    }
+
     val launchState = remember { LaunchState(activity) }
     val scope = rememberCoroutineScope()
     // Hoisted here (above the NavHost) so in-flight downloads survive navigating away from
@@ -89,6 +113,20 @@ fun MainScreen(
     LaunchedEffect(currentRoute) {
         if (currentRoute == Routes.PLAY && launchState.initialized) {
             launchState.refreshGames()
+            // Close any open play session started before the engine activity launched.
+            com.msa.freedoom.ui.stats.StatsStore.finalizeSession(activity)
+        }
+    }
+
+    // Onboarding's "browse add-ons" CTA: jump to the Browse tab once, after the NavHost exists.
+    LaunchedEffect(startOnBrowse) {
+        if (startOnBrowse) {
+            navController.navigate(Routes.BROWSE) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            startOnBrowse = false
         }
     }
 
@@ -166,11 +204,29 @@ fun MainScreen(
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
+                    onOpenTouchControls = { navController.navigate(Routes.SETTINGS_TOUCH) },
                     onOpenGamepad = { navController.navigate(Routes.SETTINGS_GAMEPAD) },
                     onOpenOptions = { navController.navigate(Routes.SETTINGS_OPTIONS) },
+                    onOpenStats = { navController.navigate(Routes.SETTINGS_STATS) },
+                    onReplayOnboarding = {
+                        AppSettings.setBoolOption(activity, "onboarding_done", false)
+                        showOnboarding = true
+                    },
                     onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                     modifier = Modifier.fillMaxSize(),
                 )
+            }
+            composable(Routes.SETTINGS_TOUCH) {
+                SubPage(
+                    title = stringResource(R.string.touch_controls_tab),
+                    onBack = { navController.popBackStack() },
+                ) { padding ->
+                    TouchControlsScreen(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                    )
+                }
             }
             composable(Routes.SETTINGS_GAMEPAD) {
                 SubPage(
@@ -190,6 +246,18 @@ fun MainScreen(
                     onBack = { navController.popBackStack() },
                 ) { padding ->
                     OptionsScreen(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                    )
+                }
+            }
+            composable(Routes.SETTINGS_STATS) {
+                SubPage(
+                    title = stringResource(R.string.stats_tab),
+                    onBack = { navController.popBackStack() },
+                ) { padding ->
+                    StatsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),

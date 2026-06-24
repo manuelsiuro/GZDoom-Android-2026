@@ -16,6 +16,8 @@ import com.msa.freedoom.AppSettings
 import com.msa.freedoom.Game
 import com.msa.freedoom.R
 import com.msa.freedoom.Utils
+import com.msa.freedoom.ui.options.EngineOptions
+import com.msa.freedoom.ui.options.buildEngineCvarArgs
 
 /**
  * State holder for the launch tab. Durable state lives in [AppSettings] and the
@@ -106,6 +108,52 @@ class LaunchState(private val activity: Activity) {
         AppSettings.setStringOption(activity, "last_iwad_name", "")
     }
 
+    // --- Load order ---------------------------------------------------------
+
+    /** Moves a selected add-on by one position; load order is the command-line order. */
+    fun moveMod(index: Int, up: Boolean) {
+        val target = if (up) index - 1 else index + 1
+        if (index !in selectedMods.indices || target !in selectedMods.indices) return
+        val item = selectedMods.removeAt(index)
+        selectedMods.add(target, item)
+    }
+
+    // --- Profiles -----------------------------------------------------------
+
+    /** Saved loadouts for the currently selected IWAD (empty when no game is selected). */
+    fun profilesForCurrentGame(): List<LaunchProfile> {
+        val game = selectedGame ?: return emptyList()
+        return ProfileStore.forIwad(activity, game.file)
+    }
+
+    /** Saves the current selection (mods in order + extra args) as a named profile. */
+    fun saveProfile(name: String) {
+        val game = selectedGame ?: return
+        ProfileStore.save(
+            activity,
+            LaunchProfile(
+                name = name.trim(),
+                iwadName = game.file,
+                modRelPaths = selectedMods.map { it.relPath },
+                extraArgs = extraArgs,
+            ),
+        )
+    }
+
+    fun deleteProfile(profile: LaunchProfile) = ProfileStore.delete(activity, profile)
+
+    /** Restores a profile: selects its IWAD, then its add-ons (dropping any now-missing) and args. */
+    fun applyProfile(profile: LaunchProfile) {
+        games.find { it.file == profile.iwadName }?.let { selectGame(it) }
+        selectedMods.clear()
+        selectedMods.addAll(
+            profile.modRelPaths
+                .filter { File("$baseDir/$it").exists() }
+                .map { ModEntry(it) },
+        )
+        extraArgs = profile.extraArgs
+    }
+
     /** Ports LaunchFragmentGZdoom.startGame() — the Intent contract must stay identical. */
     suspend fun launchGame() {
         val game = selectedGame ?: return
@@ -157,13 +205,23 @@ class LaunchState(private val activity: Activity) {
         val goreArgs = if (AppSettings.getBoolOption(activity, "enable_gore_mod", false))
             "-file extras_gore.pk3 " else ""
 
+        // Optional in-launcher engine settings (FOV, gamma, crosshair, volumes…) rendered
+        // as +set/+fov args. Composed here (not in buildLaunchArgs) for the same reason as
+        // goreArgs. Placed before extraArgs so a user-typed +set on the args field still wins.
+        val engineArgs = if (AppSettings.getBoolOption(activity, EngineOptions.KEY_ENABLED, false))
+            buildEngineCvarArgs(EngineOptions.fromPrefs(activity)) else ""
+
+        // Begin a play session for the local stats screen; closed when the user returns
+        // to the launcher (see MainScreen's PLAY-route effect).
+        com.msa.freedoom.ui.stats.StatsStore.recordLaunch(activity)
+
         val intent = Intent(activity, Game::class.java).apply {
             action = Intent.ACTION_MAIN
             addCategory(Intent.CATEGORY_LAUNCHER)
             putExtra("res_div", AppSettings.getIntOption(activity, "gzdoom_res_div", 1))
             putExtra("game_path", base)
             putExtra("game", "com.msa.freedoom")
-            putExtra("args", buildLaunchArgs(game.iwadArgs, buildModArgs(selectedMods) + goreArgs, extraArgs, base))
+            putExtra("args", buildLaunchArgs(game.iwadArgs, buildModArgs(selectedMods) + goreArgs + engineArgs, extraArgs, base))
         }
         activity.startActivity(intent)
     }

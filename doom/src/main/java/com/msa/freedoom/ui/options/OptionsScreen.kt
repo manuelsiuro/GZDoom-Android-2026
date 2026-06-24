@@ -45,6 +45,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.msa.freedoom.AppSettings
 import com.msa.freedoom.R
+import com.msa.freedoom.ui.backup.BackupCard
+import com.msa.freedoom.ui.theme.ThemeController
+import com.msa.freedoom.ui.theme.ThemeMode
 import com.msa.freedoom.ui.theme.monospaceBody
 
 /** Result of validating a candidate base directory (ports OptionsFragment.updateBaseDir). */
@@ -153,6 +156,20 @@ fun OptionsScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        EngineOptionsCard()
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    stringResource(R.string.appearance_header),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+                Spacer(Modifier.height(12.dp))
+                ThemeModeDropdown()
+            }
+        }
+
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text(
@@ -164,6 +181,8 @@ fun OptionsScreen(modifier: Modifier = Modifier) {
                 GoreModToggle()
             }
         }
+
+        BackupCard()
     }
 
     if (showDirPicker) {
@@ -252,6 +271,56 @@ private fun GoreModToggle() {
                 AppSettings.setBoolOption(context, "enable_gore_mod", it)
             },
         )
+    }
+}
+
+/**
+ * Theme picker. Writes through [ThemeController] so the whole app re-themes live.
+ * Material You (dynamic colour) is only offered on Android 12+, where it's available.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeModeDropdown() {
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+    val dynamicSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    val modes = remember(dynamicSupported) {
+        ThemeMode.entries.filter { it != ThemeMode.DYNAMIC || dynamicSupported }
+    }
+
+    fun label(mode: ThemeMode): String = context.getString(
+        when (mode) {
+            ThemeMode.DARK -> R.string.theme_mode_dark
+            ThemeMode.LIGHT -> R.string.theme_mode_light
+            ThemeMode.SYSTEM -> R.string.theme_mode_system
+            ThemeMode.DYNAMIC -> R.string.theme_mode_dynamic
+        }
+    )
+
+    Text(stringResource(R.string.theme_mode_prompt), style = MaterialTheme.typography.bodyMedium)
+    Spacer(Modifier.height(8.dp))
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = label(ThemeController.mode),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            modes.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(label(mode)) },
+                    onClick = {
+                        expanded = false
+                        ThemeController.set(context, mode)
+                    },
+                )
+            }
+        }
     }
 }
 

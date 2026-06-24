@@ -11,6 +11,8 @@ val EXCLUDED_IWAD_FILES = setOf(
     "lights_dt.pk3", "brightmaps_dt.pk3", "lights.pk3", "brightmaps.pk3",
     // Extra engine pk3s bundled with the UZDoom 5.0 stack — not selectable IWADs.
     "game_widescreen_gfx.pk3", "uzdoom.pk3", "uzdoom_game_support.pk3",
+    // Optional bundled add-on (Droplets blood/particles); loaded via the gore toggle, not as an IWAD.
+    "extras_gore.pk3",
 )
 
 /**

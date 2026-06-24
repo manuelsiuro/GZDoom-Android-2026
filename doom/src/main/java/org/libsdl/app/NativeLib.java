@@ -5,7 +5,7 @@ import android.view.KeyEvent;
 import com.beloko.touchcontrols.ControlInterface;
 
 /**
- * JNI seam to the GZDoom 4.15 engine glue (Clibs_OpenTouch
+ * JNI seam to the UZDoom 5.0 engine glue (Clibs_OpenTouch
  * android_jni_inc.cpp, JAVA_FUNC = Java_org_libsdl_app_NativeLib_*).
  *
  * The native methods mirror emileb's AndroidCore NativeLib; the

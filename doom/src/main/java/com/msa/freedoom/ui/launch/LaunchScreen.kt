@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -209,6 +211,7 @@ private fun CompactLayout(
                 AddonsSection(state, onAddMods)
                 Spacer(Modifier.height(16.dp))
                 ExtraArgsField(state)
+                ProfilesSection(state)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -345,6 +348,7 @@ private fun LaunchPane(
             AddonsSection(state, onAddMods)
             Spacer(Modifier.height(20.dp))
             ExtraArgsField(state)
+            ProfilesSection(state)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -352,10 +356,8 @@ private fun LaunchPane(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
-    val haptics = LocalHapticFeedback.current
     Text(
         stringResource(R.string.addons_header),
         style = MaterialTheme.typography.titleMedium,
@@ -369,25 +371,18 @@ private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     } else {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.selectedMods.forEach { mod ->
-                InputChip(
-                    selected = true,
-                    onClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        state.selectedMods.remove(mod)
-                    },
-                    label = { Text(mod.name) },
-                    leadingIcon = if (mod.isFolder) {
-                        { Icon(DoomIcons.Folder, contentDescription = null, Modifier.size(18.dp)) }
-                    } else null,
-                    trailingIcon = {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = stringResource(R.string.remove_mod),
-                            Modifier.size(18.dp),
-                        )
-                    },
+        // Ordered list — top loads first. Order is the engine command-line order, which
+        // matters (gameplay mods → maps → HUD/texture packs), so reorder is explicit.
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            state.selectedMods.forEachIndexed { index, mod ->
+                ModOrderRow(
+                    index = index,
+                    mod = mod,
+                    isFirst = index == 0,
+                    isLast = index == state.selectedMods.lastIndex,
+                    onUp = { state.moveMod(index, up = true) },
+                    onDown = { state.moveMod(index, up = false) },
+                    onRemove = { state.selectedMods.remove(mod) },
                 )
             }
         }
@@ -395,6 +390,179 @@ private fun AddonsSection(state: LaunchState, onAddMods: () -> Unit) {
     Spacer(Modifier.height(8.dp))
     OutlinedButton(onClick = onAddMods) {
         Text(stringResource(R.string.add_mods_button))
+    }
+}
+
+@Composable
+private fun ModOrderRow(
+    index: Int,
+    mod: ModEntry,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onUp: () -> Unit,
+    onDown: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "${index + 1}.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.size(8.dp))
+            if (mod.isFolder) {
+                Icon(DoomIcons.Folder, contentDescription = null, Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+            }
+            Text(
+                mod.name,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onUp, enabled = !isFirst) {
+                Icon(
+                    Icons.Default.KeyboardArrowUp,
+                    contentDescription = stringResource(R.string.move_up),
+                    Modifier.size(20.dp),
+                )
+            }
+            IconButton(onClick = onDown, enabled = !isLast) {
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.move_down),
+                    Modifier.size(20.dp),
+                )
+            }
+            IconButton(onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onRemove()
+            }) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = stringResource(R.string.remove_mod),
+                    Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProfilesSection(state: LaunchState) {
+    val game = state.selectedGame ?: return
+    val haptics = LocalHapticFeedback.current
+    // Bumped to force a re-read of the prefs-backed profile list after save/delete.
+    var refreshKey by remember { mutableStateOf(0) }
+    val profiles = remember(game.file, refreshKey) { state.profilesForCurrentGame() }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<LaunchProfile?>(null) }
+
+    Spacer(Modifier.height(20.dp))
+    Text(
+        stringResource(R.string.profiles_header),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.tertiary,
+    )
+    Spacer(Modifier.height(8.dp))
+    if (profiles.isEmpty()) {
+        Text(
+            stringResource(R.string.no_profiles),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            profiles.forEach { profile ->
+                InputChip(
+                    selected = false,
+                    onClick = { state.applyProfile(profile) },
+                    label = { Text(profile.name) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { pendingDelete = profile },
+                            modifier = Modifier.size(20.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.delete_profile),
+                                Modifier.size(16.dp),
+                            )
+                        }
+                    },
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = { showSaveDialog = true },
+        enabled = state.selectedMods.isNotEmpty() || state.extraArgs.isNotBlank(),
+    ) {
+        Text(stringResource(R.string.save_profile_button))
+    }
+
+    if (showSaveDialog) {
+        var name by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text(stringResource(R.string.save_profile_title)) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.profile_name_label)) },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = name.isNotBlank(),
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        state.saveProfile(name)
+                        showSaveDialog = false
+                        refreshKey++
+                    },
+                ) { Text(stringResource(R.string.save_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveDialog = false }) {
+                    Text(stringResource(R.string.cancel_button))
+                }
+            },
+        )
+    }
+
+    pendingDelete?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            text = { Text(stringResource(R.string.delete_profile_confirm, profile.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.deleteProfile(profile)
+                    pendingDelete = null
+                    refreshKey++
+                }) { Text(stringResource(R.string.delete_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.cancel_button))
+                }
+            },
+        )
     }
 }
 

@@ -14,9 +14,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import android.content.res.Configuration
 import com.beloko.touchcontrols.GamePadFragment
 import com.msa.freedoom.ui.MainScreen
 import com.msa.freedoom.ui.theme.DoomTheme
+import com.msa.freedoom.ui.theme.ThemeController
+import com.msa.freedoom.ui.theme.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -28,15 +31,26 @@ class EntryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Transparent system bars with light (white) icons — the app is always dark-themed.
-        // The bottom NavigationBar paints its own surface behind the navigation bar so the
-        // two read as one (see MainScreen's Scaffold).
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-        )
 
         AppSettings.reloadSettings(application)
+        ThemeController.init(application)
+
+        // Transparent system bars whose icon colour follows the resolved theme: light
+        // (white) icons on dark, dark icons on light, so they stay legible either way.
+        // The bottom NavigationBar paints its own surface behind the navigation bar so
+        // the two read as one (see MainScreen's Scaffold).
+        if (resolvedDark()) {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            )
+        } else {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            )
+        }
+
         // App-specific external storage needs no runtime permission on modern Android.
         // Off the main thread so a slow/full SD card can't ANR cold start; the launch tab
         // re-runs createDirectories on its own IO path before it needs the dirs.
@@ -62,6 +76,18 @@ class EntryActivity : AppCompatActivity() {
         if (intent.action == Intent.ACTION_VIEW) deeplink = intent.data
     }
 
+
+    /** Whether the chosen theme resolves to a dark scheme at startup (drives system-bar icons). */
+    private fun resolvedDark(): Boolean {
+        val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+            Configuration.UI_MODE_NIGHT_YES
+        return when (ThemeController.mode) {
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+            // DYNAMIC and SYSTEM both pick their dark/light variant from the OS setting.
+            ThemeMode.SYSTEM, ThemeMode.DYNAMIC -> systemDark
+        }
+    }
 
     private fun gamePadFragment(): GamePadFragment? =
         supportFragmentManager.fragments.filterIsInstance<GamePadFragment>().firstOrNull()

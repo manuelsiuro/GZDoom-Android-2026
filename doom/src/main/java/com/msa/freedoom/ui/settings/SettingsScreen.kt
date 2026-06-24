@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,8 +29,11 @@ import com.msa.freedoom.ui.DoomIcons
  */
 @Composable
 fun SettingsScreen(
+    onOpenTouchControls: () -> Unit,
     onOpenGamepad: () -> Unit,
     onOpenOptions: () -> Unit,
+    onOpenStats: () -> Unit,
+    onReplayOnboarding: () -> Unit,
     onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -37,6 +42,12 @@ fun SettingsScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
+        SettingsRow(
+            icon = DoomIcons.Tune,
+            title = stringResource(R.string.touch_controls_tab),
+            onClick = onOpenTouchControls,
+        )
+        HorizontalDivider()
         SettingsRow(
             icon = DoomIcons.Gamepad,
             title = stringResource(R.string.gamepad_tab),
@@ -47,6 +58,18 @@ fun SettingsScreen(
             icon = Icons.Filled.Settings,
             title = stringResource(R.string.options_tab),
             onClick = onOpenOptions,
+        )
+        HorizontalDivider()
+        SettingsRow(
+            icon = Icons.Filled.DateRange,
+            title = stringResource(R.string.stats_tab),
+            onClick = onOpenStats,
+        )
+        HorizontalDivider()
+        SettingsRow(
+            icon = Icons.Filled.Refresh,
+            title = stringResource(R.string.replay_onboarding),
+            onClick = onReplayOnboarding,
         )
         HorizontalDivider()
         SettingsRow(

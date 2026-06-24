@@ -1,6 +1,6 @@
 # Master makefile for the Freedoom-for-Android native stack, rebased onto
-# emileb's maintained GZDoom 4.15.x mobile port (github.com/emileb/gzdoom
-# @ mobile_4.15.x) plus its OpenTouch support libraries.
+# emileb's maintained UZDoom 5.0 mobile port (github.com/emileb/gzdoom
+# @ uz_5.0_pre, a GZDoom 4.15-derived engine) plus its OpenTouch support libraries.
 #
 # Layout expectations baked into the vendored makefiles:
 #  - TOP_DIR is this directory; support libs are siblings (Clibs_OpenTouch,

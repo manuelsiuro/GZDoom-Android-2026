@@ -99,6 +99,10 @@ object AppSettings {
     }
 
     @JvmStatic
+    fun getFloatOption(ctx: Context, name: String, def: Float): Float =
+        ctx.getSharedPreferences("OPTIONS", Context.MODE_PRIVATE).getFloat(name, def)
+
+    @JvmStatic
     fun setFloatOption(ctx: Context, name: String, value: Float) {
         ctx.getSharedPreferences("OPTIONS", Context.MODE_PRIVATE).edit().putFloat(name, value).apply()
     }

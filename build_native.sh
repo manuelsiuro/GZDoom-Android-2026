@@ -4,8 +4,8 @@
 # (doom/build.gradle.kts: jniLibs.srcDirs("src/main/libs")). Run this whenever the
 # native sources under doom/src/main/jni change, then `./gradlew :doom:assembleDebug`.
 #
-# The native stack is emileb's maintained, FMOD-free Freedoom/GZDoom engine
-# (github.com/emileb/gzdoom @ freedoom_for_android_gz1.9_no_fmod) plus its deps,
+# The native stack is emileb's maintained, FMOD-free UZDoom 5.0 engine
+# (github.com/emileb/gzdoom @ uz_5.0_pre, GZDoom 4.15-derived) plus its deps,
 # vendored under doom/src/main/jni. Build/ABI/toolchain settings: jni/Application.mk.
 set -e
 

@@ -131,8 +131,9 @@ so it shows up immediately in the launcher.
     patches map to `-deh` automatically. The picker shows the **selected game** in its title,
     compatibility badges per add-on, an **"only compatible"** filter, and **favorites** — star any
     WAD/mod or folder and filter to just your starred ones (persisted across sessions).
-  - Command-line args field with history dropdown; Options tab with data-folder picker and resolution
-    divider.
+  - Command-line args field with history dropdown; Options tab with data-folder picker, resolution
+    divider, in-launcher game settings (FOV/brightness/crosshair/volumes…), theme picker, and
+    backup/restore; saveable per-game launch profiles.
   - First-run unpacking now shows a progress indicator (the old 10-second activity-restart hack is
     gone).
   - The in-game UI is untouched: the engine command-line contract is byte-identical (guarded by a unit
@@ -142,6 +143,31 @@ so it shows up immediately in the launcher.
   - `android:exported`, `WindowInsetsControllerCompat` immersive mode, `MODE_PRIVATE` prefs,
     edge-to-edge launcher with **themed system bars** (white status-bar icons; the navigation bar
     shares the bottom-navigation color).
+
+### 🎮 Player experience & customization
+
+The launcher now surfaces the settings players actually want, without diving into the engine's
+tiny in-game touch menus:
+
+- **In-launcher game settings.** Set field of view, brightness, crosshair, dynamic lights, vsync,
+  autosave slots, an FPS counter, and master/music/SFX volumes from the Options screen. These are
+  rendered to the engine command line as `+set`/`+fov` args at launch (opt-in; the byte-identical
+  launch contract and its golden test are untouched — the args are composed alongside the add-on
+  flags, never inside the guarded builder).
+- **Compose touch-control settings.** A native Compose screen tunes on-screen opacity,
+  forward/strafe/look/turn sensitivity, mouse-look, invert-look, precision shooting, the weapon
+  wheel and analog sticks — writing the same prefs the engine reads on next launch.
+- **Mod profiles & load order.** Save the selected IWAD + add-ons + args as a named **profile**
+  (per game), and **reorder** add-ons explicitly — load order matters (gameplay mods → maps →
+  HUD/texture packs).
+- **Themes.** Keep the dark Doom identity, or switch to a **light** theme, **follow the system**,
+  or **Material You** dynamic color (Android 12+) — applied live.
+- **First-run wizard.** A short intro explains Freedoom, the idgames browser, and the controls;
+  re-openable any time from Settings → *View intro again*.
+- **Backup & restore.** Export your savegames and all settings to a single `.zip` (via the Storage
+  Access Framework — local, SD, or a cloud folder) and restore them on another device.
+- **Play statistics.** A local, account-free Statistics screen tracks total playtime, games
+  launched, and last played.
 
 ### 📱 Platform & engine
 
@@ -228,6 +254,10 @@ did not occur on real devices. Verify rendering on real hardware.
       (monsters, keys, items, starts) with a Thing/Select tool and per-thing skill/ambush flags
 - [x] Update SDL 1.x → SDL2 and the GL ES 1.x path → GL ES 3.x (GZDoom 4.15, `mobile_4.15.x`)
 - [x] Swap the native engine to UZDoom 5.0.0-pre (`uz_5.0_pre`) — builds & runs on device
+- [x] In-launcher game settings (FOV, brightness, crosshair, dynamic lights, vsync, volumes, FPS)
+- [x] Compose touch-control settings; saveable per-game mod profiles with explicit load order
+- [x] Light / system / Material You themes; first-run onboarding wizard
+- [x] Backup & restore (savegames + settings) via the Storage Access Framework; local play stats
 
 ### Planned 🔜
 
