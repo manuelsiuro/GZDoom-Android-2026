@@ -179,6 +179,8 @@ fun OptionsScreen(modifier: Modifier = Modifier) {
                 )
                 Spacer(Modifier.height(12.dp))
                 GoreModToggle()
+                Spacer(Modifier.height(12.dp))
+                HapticsToggle()
             }
         }
 
@@ -269,6 +271,45 @@ private fun GoreModToggle() {
             onCheckedChange = {
                 enabled = it
                 AppSettings.setBoolOption(context, "enable_gore_mod", it)
+            },
+        )
+    }
+}
+
+/**
+ * Toggles haptic feedback. When on, the engine vibrates the device on weapon fire
+ * and when the player is hit (see the native COMMAND_VIBRATE hooks). Backed by the
+ * shared "vibrate" pref, read on demand by SDLOpenTouch.CommandHandler in the
+ * :Game process.
+ */
+@Composable
+private fun HapticsToggle() {
+    val context = LocalContext.current
+    var enabled by remember {
+        mutableStateOf(AppSettings.getBoolOption(context, "vibrate", true))
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.haptics_prompt),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                stringResource(R.string.haptics_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = enabled,
+            onCheckedChange = {
+                enabled = it
+                AppSettings.setBoolOption(context, "vibrate", it)
             },
         )
     }

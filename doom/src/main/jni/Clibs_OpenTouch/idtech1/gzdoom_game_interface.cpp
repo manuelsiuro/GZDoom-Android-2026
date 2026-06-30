@@ -102,6 +102,10 @@ static CStringFIFO m_CmdFifo;
 
 bool g_bindingbutton = false;
 
+// Haptic feedback bridge: native->Java vibrate channel (mirrors touch_interface_base.cpp).
+#define COMMAND_VIBRATE 0x8005
+extern "C" int Android_JNI_SendMessage(int command, int param);
+
 int PortableKeyEvent(int state, int code, int unicode)
 {
     //LOGI("PortableKeyEvent %d %d %d\n", state, code, unicode);
@@ -224,6 +228,14 @@ void PortableAction(int state, int action)
     // Force this to false on every button down, in case a mod overrides the menu zsript
     if(state)
         g_bindingbutton = false;
+
+    // Haptic feedback on weapon fire (press only, during gameplay - not menus).
+    if(state &&
+       (action == PORT_ACT_ATTACK || action == PORT_ACT_ALT_ATTACK) &&
+       PortableGetScreenMode() != TS_MENU && PortableGetScreenMode() != TS_BLANK)
+    {
+        Android_JNI_SendMessage(COMMAND_VIBRATE, 22); // ~22ms = light trigger tap
+    }
 
     if((action >= PORT_ACT_CUSTOM_0) && (action <= PORT_ACT_CUSTOM_25))
     {

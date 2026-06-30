@@ -3,7 +3,11 @@ package org.libsdl.app;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Message;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -225,6 +229,10 @@ public class SDLOpenTouch
     // starts with clean native state.
     static final int COMMAND_EXIT_APP = 0x8007;
 
+    // Sent by the native vibrate channel (TouchInterfaceBase::vibrate and the
+    // fire/hit haptic hooks). msg.obj is the Integer duration in milliseconds.
+    static final int COMMAND_VIBRATE = 0x8005;
+
     public static boolean CommandHandler(Activity activity, Message msg)
     {
         if (msg.arg1 == COMMAND_EXIT_APP)
@@ -232,6 +240,38 @@ public class SDLOpenTouch
             Log.v(TAG, "COMMAND_EXIT_APP: finishing");
             activity.finish();
             android.os.Process.killProcess(android.os.Process.myPid());
+            return true;
+        }
+        if (msg.arg1 == COMMAND_VIBRATE)
+        {
+            // Read the pref straight from disk: the :Game process does not run
+            // AppSettings.reloadSettings, so the static field is unreliable here.
+            if (AppSettings.getBoolOption(activity, "vibrate", true))
+            {
+                int ms = (msg.obj instanceof Integer) ? (Integer) msg.obj : 30;
+                try
+                {
+                    Vibrator v;
+                    if (Build.VERSION.SDK_INT >= 31)
+                    {
+                        VibratorManager vm = (VibratorManager)
+                            activity.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+                        v = vm.getDefaultVibrator();
+                    }
+                    else
+                    {
+                        v = (Vibrator) activity.getSystemService(Context.VIBRATOR_SERVICE);
+                    }
+                    if (v != null && v.hasVibrator())
+                    {
+                        v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.w(TAG, "vibrate failed", e);
+                }
+            }
             return true;
         }
         return false;

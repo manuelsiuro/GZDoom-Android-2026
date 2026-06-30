@@ -57,6 +57,8 @@
     <string name="performance_header">Performance</string>
     <string name="enable_gore_mod_prompt">Enhanced blood &amp; gore</string>
     <string name="enable_gore_mod_summary">Adds procedural blood splashes, drips, pools and particles (Droplets by Josh771). Tune it in the in-game Options menu.</string>
+    <string name="haptics_prompt">Haptic feedback</string>
+    <string name="haptics_summary">Vibrate when you fire and when an enemy hits you.</string>
     <string name="engine_options_header">Game settings</string>
     <string name="engine_options_summary">Set field of view, brightness, crosshair, volumes and more from here instead of the in-game menu. Applied every launch when enabled.</string>
     <string name="engine_opt_fov">Field of view</string>

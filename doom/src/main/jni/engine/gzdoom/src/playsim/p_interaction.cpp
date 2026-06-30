@@ -53,6 +53,10 @@
 #include "actorinlines.h"
 #include "d_main.h"
 
+// Haptic feedback bridge: native->Java vibrate channel (mirrors touch_interface_base.cpp).
+#define COMMAND_VIBRATE 0x8005
+extern "C" int Android_JNI_SendMessage(int command, int param);
+
 static FRandom pr_botrespawn ("BotRespawn");
 static FRandom pr_killmobj ("ActorDie");
 FRandom pr_damagemobj ("ActorTakeDamage");
@@ -1437,6 +1441,8 @@ static int DamageMobj (AActor *target, AActor *inflictor, AActor *source, int da
 		if (player == target->Level->GetConsolePlayer() )
 		{
 			//I_Tactile (40,10,40+temp*2);
+			// Haptic feedback when the local player is hit (duration scales with damage).
+			Android_JNI_SendMessage(COMMAND_VIBRATE, 40 + temp * 2); // 40..240ms
 		}
 	}
 	else if (!player)
